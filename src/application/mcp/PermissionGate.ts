@@ -43,7 +43,7 @@ export class PermissionGate {
   }
 
   private matchPathDeny(patterns: string[], params: Record<string, unknown>): string | null {
-    const candidates = ['path', 'from', 'to']
+    const candidates = ['path', 'from', 'to', 'sourcePath', 'startPath', 'folder', 'commandId']
       .map((k) => params[k])
       .filter((v): v is string => typeof v === 'string')
     for (const candidate of candidates) {

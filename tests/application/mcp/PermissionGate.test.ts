@@ -144,5 +144,48 @@ describe('PermissionGate.resolve', () => {
       })
       expect(d.decision).toBe('deny')
     })
+
+    it('pathDenyList matches commandId (cli.execute)', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['**/dangerous-command'],
+        toolModes: { 'cli.execute': 'allow' },
+      })
+      const d = await gate.resolve('cli.execute', { commandId: 'plugins/dangerous-command' })
+      expect(d.decision).toBe('deny')
+      expect(d.reason).toContain('pathDenyList')
+    })
+
+    it('pathDenyList matches folder (bases.list)', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['private/**'],
+        toolModes: { 'bases.list': 'allow' },
+      })
+      const d = await gate.resolve('bases.list', { folder: 'private/data' })
+      expect(d.decision).toBe('deny')
+      expect(d.reason).toContain('pathDenyList')
+    })
+
+    it('pathDenyList matches startPath (links.bfs)', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['**/secret/**'],
+        toolModes: { 'links.bfs': 'allow' },
+      })
+      const d = await gate.resolve('links.bfs', { startPath: 'projects/secret/note.md' })
+      expect(d.decision).toBe('deny')
+      expect(d.reason).toContain('pathDenyList')
+    })
+
+    it('pathDenyList does NOT match content field (vault.write)', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['**/private/**'],
+        toolModes: { 'vault.write': 'allow' },
+      })
+      // content contains a path-like string but should not be inspected by the deny list
+      const d = await gate.resolve('vault.write', {
+        path: 'safe.md',
+        content: '../private/should-not-match',
+      })
+      expect(d.decision).toBe('allow')
+    })
   })
 })
