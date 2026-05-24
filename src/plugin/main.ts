@@ -35,8 +35,17 @@ export default class SpecoratorMcpPlugin extends Plugin {
    */
   gate?: PermissionGate
 
+  /**
+   * AutoRegister instance constructed once on load so startup does not
+   * re-instantiate NodeFileSystemAdapter on every start/stop cycle.
+   * Undefined until onload completes.
+   */
+  private autoRegister?: AutoRegister
+
   async onload(): Promise<void> {
     await this.loadSettings()
+
+    this.autoRegister = new AutoRegister(new NodeFileSystemAdapter())
 
     this.addSettingTab(new SpecoratorMcpSettingsTab(this.app, this))
 
@@ -110,9 +119,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
 
     const url = `http://127.0.0.1:${port}/mcp`
     const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
-    if (enabledTargets.length > 0) {
-      const autoReg = new AutoRegister(new NodeFileSystemAdapter())
-      const results = await autoReg.register(url, enabledTargets)
+    if (enabledTargets.length > 0 && this.autoRegister) {
+      const results = await this.autoRegister.register(url, enabledTargets)
       const registered = results.filter((r) => r.status === 'registered').map((r) => r.target.name)
       if (registered.length > 0) {
         new Notice(`MCP server registered with: ${registered.join(', ')}`)
@@ -126,9 +134,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
   private async stopServer(): Promise<void> {
     if (this.mcp) {
       const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
-      if (enabledTargets.length > 0) {
-        const autoReg = new AutoRegister(new NodeFileSystemAdapter())
-        const results = await autoReg.deregister(enabledTargets)
+      if (enabledTargets.length > 0 && this.autoRegister) {
+        const results = await this.autoRegister.deregister(enabledTargets)
         const deregistered = results
           .filter((r) => r.status === 'registered' && r.reason === 'deregistered')
           .map((r) => r.target.name)
