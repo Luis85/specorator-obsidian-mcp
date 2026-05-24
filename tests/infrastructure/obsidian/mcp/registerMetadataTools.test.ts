@@ -24,7 +24,9 @@ describe('registerMetadataTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    const expected = Object.keys(DEFAULT_TOOL_MODES).filter((k) => k.startsWith('metadata.')).sort()
+    const expected = Object.keys(DEFAULT_TOOL_MODES)
+      .filter((k) => k.startsWith('metadata.'))
+      .sort()
     expect(Object.keys(tools).sort()).toEqual(expected)
   })
 

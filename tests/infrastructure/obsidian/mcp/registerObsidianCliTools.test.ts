@@ -14,7 +14,8 @@ function setup() {
     },
   }
   registerObsidianCliTools(server, { app: fakeApp as any })
-  const tools = (server as unknown as { _registeredTools: Record<string, unknown> })._registeredTools
+  const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+    ._registeredTools
   return { server, fakeApp, tools }
 }
 
@@ -26,7 +27,9 @@ describe('registerObsidianCliTools', () => {
 
   it('cli.execute invokes command and returns executed: true on success', async () => {
     const { fakeApp, tools } = setup()
-    const result = (await (tools['cli.execute'] as RegisteredTool).handler({ commandId: 'editor:save-file' })) as {
+    const result = (await (tools['cli.execute'] as RegisteredTool).handler({
+      commandId: 'editor:save-file',
+    })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as { executed: boolean; commandId: string }
@@ -38,7 +41,9 @@ describe('registerObsidianCliTools', () => {
   it('cli.execute returns executed: false when command not found', async () => {
     const { fakeApp, tools } = setup()
     fakeApp.commands.executeCommandById.mockReturnValue(false)
-    const result = (await (tools['cli.execute'] as RegisteredTool).handler({ commandId: 'unknown:cmd' })) as {
+    const result = (await (tools['cli.execute'] as RegisteredTool).handler({
+      commandId: 'unknown:cmd',
+    })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as { executed: boolean }
