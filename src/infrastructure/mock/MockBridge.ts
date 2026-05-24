@@ -9,262 +9,173 @@ import type {
   JsonCanvasData,
   Unsubscriber,
 } from '@/domain/ports'
-import { type PluginSettings, DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
-
-function folderPrefix(parent: string): string {
-  if (parent === '') return ''
-  return parent.endsWith('/') ? parent : `${parent}/`
-}
+import { type PluginSettings } from '@/domain/settings/PluginSettings'
+import { MockVaultPort } from './MockVaultPort'
+import { MockMetadataCachePort } from './MockMetadataCachePort'
+import { MockCanvasPort } from './MockCanvasPort'
+import { MockNotificationPort } from './MockNotificationPort'
+import { MockLoggerPort } from './MockLoggerPort'
+import { MockSettingsPort } from './MockSettingsPort'
 
 /**
- * In-memory bridge used in unit tests and standalone dev mode.
- * Implements VaultPort, MetadataCachePort, CanvasPort, NotificationPort,
- * LoggerPort, and SettingsPort in one class for convenient test wiring.
- * Provides test helper methods for inspecting captured state.
+ * Thin composition of per-port mocks.
+ *
+ * Implements all six ports by delegating to one instance per port so existing
+ * tests that use `MockBridge` directly continue to work. Per-port mocks are
+ * exposed as public fields for tests that only need a single port.
+ *
+ * @see MockVaultPort, MockMetadataCachePort, MockCanvasPort, MockNotificationPort,
+ *      MockLoggerPort, MockSettingsPort
  */
 export class MockBridge
   implements VaultPort, MetadataCachePort, CanvasPort, NotificationPort, LoggerPort, SettingsPort
 {
-  // ── VaultPort ─────────────────────────────────────────────────────────────
-  private readonly files = new Map<string, string>()
-  private readonly folders = new Set<string>()
+  readonly vaultPort: MockVaultPort
+  readonly metadataCachePort: MockMetadataCachePort
+  readonly canvasPort: MockCanvasPort
+  readonly notificationPort: MockNotificationPort
+  readonly loggerPort: MockLoggerPort
+  readonly settingsPort: MockSettingsPort
 
   constructor(initialFiles: Record<string, string> = {}) {
-    for (const [path, content] of Object.entries(initialFiles)) {
-      this.files.set(path, content)
-      // Register parent folders automatically
-      const parts = path.split('/')
-      for (let i = 1; i < parts.length; i++) {
-        this.folders.add(parts.slice(0, i).join('/'))
-      }
-    }
+    this.vaultPort = new MockVaultPort(initialFiles)
+    this.metadataCachePort = new MockMetadataCachePort()
+    this.canvasPort = new MockCanvasPort()
+    this.notificationPort = new MockNotificationPort()
+    this.loggerPort = new MockLoggerPort()
+    this.settingsPort = new MockSettingsPort()
   }
 
-  async readFile(path: string): Promise<string> {
-    const content = this.files.get(path)
-    if (content === undefined) throw new Error(`[MockBridge] File not found: ${path}`)
-    return content
+  // ── VaultPort ─────────────────────────────────────────────────────────────
+  readFile(path: string): Promise<string> {
+    return this.vaultPort.readFile(path)
   }
-
-  async writeFile(path: string, content: string): Promise<void> {
-    this.files.set(path, content)
+  writeFile(path: string, content: string): Promise<void> {
+    return this.vaultPort.writeFile(path, content)
   }
-
-  async deleteFile(path: string): Promise<void> {
-    this.files.delete(path)
+  deleteFile(path: string): Promise<void> {
+    return this.vaultPort.deleteFile(path)
   }
-
-  async listFiles(folder: string): Promise<string[]> {
-    if (folder === '') {
-      return [...this.files.keys()].filter((p) => !p.includes('/'))
-    }
-    const prefix = folder.endsWith('/') ? folder : `${folder}/`
-    return [...this.files.keys()].filter((p) => {
-      if (!p.startsWith(prefix)) return false
-      return !p.slice(prefix.length).includes('/')
-    })
+  listFiles(folder: string): Promise<string[]> {
+    return this.vaultPort.listFiles(folder)
   }
-
-  async listFolders(parent: string): Promise<string[]> {
-    const prefix = folderPrefix(parent)
-    const names = new Set<string>()
-    for (const folder of this.folders) {
-      if (folder.startsWith(prefix)) {
-        const rest = folder.slice(prefix.length)
-        if (rest && !rest.includes('/')) names.add(rest)
-      }
-    }
-    for (const path of this.files.keys()) {
-      if (!prefix || path.startsWith(prefix)) {
-        const rest = path.slice(prefix.length)
-        const firstSegment = rest.split('/')[0]
-        if (firstSegment && rest.includes('/')) names.add(firstSegment)
-      }
-    }
-    return [...names]
+  listFolders(parent: string): Promise<string[]> {
+    return this.vaultPort.listFolders(parent)
   }
-
-  async fileExists(path: string): Promise<boolean> {
-    return this.files.has(path)
+  fileExists(path: string): Promise<boolean> {
+    return this.vaultPort.fileExists(path)
   }
-
-  async createFolder(path: string): Promise<void> {
-    this.folders.add(path)
+  createFolder(path: string): Promise<void> {
+    return this.vaultPort.createFolder(path)
   }
 
   // ── MetadataCachePort ────────────────────────────────────────────────────
-  private readonly metadataMap = new Map<string, FileMetadataSnapshot>()
-  private readonly backlinksMap = new Map<string, string[]>()
-  private readonly resolvedLinksMap = new Map<string, Record<string, number>>()
-  private tagsMap: Record<string, number> = {}
-  private readonly linkpathDestMap = new Map<string, string>()
-  private readonly metadataHandlers = new Set<(path: string) => void>()
-
   seedMetadata(path: string, snapshot: FileMetadataSnapshot): void {
-    this.metadataMap.set(path, snapshot)
+    this.metadataCachePort.seedMetadata(path, snapshot)
   }
-
   seedBacklinks(path: string, sources: string[]): void {
-    this.backlinksMap.set(path, sources)
+    this.metadataCachePort.seedBacklinks(path, sources)
   }
-
   seedResolvedLinks(path: string, links: Record<string, number>): void {
-    this.resolvedLinksMap.set(path, links)
+    this.metadataCachePort.seedResolvedLinks(path, links)
   }
-
   seedTags(tags: Record<string, number>): void {
-    this.tagsMap = { ...tags }
+    this.metadataCachePort.seedTags(tags)
   }
-
   seedLinkpathDest(linktext: string, sourcePath: string, dest: string): void {
-    this.linkpathDestMap.set(`${linktext}|${sourcePath}`, dest)
+    this.metadataCachePort.seedLinkpathDest(linktext, sourcePath, dest)
   }
-
   triggerMetadataChange(path: string): void {
-    for (const handler of this.metadataHandlers) {
-      handler(path)
-    }
+    this.metadataCachePort.triggerMetadataChange(path)
   }
-
   getFileMetadata(path: string): FileMetadataSnapshot | null {
-    const snapshot = this.metadataMap.get(path)
-    return snapshot !== undefined ? structuredClone(snapshot) : null
+    return this.metadataCachePort.getFileMetadata(path)
   }
-
   getBacklinks(path: string): string[] {
-    return [...(this.backlinksMap.get(path) ?? [])]
+    return this.metadataCachePort.getBacklinks(path)
   }
-
   getResolvedLinks(sourcePath: string): Record<string, number> {
-    return { ...(this.resolvedLinksMap.get(sourcePath) ?? {}) }
+    return this.metadataCachePort.getResolvedLinks(sourcePath)
   }
-
   getAllTags(): Record<string, number> {
-    return { ...this.tagsMap }
+    return this.metadataCachePort.getAllTags()
   }
-
   getFirstLinkpathDest(linktext: string, sourcePath: string): string | null {
-    return this.linkpathDestMap.get(`${linktext}|${sourcePath}`) ?? null
+    return this.metadataCachePort.getFirstLinkpathDest(linktext, sourcePath)
   }
-
   onMetadataChanged(handler: (path: string) => void): Unsubscriber {
-    this.metadataHandlers.add(handler)
-    return () => {
-      this.metadataHandlers.delete(handler)
-    }
+    return this.metadataCachePort.onMetadataChanged(handler)
   }
 
   // ── CanvasPort ───────────────────────────────────────────────────────────
-  private readonly canvasStore = new Map<string, JsonCanvasData>()
-  private readonly canvasWritten = new Map<string, JsonCanvasData>()
-
   seedCanvas(path: string, data: JsonCanvasData): void {
-    this.canvasStore.set(path, structuredClone(data))
+    this.canvasPort.seedCanvas(path, data)
   }
-
   getWrittenCanvas(path: string): JsonCanvasData | undefined {
-    const data = this.canvasWritten.get(path)
-    return data !== undefined ? structuredClone(data) : undefined
+    return this.canvasPort.getWrittenCanvas(path)
   }
-
   isCanvas(path: string): boolean {
-    return path.endsWith('.canvas')
+    return this.canvasPort.isCanvas(path)
   }
-
-  async readCanvas(path: string): Promise<JsonCanvasData> {
-    const data = this.canvasStore.get(path)
-    if (data === undefined) {
-      throw new Error(`[MockBridge] Canvas not found: ${path}`)
-    }
-    return structuredClone(data)
+  readCanvas(path: string): Promise<JsonCanvasData> {
+    return this.canvasPort.readCanvas(path)
   }
-
-  async writeCanvas(path: string, data: JsonCanvasData): Promise<void> {
-    this.canvasStore.set(path, structuredClone(data))
-    this.canvasWritten.set(path, structuredClone(data))
+  writeCanvas(path: string, data: JsonCanvasData): Promise<void> {
+    return this.canvasPort.writeCanvas(path, data)
   }
 
   // ── NotificationPort ─────────────────────────────────────────────────────
-  private readonly noticeLog: {
-    severity: 'error' | 'warning' | 'success' | 'info'
-    message: string
-    durationMs: number
-  }[] = []
-
-  showError(message: string, durationMs = 0): void {
-    this.noticeLog.push({ severity: 'error', message, durationMs })
+  showError(message: string, durationMs?: number): void {
+    this.notificationPort.showError(message, durationMs)
+  }
+  showWarning(message: string, durationMs?: number): void {
+    this.notificationPort.showWarning(message, durationMs)
+  }
+  showSuccess(message: string, durationMs?: number): void {
+    this.notificationPort.showSuccess(message, durationMs)
+  }
+  showInfo(message: string, durationMs?: number): void {
+    this.notificationPort.showInfo(message, durationMs)
   }
 
-  showWarning(message: string, durationMs = 8000): void {
-    this.noticeLog.push({ severity: 'warning', message, durationMs })
-  }
-
-  showSuccess(message: string, durationMs = 4000): void {
-    this.noticeLog.push({ severity: 'success', message, durationMs })
-  }
-
-  showInfo(message: string, durationMs = 4000): void {
-    this.noticeLog.push({ severity: 'info', message, durationMs })
-  }
-
-  get notices(): readonly {
-    severity: 'error' | 'warning' | 'success' | 'info'
-    message: string
-    durationMs: number
-  }[] {
-    return [...this.noticeLog]
+  /** Delegate accessor kept for back-compat with existing tests. */
+  get notices(): MockNotificationPort['notices'] {
+    return this.notificationPort.notices
   }
 
   // ── LoggerPort ───────────────────────────────────────────────────────────
-  private readonly _logEntries: Array<{
-    level: 'debug' | 'info' | 'warn' | 'error'
-    message: string
-    error?: unknown
-    context?: Record<string, unknown>
-  }> = []
-
-  get logEntries(): readonly {
-    level: 'debug' | 'info' | 'warn' | 'error'
-    message: string
-    error?: unknown
-    context?: Record<string, unknown>
-  }[] {
-    return [...this._logEntries]
-  }
-
   debug(message: string, context?: Record<string, unknown>): void {
-    this._logEntries.push({ level: 'debug', message, context })
+    this.loggerPort.debug(message, context)
   }
-
   info(message: string, context?: Record<string, unknown>): void {
-    this._logEntries.push({ level: 'info', message, context })
+    this.loggerPort.info(message, context)
   }
-
   warn(message: string, context?: Record<string, unknown>): void {
-    this._logEntries.push({ level: 'warn', message, context })
+    this.loggerPort.warn(message, context)
+  }
+  error(message: string, error?: unknown, context?: Record<string, unknown>): void {
+    this.loggerPort.error(message, error, context)
   }
 
-  error(message: string, error?: unknown, context?: Record<string, unknown>): void {
-    this._logEntries.push({ level: 'error', message, error, context })
+  /** Delegate accessor kept for back-compat with existing tests. */
+  get logEntries(): MockLoggerPort['logEntries'] {
+    return this.loggerPort.logEntries
   }
 
   // ── SettingsPort ─────────────────────────────────────────────────────────
-  private settings: PluginSettings = { ...DEFAULT_SETTINGS }
-
   getSettings(): PluginSettings {
-    return { ...this.settings }
+    return this.settingsPort.getSettings()
+  }
+  saveSettings(settings: PluginSettings): Promise<void> {
+    return this.settingsPort.saveSettings(settings)
   }
 
-  async saveSettings(settings: PluginSettings): Promise<void> {
-    this.settings = { ...settings }
-  }
-
-  // ── Test helpers ─────────────────────────────────────────────────────────
+  // ── Test helpers (delegating to per-port mocks) ──────────────────────────
   seedSettings(partial: Partial<PluginSettings>): void {
-    this.settings = { ...this.settings, ...partial }
+    this.settingsPort.seedSettings(partial)
   }
 
   getAllFiles(): Record<string, string> {
-    return Object.fromEntries(this.files)
+    return this.vaultPort.getAllFiles()
   }
 }

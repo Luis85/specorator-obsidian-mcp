@@ -1,35 +1,32 @@
 import { MockBridge } from '@/infrastructure/mock/MockBridge'
 import { MockConfirmModalPort } from '@/infrastructure/mock/MockConfirmModalPort'
-import type {
-  VaultPort,
-  MetadataCachePort,
-  CanvasPort,
-  NotificationPort,
-  LoggerPort,
-  SettingsPort,
-  ConfirmModalPort,
-} from '@/domain/ports'
+import { MockVaultPort } from '@/infrastructure/mock/MockVaultPort'
+import { MockMetadataCachePort } from '@/infrastructure/mock/MockMetadataCachePort'
+import { MockCanvasPort } from '@/infrastructure/mock/MockCanvasPort'
+import { MockNotificationPort } from '@/infrastructure/mock/MockNotificationPort'
+import { MockLoggerPort } from '@/infrastructure/mock/MockLoggerPort'
+import { MockSettingsPort } from '@/infrastructure/mock/MockSettingsPort'
 
 export interface FakePorts {
-  vault: VaultPort
-  metadataCache: MetadataCachePort
-  canvas: CanvasPort
-  notification: NotificationPort
-  logger: LoggerPort
-  settings: SettingsPort
-  confirmModal: ConfirmModalPort
-  bridge: MockBridge
+  vault: MockVaultPort
+  metadataCache: MockMetadataCachePort
+  canvas: MockCanvasPort
+  notification: MockNotificationPort
+  logger: MockLoggerPort
+  settings: MockSettingsPort
+  confirmModal: MockConfirmModalPort
+  bridge: MockBridge // keep for back-compat — still exposes all the mocks
 }
 
 export function fakeModulePorts(): FakePorts {
   const bridge = new MockBridge()
   return {
-    vault: bridge,
-    metadataCache: bridge,
-    canvas: bridge,
-    notification: bridge,
-    logger: bridge,
-    settings: bridge,
+    vault: bridge.vaultPort,
+    metadataCache: bridge.metadataCachePort,
+    canvas: bridge.canvasPort,
+    notification: bridge.notificationPort,
+    logger: bridge.loggerPort,
+    settings: bridge.settingsPort,
     confirmModal: new MockConfirmModalPort(),
     bridge,
   }
