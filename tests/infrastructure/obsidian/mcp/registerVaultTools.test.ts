@@ -162,6 +162,27 @@ describe('registerVaultTools', () => {
     expect(await ports.vault.readFile('a.md')).toBe('hi')
   })
 
+  it('vault.write gate call does not include content field (modal-friendly)', async () => {
+    const ports = fakeModulePorts()
+    let capturedParams: Record<string, unknown> | undefined
+    const spyGate = {
+      resolve: async (
+        _toolName: string,
+        params: Record<string, unknown>,
+      ): Promise<{ decision: 'allow'; reason: string }> => {
+        capturedParams = params
+        return { decision: 'allow', reason: 'test' }
+      },
+    } as unknown as PermissionGate
+    const server = new McpServer({ name: 'test', version: '0.0.0' })
+    registerVaultTools(server, { vault: ports.vault, gate: spyGate })
+    const tools = (server as unknown as ServerInternal)._registeredTools
+    await tools['vault.write'].handler({ path: 'a.md', content: 'large content here' })
+    expect(capturedParams).toBeDefined()
+    expect('content' in capturedParams!).toBe(false)
+    expect(capturedParams!['path']).toBe('a.md')
+  })
+
   describe('path normalisation — traverse and absolute path rejection', () => {
     it('vault.read rejects ../ traversal', async () => {
       const { tools } = setup()
