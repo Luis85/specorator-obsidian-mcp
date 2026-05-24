@@ -112,9 +112,12 @@ export class ObsidianBridge
     folder?: string,
   ): Promise<Array<{ path: string; excerpt: string }>> {
     const lower = query.toLowerCase()
-    const prefix = folder !== undefined && folder !== '' && folder !== '/'
-      ? (folder.endsWith('/') ? folder : `${folder}/`)
-      : null
+    const prefix =
+      folder !== undefined && folder !== '' && folder !== '/'
+        ? folder.endsWith('/')
+          ? folder
+          : `${folder}/`
+        : null
     const allFiles = this.app.vault.getFiles().filter((f) => {
       if (prefix !== null && !f.path.startsWith(prefix)) return false
       return f.extension === 'md' || f.extension === 'txt' || f.extension === 'canvas'
@@ -209,7 +212,6 @@ export class ObsidianBridge
       const cache = this.app.metadataCache.getCache(file.path)
       if (!cache) continue
       const fm = (cache.frontmatter ?? {}) as Record<string, unknown>
-      // eslint-disable-next-line eqeqeq
       if (fm[field] === value) {
         results.push(file.path)
       }

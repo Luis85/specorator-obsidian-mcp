@@ -69,6 +69,9 @@ export class MockBridge
   createFolder(path: string): Promise<void> {
     return this.vaultPort.createFolder(path)
   }
+  searchFiles(query: string, folder?: string): Promise<Array<{ path: string; excerpt: string }>> {
+    return this.vaultPort.searchFiles(query, folder)
+  }
 
   // ── MetadataCachePort ────────────────────────────────────────────────────
   seedMetadata(path: string, snapshot: FileMetadataSnapshot): void {
@@ -110,6 +113,12 @@ export class MockBridge
   }
   onMetadataChanged(handler: (path: string) => void): Unsubscriber {
     return this.metadataCachePort.onMetadataChanged(handler)
+  }
+  searchByTag(tag: string): Promise<string[]> {
+    return this.metadataCachePort.searchByTag(tag)
+  }
+  searchByFrontmatter(field: string, value: unknown): Promise<string[]> {
+    return this.metadataCachePort.searchByFrontmatter(field, value)
   }
 
   // ── CanvasPort ───────────────────────────────────────────────────────────
