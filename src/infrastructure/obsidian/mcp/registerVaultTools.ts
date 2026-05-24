@@ -76,6 +76,9 @@ export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }
         to: z.string().describe('Destination vault-relative path'),
       },
     },
+    // Non-atomic: read + write + delete. If deleteFile throws after writeFile
+    // succeeds, the file will exist at both 'from' and 'to'. Callers must treat
+    // a returned error as indeterminate state. VaultPort offers no native move.
     async ({ from, to }) => {
       const content = await vault.readFile(from)
       await vault.writeFile(to, content)
