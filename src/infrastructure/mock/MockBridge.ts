@@ -180,9 +180,8 @@ export class MockBridge
   }
 
   async writeCanvas(path: string, data: JsonCanvasData): Promise<void> {
-    const clone = structuredClone(data)
-    this.canvasStore.set(path, clone)
-    this.canvasWritten.set(path, clone)
+    this.canvasStore.set(path, structuredClone(data))
+    this.canvasWritten.set(path, structuredClone(data))
   }
 
   // ── NotificationPort ─────────────────────────────────────────────────────
@@ -216,36 +215,37 @@ export class MockBridge
     return [...this.noticeLog]
   }
 
-  getNotices(): {
-    severity: 'error' | 'warning' | 'success' | 'info'
-    message: string
-    durationMs: number
-  }[] {
-    return [...this.noticeLog]
-  }
-
   // ── LoggerPort ───────────────────────────────────────────────────────────
-  readonly logEntries: Array<{
+  private readonly _logEntries: Array<{
     level: 'debug' | 'info' | 'warn' | 'error'
     message: string
     error?: unknown
     context?: Record<string, unknown>
   }> = []
 
+  get logEntries(): readonly {
+    level: 'debug' | 'info' | 'warn' | 'error'
+    message: string
+    error?: unknown
+    context?: Record<string, unknown>
+  }[] {
+    return [...this._logEntries]
+  }
+
   debug(message: string, context?: Record<string, unknown>): void {
-    this.logEntries.push({ level: 'debug', message, context })
+    this._logEntries.push({ level: 'debug', message, context })
   }
 
   info(message: string, context?: Record<string, unknown>): void {
-    this.logEntries.push({ level: 'info', message, context })
+    this._logEntries.push({ level: 'info', message, context })
   }
 
   warn(message: string, context?: Record<string, unknown>): void {
-    this.logEntries.push({ level: 'warn', message, context })
+    this._logEntries.push({ level: 'warn', message, context })
   }
 
   error(message: string, error?: unknown, context?: Record<string, unknown>): void {
-    this.logEntries.push({ level: 'error', message, error, context })
+    this._logEntries.push({ level: 'error', message, error, context })
   }
 
   // ── SettingsPort ─────────────────────────────────────────────────────────

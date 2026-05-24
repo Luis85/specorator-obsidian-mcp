@@ -1,4 +1,8 @@
-import type { ConfirmModalPort, ConfirmModalRequest, ConfirmModalChoice } from '@/domain/ports/ConfirmModalPort'
+import type {
+  ConfirmModalPort,
+  ConfirmModalRequest,
+  ConfirmModalChoice,
+} from '@/domain/ports/ConfirmModalPort'
 
 /**
  * Field-driven test double for {@link ConfirmModalPort}.
