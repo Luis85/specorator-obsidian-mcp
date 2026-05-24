@@ -107,6 +107,38 @@ export class ObsidianBridge
     }
   }
 
+  async searchFiles(
+    query: string,
+    folder?: string,
+  ): Promise<Array<{ path: string; excerpt: string }>> {
+    const lower = query.toLowerCase()
+    const prefix = folder !== undefined && folder !== '' && folder !== '/'
+      ? (folder.endsWith('/') ? folder : `${folder}/`)
+      : null
+    const allFiles = this.app.vault.getFiles().filter((f) => {
+      if (prefix !== null && !f.path.startsWith(prefix)) return false
+      return f.extension === 'md' || f.extension === 'txt' || f.extension === 'canvas'
+    })
+    const results: Array<{ path: string; excerpt: string }> = []
+    for (const file of allFiles) {
+      if (results.length >= 100) break
+      let content: string
+      try {
+        content = await this.app.vault.cachedRead(file)
+      } catch {
+        continue
+      }
+      const lowerContent = content.toLowerCase()
+      const idx = lowerContent.indexOf(lower)
+      if (idx === -1) continue
+      const start = Math.max(0, idx - 60)
+      const end = Math.min(content.length, idx + query.length + 60)
+      const excerpt = content.slice(start, end)
+      results.push({ path: file.path, excerpt })
+    }
+    return results
+  }
+
   // ── MetadataCachePort ────────────────────────────────────────────────────
 
   getFileMetadata(path: string): FileMetadataSnapshot | null {

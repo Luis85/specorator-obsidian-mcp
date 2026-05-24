@@ -11,4 +11,10 @@ export interface VaultPort {
   listFolders(parent: string): Promise<string[]>
   fileExists(path: string): Promise<boolean>
   createFolder(path: string): Promise<void>
+  /**
+   * Case-insensitive substring search over vault file contents.
+   * Returns up to 100 matches with file path and a ~120-char excerpt.
+   * Optionally scoped to a folder prefix.
+   */
+  searchFiles(query: string, folder?: string): Promise<Array<{ path: string; excerpt: string }>>
 }

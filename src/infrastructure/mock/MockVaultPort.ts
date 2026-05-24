@@ -74,6 +74,28 @@ export class MockVaultPort implements VaultPort {
     this.folders.add(path)
   }
 
+  async searchFiles(
+    query: string,
+    folder?: string,
+  ): Promise<Array<{ path: string; excerpt: string }>> {
+    const lower = query.toLowerCase()
+    const results: Array<{ path: string; excerpt: string }> = []
+    for (const [path, content] of this.files) {
+      if (folder !== undefined && folder !== '' && !path.startsWith(folder.endsWith('/') ? folder : `${folder}/`)) {
+        continue
+      }
+      const lowerContent = content.toLowerCase()
+      const idx = lowerContent.indexOf(lower)
+      if (idx === -1) continue
+      const start = Math.max(0, idx - 60)
+      const end = Math.min(content.length, idx + query.length + 60)
+      const excerpt = content.slice(start, end)
+      results.push({ path, excerpt })
+      if (results.length >= 100) break
+    }
+    return results
+  }
+
   /** Test helper: get all files as a plain object. */
   getAllFiles(): Record<string, string> {
     return Object.fromEntries(this.files)

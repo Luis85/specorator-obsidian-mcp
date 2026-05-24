@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { joinVaultPath, ok, deny, err } from './shared'
+import { joinVaultPath, ok, deny, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -153,6 +153,54 @@ export function registerVaultTools(
       }
       await vault.createFolder(safePath)
       return ok({ created: true, path: safePath })
+    },
+  )
+
+  server.registerTool(
+    'vault.search',
+    {
+      description:
+        'Search vault note contents for a query string. Returns up to 100 matches with file path + excerpt (~120 chars around the match). Optionally scoped to a folder. Substring match, case-insensitive.',
+      inputSchema: {
+        query: z.string().min(1).describe('Substring to search for (case-insensitive)'),
+        folder: z.string().optional().describe('Vault-relative folder to limit the search'),
+      },
+      outputSchema: {
+        matches: z.array(z.object({ path: z.string(), excerpt: z.string() })),
+      },
+    },
+    async ({ query, folder }) => {
+      if (folder !== undefined && folder !== '' && folder !== '/') {
+        const norm = normalizeVaultPath(folder)
+        if (!norm.ok) return unsafePath(norm.error.message)
+        const matches = await vault.searchFiles(query, norm.value)
+        return ok({ matches })
+      }
+      const matches = await vault.searchFiles(query)
+      return ok({ matches })
+    },
+  )
+
+  server.registerTool(
+    'vault.list_recursive',
+    {
+      description:
+        "Recursively list all files under a folder. Returns flat array of vault-relative paths. For whole-vault scans use folder='' or '/'.",
+      inputSchema: {
+        folder: z.string().describe("Vault-relative folder path. Use '' or '/' for vault root."),
+      },
+      outputSchema: { files: z.array(z.string()) },
+    },
+    async ({ folder }) => {
+      // Allow empty / root folder to mean vault root
+      if (folder === '' || folder === '/') {
+        const files = await collectFiles(vault, '')
+        return ok({ files })
+      }
+      const norm = normalizeVaultPath(folder)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const files = await collectFiles(vault, norm.value)
+      return ok({ files })
     },
   )
 }

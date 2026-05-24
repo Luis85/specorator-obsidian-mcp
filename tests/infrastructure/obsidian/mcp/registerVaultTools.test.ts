@@ -18,7 +18,7 @@ function setup() {
 }
 
 describe('registerVaultTools', () => {
-  it('registers exactly the seven canonical vault tools', () => {
+  it('registers exactly the canonical vault tools (per DEFAULT_TOOL_MODES)', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_SETTINGS.toolModes)
@@ -178,6 +178,115 @@ describe('registerVaultTools', () => {
     expect(capturedParams).toBeDefined()
     expect('content' in capturedParams!).toBe(false)
     expect(capturedParams!['path']).toBe('a.md')
+  })
+
+  describe('vault.search', () => {
+    it('returns matches for query string', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('notes/a.md', 'Hello world, this is a test note.')
+      await ports.vault.writeFile('notes/b.md', 'Nothing interesting here.')
+      const result = (await getHandler(server, 'vault.search')({
+        query: 'Hello',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as {
+        matches: Array<{ path: string; excerpt: string }>
+      }
+      expect(parsed.matches).toHaveLength(1)
+      expect(parsed.matches[0]!.path).toBe('notes/a.md')
+      expect(parsed.matches[0]!.excerpt).toContain('Hello')
+    })
+
+    it('is case-insensitive', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('doc.md', 'The QUICK brown fox.')
+      const result = (await getHandler(server, 'vault.search')({
+        query: 'quick',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as {
+        matches: Array<{ path: string; excerpt: string }>
+      }
+      expect(parsed.matches).toHaveLength(1)
+    })
+
+    it('scopes to folder when folder param provided', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('work/task.md', 'important task here')
+      await ports.vault.writeFile('personal/task.md', 'important task here')
+      const result = (await getHandler(server, 'vault.search')({
+        query: 'important',
+        folder: 'work',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as {
+        matches: Array<{ path: string; excerpt: string }>
+      }
+      expect(parsed.matches).toHaveLength(1)
+      expect(parsed.matches[0]!.path).toBe('work/task.md')
+    })
+
+    it('caps results at 100', async () => {
+      const { server, ports } = setup()
+      for (let i = 0; i < 120; i++) {
+        await ports.vault.writeFile(`n${i}.md`, 'needle content inside')
+      }
+      const result = (await getHandler(server, 'vault.search')({
+        query: 'needle',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as {
+        matches: Array<{ path: string; excerpt: string }>
+      }
+      expect(parsed.matches.length).toBeLessThanOrEqual(100)
+    })
+
+    it('rejects traversal in folder param', async () => {
+      const { server } = setup()
+      const res = (await getHandler(server, 'vault.search')({
+        query: 'x',
+        folder: '../outside',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+  })
+
+  describe('vault.list_recursive', () => {
+    it('enumerates nested folders', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('root/a.md', '')
+      await ports.vault.writeFile('root/sub/b.md', '')
+      await ports.vault.writeFile('root/sub/deep/c.md', '')
+      const result = (await getHandler(server, 'vault.list_recursive')({
+        folder: 'root',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as { files: string[] }
+      expect(parsed.files).toContain('root/a.md')
+      expect(parsed.files).toContain('root/sub/b.md')
+      expect(parsed.files).toContain('root/sub/deep/c.md')
+    })
+
+    it('returns empty array for empty folder', async () => {
+      const { server, ports } = setup()
+      await ports.vault.createFolder('emptydir')
+      const result = (await getHandler(server, 'vault.list_recursive')({
+        folder: 'emptydir',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as { files: string[] }
+      expect(parsed.files).toEqual([])
+    })
+
+    it('rejects absolute path in folder', async () => {
+      const { server } = setup()
+      const res = (await getHandler(server, 'vault.list_recursive')({
+        folder: '/tmp/evil',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+
+    it('rejects traversal in folder', async () => {
+      const { server } = setup()
+      const res = (await getHandler(server, 'vault.list_recursive')({
+        folder: '../outside',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
   })
 
   describe('vault.write size limit', () => {
