@@ -70,13 +70,13 @@ class ToolConfirmModal extends Modal {
           .onClick(() => this.decide('allow')),
       )
       .addButton((b) =>
-        b.setButtonText('Allow for session').onClick(() => this.decide('allow-session')),
+        b.setButtonText('Deny').onClick(() => this.decide('deny')),
       )
       .addButton((b) =>
         b
-          .setButtonText('Deny')
+          .setButtonText('Allow for session')
           .setWarning()
-          .onClick(() => this.decide('deny')),
+          .onClick(() => this.decide('allow-session')),
       )
   }
 
