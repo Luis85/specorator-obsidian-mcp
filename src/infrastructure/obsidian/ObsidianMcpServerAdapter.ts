@@ -63,7 +63,7 @@ export class ObsidianMcpServerAdapter {
     const port = this.settings.getSettings().port
 
     const server = http.createServer((req, res) => {
-      const host = req.headers.host?.split(':')[0] ?? ''
+      const host = (req.headers.host?.split(':')[0] ?? '').toLowerCase()
       if (host !== '127.0.0.1' && host !== 'localhost') {
         res.writeHead(421).end()
         return

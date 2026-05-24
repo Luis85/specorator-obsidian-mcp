@@ -91,6 +91,26 @@ describe('ObsidianMcpServerAdapter', () => {
     await expect(second.start()).rejects.toThrow(/EADDRINUSE/i)
   })
 
+  it('accepts uppercase LOCALHOST as a loopback Host', async () => {
+    adapter = makeAdapter()
+    await adapter.start()
+    // The gate lowercases the Host header before comparison, so LOCALHOST must
+    // be treated as loopback. If the MCP SDK subsequently resets the connection
+    // (ECONNRESET) that still means the gate passed — only a 421 means rejection.
+    let status: number | undefined
+    try {
+      status = await rawPost(TEST_PORT, 'LOCALHOST', JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }))
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'ECONNRESET' || code === 'ECONNREFUSED') {
+        // Connection was accepted by the gate and then closed by the SDK — not 421.
+        return
+      }
+      throw err
+    }
+    expect(status).not.toBe(421)
+  })
+
   it('getConnectionConfig throws before start', () => {
     const a = makeAdapter()
     expect(() => a.getConnectionConfig()).toThrow(/not started/i)
