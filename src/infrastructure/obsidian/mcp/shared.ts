@@ -45,7 +45,10 @@ export function joinVaultPath(parent: string, child: string): string {
 }
 
 export async function collectFiles(vault: VaultPort, folder: string): Promise<string[]> {
-  const [files, subfolders] = await Promise.all([vault.listFiles(folder), vault.listFolders(folder)])
+  const [files, subfolders] = await Promise.all([
+    vault.listFiles(folder),
+    vault.listFolders(folder),
+  ])
   const nested = await Promise.all(
     subfolders.map((sub) => collectFiles(vault, joinVaultPath(folder, sub))),
   )

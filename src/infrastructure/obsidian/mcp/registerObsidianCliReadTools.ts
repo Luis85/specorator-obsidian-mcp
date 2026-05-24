@@ -12,10 +12,7 @@ export interface CliReadApp {
   commands: CommandsPort
 }
 
-export function registerObsidianCliReadTools(
-  server: McpServer,
-  deps: { app: CliReadApp },
-): void {
+export function registerObsidianCliReadTools(server: McpServer, deps: { app: CliReadApp }): void {
   const { app } = deps
 
   server.registerTool(
@@ -41,9 +38,11 @@ export function registerObsidianCliReadTools(
     },
     async ({ query }) => {
       const lower = query.toLowerCase()
-      const commands = app.commands.listCommands().filter(
-        (cmd) => cmd.id.toLowerCase().includes(lower) || cmd.name.toLowerCase().includes(lower),
-      )
+      const commands = app.commands
+        .listCommands()
+        .filter(
+          (cmd) => cmd.id.toLowerCase().includes(lower) || cmd.name.toLowerCase().includes(lower),
+        )
       return ok({ commands })
     },
   )

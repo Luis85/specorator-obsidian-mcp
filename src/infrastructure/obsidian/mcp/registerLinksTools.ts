@@ -53,10 +53,7 @@ function bfsTraverse(
   return { nodes: Array.from(visited), edges }
 }
 
-export function registerLinksTools(
-  server: McpServer,
-  deps: { metadata: MetadataCachePort },
-): void {
+export function registerLinksTools(server: McpServer, deps: { metadata: MetadataCachePort }): void {
   const { metadata } = deps
 
   server.registerTool(
