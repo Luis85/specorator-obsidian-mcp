@@ -74,6 +74,12 @@ Key decisions are recorded as ADRs under `docs/adr/`:
 
 7. **Update the README capability matrix** to document the new tool, its default mode, and what it does.
 
+## Tool naming convention
+
+Tool names follow the pattern `<namespace>.<verb>` (e.g. `vault.read`, `canvas.write`). For tools with a sub-namespace, use `<namespace>.<sub>.<verb>` (e.g. `cli.read.find`, `cli.read.list`).
+
+**`cli.execute` is a known exception.** It was named before the sub-namespace convention solidified and is kept as-is because renaming a published tool name breaks any client that has already registered it in their MCP config. Future tools in the `cli` namespace that perform reads should use `cli.read.<verb>`; new action tools should use `cli.<verb>` only if the name is unambiguous and has no sub-namespace siblings.
+
 ## Reporting bugs / security issues
 
 Security vulnerabilities: see `SECURITY.md` (coming soon). For now e-mail the maintainer directly rather than opening a public issue.
