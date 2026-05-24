@@ -5,9 +5,6 @@ import { registerObsidianCliTools } from '@/infrastructure/obsidian/mcp/register
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
 }
-type ServerInternal = {
-  _registeredTools: Record<string, RegisteredTool>
-}
 
 function setup() {
   const server = new McpServer({ name: 'test', version: '0.0.0' })
