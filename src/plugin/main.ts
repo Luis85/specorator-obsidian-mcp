@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian'
+import { Notice, Plugin } from 'obsidian'
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TOOL_MODES,
@@ -9,6 +9,8 @@ import { ObsidianMcpServerAdapter } from '@/infrastructure/obsidian/ObsidianMcpS
 import { ObsidianBridge } from '@/infrastructure/obsidian/ObsidianBridge'
 import { ObsidianConfirmModalAdapter } from '@/infrastructure/obsidian/ObsidianConfirmModalAdapter'
 import { PermissionGate } from '@/application/mcp/PermissionGate'
+import { AutoRegister, wellKnownTargets } from '@/application/mcp/AutoRegister'
+import { NodeFileSystemAdapter } from '@/infrastructure/node/NodeFileSystemAdapter'
 import {
   registerVaultTools,
   registerMetadataTools,
@@ -67,7 +69,11 @@ export default class SpecoratorMcpPlugin extends Plugin {
         storedToolModes[k] ?? DEFAULT_SETTINGS.toolModes[k],
       ]),
     ) as Record<string, ToolMode>
-    this.settings = { ...DEFAULT_SETTINGS, ...(stored ?? {}), toolModes }
+    const autoRegister = {
+      ...DEFAULT_SETTINGS.autoRegister,
+      ...(stored?.autoRegister ?? {}),
+    }
+    this.settings = { ...DEFAULT_SETTINGS, ...(stored ?? {}), toolModes, autoRegister }
   }
 
   async saveSettings(): Promise<void> {
@@ -100,9 +106,39 @@ export default class SpecoratorMcpPlugin extends Plugin {
     await this.mcp.start()
     const port = this.mcp.boundPort ?? this.settings.port
     this.statusBar.setRunning(port)
+
+    const url = `http://127.0.0.1:${port}/mcp`
+    const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
+    if (enabledTargets.length > 0) {
+      const autoReg = new AutoRegister(new NodeFileSystemAdapter())
+      const results = await autoReg.register(url, enabledTargets)
+      const registered = results.filter((r) => r.status === 'registered').map((r) => r.target.name)
+      if (registered.length > 0) {
+        new Notice(`MCP server registered with: ${registered.join(', ')}`)
+      }
+      for (const f of results.filter((r) => r.status === 'failed')) {
+        console.warn(`[specorator-mcp] Auto-register ${f.target.name} failed: ${f.reason}`)
+      }
+    }
   }
 
   private async stopServer(): Promise<void> {
+    if (this.mcp) {
+      const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
+      if (enabledTargets.length > 0) {
+        const autoReg = new AutoRegister(new NodeFileSystemAdapter())
+        const results = await autoReg.deregister(enabledTargets)
+        const deregistered = results
+          .filter((r) => r.status === 'registered' && r.reason === 'deregistered')
+          .map((r) => r.target.name)
+        if (deregistered.length > 0) {
+          new Notice(`MCP server unregistered from: ${deregistered.join(', ')}`)
+        }
+        for (const f of results.filter((r) => r.status === 'failed')) {
+          console.warn(`[specorator-mcp] Auto-deregister ${f.target.name} failed: ${f.reason}`)
+        }
+      }
+    }
     await this.mcp?.stop()
     this.mcp = undefined
     this.gate = undefined

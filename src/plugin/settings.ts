@@ -1,6 +1,11 @@
 import { App, PluginSettingTab, Setting } from 'obsidian'
 import type SpecoratorMcpPlugin from './main'
-import { DEFAULT_TOOL_MODES, type ToolMode, type LogLevel } from '@/domain/settings/PluginSettings'
+import {
+  DEFAULT_TOOL_MODES,
+  type AutoRegisterSettings,
+  type ToolMode,
+  type LogLevel,
+} from '@/domain/settings/PluginSettings'
 
 const MODES: ToolMode[] = ['allow', 'ask', 'deny']
 const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
@@ -78,6 +83,41 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings()
       }),
     )
+
+    containerEl.createEl('h2', { text: 'Auto-register MCP URL with clients' })
+    containerEl.createEl('p', {
+      text: 'When the server starts, write the MCP URL into well-known client config files. Changes take effect on next start of the server.',
+    })
+
+    const autoRegisterClients: { id: keyof AutoRegisterSettings; label: string; desc: string }[] = [
+      {
+        id: 'claudeCli',
+        label: 'Claude CLI',
+        desc: '~/.claude.json — written by `claude mcp add`; safe to auto-update.',
+      },
+      {
+        id: 'cursor',
+        label: 'Cursor',
+        desc: '~/.cursor/mcp.json — opt in if you use Cursor.',
+      },
+      {
+        id: 'claudeDesktop',
+        label: 'Claude Desktop',
+        desc: 'claude_desktop_config.json — opt in if you use Claude Desktop.',
+      },
+    ]
+
+    for (const client of autoRegisterClients) {
+      new Setting(containerEl)
+        .setName(client.label)
+        .setDesc(client.desc)
+        .addToggle((t) =>
+          t.setValue(this.plugin.settings.autoRegister[client.id]).onChange(async (v) => {
+            this.plugin.settings.autoRegister[client.id] = v
+            await this.plugin.saveSettings()
+          }),
+        )
+    }
 
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
