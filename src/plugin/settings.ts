@@ -161,19 +161,33 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
 
+    const groups = new Map<string, string[]>()
     for (const tool of Object.keys(DEFAULT_TOOL_MODES).sort()) {
-      new Setting(containerEl)
-        .setName(tool)
-        .setDesc(`Default: ${DEFAULT_TOOL_MODES[tool]}`)
-        .addDropdown((d) => {
-          for (const m of MODES) d.addOption(m, m)
-          d.setValue(this.plugin.settings.toolModes[tool] ?? DEFAULT_TOOL_MODES[tool]!).onChange(
-            async (v) => {
-              this.plugin.settings.toolModes[tool] = v as ToolMode
-              await this.plugin.saveSettings()
-            },
-          )
-        })
+      const ns = tool.split('.')[0]!
+      if (!groups.has(ns)) groups.set(ns, [])
+      groups.get(ns)!.push(tool)
+    }
+
+    for (const [ns, tools] of groups) {
+      containerEl.createEl('h3', { text: `${capitalise(ns)} tools` })
+      for (const tool of tools) {
+        new Setting(containerEl)
+          .setName(tool)
+          .setDesc(`Default: ${DEFAULT_TOOL_MODES[tool]}`)
+          .addDropdown((d) => {
+            for (const m of MODES) d.addOption(m, m)
+            d.setValue(this.plugin.settings.toolModes[tool] ?? DEFAULT_TOOL_MODES[tool]!).onChange(
+              async (v) => {
+                this.plugin.settings.toolModes[tool] = v as ToolMode
+                await this.plugin.saveSettings()
+              },
+            )
+          })
+      }
     }
   }
+}
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
