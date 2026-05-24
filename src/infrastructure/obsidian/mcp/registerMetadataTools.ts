@@ -44,9 +44,7 @@ export function registerMetadataTools(
         'Get all headings from a vault note. Returns { headings: Array<{ heading: string, level: number }> }. Empty array when the note has no headings or the metadata cache has no entry for the path.',
       inputSchema: { path: z.string().describe('Vault-relative path') },
       outputSchema: {
-        headings: z.array(
-          z.object({ heading: z.string(), level: z.number() }).passthrough(),
-        ),
+        headings: z.array(z.object({ heading: z.string(), level: z.number() }).passthrough()),
       },
     },
     async ({ path }) => {
