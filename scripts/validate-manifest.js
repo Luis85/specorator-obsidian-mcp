@@ -1,4 +1,3 @@
-/* eslint-env node */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,7 +11,15 @@ const versions = JSON.parse(fs.readFileSync(path.join(repoRoot, 'versions.json')
 
 const errors = []
 
-const required = ['id', 'name', 'version', 'minAppVersion', 'description', 'author', 'isDesktopOnly']
+const required = [
+  'id',
+  'name',
+  'version',
+  'minAppVersion',
+  'description',
+  'author',
+  'isDesktopOnly',
+]
 for (const key of required) {
   if (manifest[key] === undefined) errors.push(`manifest.json missing field: ${key}`)
 }

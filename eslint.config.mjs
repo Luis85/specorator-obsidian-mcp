@@ -1,22 +1,22 @@
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import prettierConfig from 'eslint-config-prettier'
+import globals from 'globals'
 
 export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettierConfig,
+  // TypeScript source files — full project-aware linting
   {
-    files: ['**/*.ts'],
+    files: ['src/**/*.ts', 'tests/**/*.ts'],
     languageOptions: {
       parserOptions: {
         project: ['./tsconfig.json'],
       },
       globals: {
-        window: 'readonly',
-        document: 'readonly',
-        console: 'readonly',
-        process: 'readonly',
+        ...globals.browser,
+        ...globals.node,
       },
     },
     rules: {
@@ -34,6 +34,18 @@ export default tseslint.config(
         { property: 'outerHTML', message: 'XSS risk. Use createEl/setText.' },
         { property: 'insertAdjacentHTML', message: 'XSS risk. Use createEl/setText.' },
       ],
+    },
+  },
+  // Config/script files at root — node globals, no project linting
+  {
+    files: ['*.ts', '*.mjs', 'scripts/**/*.js', 'esbuild.config.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {
