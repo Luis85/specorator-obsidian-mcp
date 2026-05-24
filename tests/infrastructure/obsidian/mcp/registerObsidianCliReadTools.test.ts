@@ -2,13 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerObsidianCliReadTools } from '@/infrastructure/obsidian/mcp/registerObsidianCliReadTools'
 import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
-
-type RegisteredTool = {
-  handler: (args: Record<string, unknown>) => Promise<unknown>
-}
-type ServerInternal = {
-  _registeredTools: Record<string, RegisteredTool>
-}
+import { getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
 
 const FAKE_COMMANDS = [
   { id: 'editor:save-file', name: 'Save current file' },
@@ -22,15 +16,13 @@ function setup() {
     commands: { listCommands: () => [...FAKE_COMMANDS] },
   }
   registerObsidianCliReadTools(server, { app: fakeApp })
-  const tools = (server as unknown as ServerInternal)._registeredTools
-  return { server, tools }
+  return { server }
 }
 
 describe('registerObsidianCliReadTools', () => {
   it('registers exactly the two canonical cli read tools', () => {
     const { server } = setup()
-    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
-      ._registeredTools
+    const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_TOOL_MODES)
       .filter((k) => k.startsWith('cli.read.'))
       .sort()
@@ -38,8 +30,8 @@ describe('registerObsidianCliReadTools', () => {
   })
 
   it('cli.read.list returns all commands', async () => {
-    const { tools } = setup()
-    const result = (await tools['cli.read.list'].handler({})) as {
+    const { server } = setup()
+    const result = (await getHandler(server, 'cli.read.list')({})) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as {
@@ -50,32 +42,32 @@ describe('registerObsidianCliReadTools', () => {
   })
 
   it('cli.read.find filters by id substring (case-insensitive)', async () => {
-    const { tools } = setup()
-    const result = (await tools['cli.read.find'].handler({ query: 'SETTINGS' })) as {
+    const { server } = setup()
+    const result = (await getHandler(server, 'cli.read.find')({ query: 'SETTINGS' })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as {
       commands: Array<{ id: string; name: string }>
     }
     expect(parsed.commands).toHaveLength(1)
-    expect(parsed.commands[0].id).toBe('app:open-settings')
+    expect(parsed.commands[0]!.id).toBe('app:open-settings')
   })
 
   it('cli.read.find filters by name substring', async () => {
-    const { tools } = setup()
-    const result = (await tools['cli.read.find'].handler({ query: 'git' })) as {
+    const { server } = setup()
+    const result = (await getHandler(server, 'cli.read.find')({ query: 'git' })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as {
       commands: Array<{ id: string; name: string }>
     }
     expect(parsed.commands).toHaveLength(1)
-    expect(parsed.commands[0].id).toBe('obsidian-git:commit')
+    expect(parsed.commands[0]!.id).toBe('obsidian-git:commit')
   })
 
   it('cli.read.find returns empty array when no match', async () => {
-    const { tools } = setup()
-    const result = (await tools['cli.read.find'].handler({ query: 'xyzzy-no-match' })) as {
+    const { server } = setup()
+    const result = (await getHandler(server, 'cli.read.find')({ query: 'xyzzy-no-match' })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as { commands: unknown[] }

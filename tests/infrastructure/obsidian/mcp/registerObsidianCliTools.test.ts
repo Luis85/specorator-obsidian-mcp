@@ -7,7 +7,7 @@ import {
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
-import { makeAllowGate, type RegisteredTool } from '@@/__fakes__/gate-helpers'
+import { makeAllowGate, getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
 
 function setup() {
   const ports = fakeModulePorts()
@@ -19,20 +19,19 @@ function setup() {
     },
   }
   registerObsidianCliTools(server, { app: fakeApp, gate })
-  const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
-    ._registeredTools
-  return { server, fakeApp, tools }
+  return { server, fakeApp, ports }
 }
 
 describe('registerObsidianCliTools', () => {
   it('registers cli.execute', () => {
-    const { tools } = setup()
+    const { server } = setup()
+    const tools = getRegisteredTools(server)
     expect(tools).toHaveProperty('cli.execute')
   })
 
   it('cli.execute invokes command and returns executed: true on success', async () => {
-    const { fakeApp, tools } = setup()
-    const result = (await (tools['cli.execute'] as RegisteredTool).handler({
+    const { server, fakeApp } = setup()
+    const result = (await getHandler(server, 'cli.execute')({
       commandId: 'editor:save-file',
     })) as {
       content: [{ text: string }]
@@ -44,11 +43,9 @@ describe('registerObsidianCliTools', () => {
   })
 
   it('cli.execute returns executed: false when command not found', async () => {
-    const { fakeApp, tools } = setup()
+    const { server, fakeApp } = setup()
     vi.mocked(fakeApp.commands.executeCommandById).mockReturnValue(false)
-    const result = (await (tools['cli.execute'] as RegisteredTool).handler({
-      commandId: 'unknown:cmd',
-    })) as {
+    const result = (await getHandler(server, 'cli.execute')({ commandId: 'unknown:cmd' })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as { executed: boolean }
@@ -56,8 +53,8 @@ describe('registerObsidianCliTools', () => {
   })
 
   it('cli.execute does not use a denyList or proposal queue', () => {
-    // Structural: only one tool registered, no extra wrappers
-    const { tools } = setup()
+    const { server } = setup()
+    const tools = getRegisteredTools(server)
     expect(Object.keys(tools)).toEqual(['cli.execute'])
   })
 
@@ -77,13 +74,10 @@ describe('registerObsidianCliTools', () => {
       commands: { executeCommandById: vi.fn(() => true) },
     }
     registerObsidianCliTools(server, { app: fakeApp, gate })
-    const tools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
-      ._registeredTools
-    const res = (await tools['cli.execute'].handler({ commandId: 'editor:save-file' })) as {
-      isError: boolean
-    }
+    const res = (await getHandler(server, 'cli.execute')({
+      commandId: 'editor:save-file',
+    })) as { isError: boolean }
     expect(res.isError).toBe(true)
-    // command must NOT have been executed
     expect(fakeApp.commands.executeCommandById).not.toHaveBeenCalled()
   })
 
@@ -99,7 +93,6 @@ describe('registerObsidianCliTools', () => {
         getSettings: () => ({
           ...DEFAULT_SETTINGS,
           defaultMode: 'ask' as const,
-          // override cli.execute from its default 'deny' to 'ask' so modal answer matters
           toolModes: { ...DEFAULT_SETTINGS.toolModes, 'cli.execute': 'ask' as const },
         }),
       },
@@ -110,9 +103,7 @@ describe('registerObsidianCliTools', () => {
       commands: { executeCommandById: vi.fn(() => true) },
     }
     registerObsidianCliTools(server, { app: fakeApp, gate })
-    const tools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
-      ._registeredTools
-    await tools['cli.execute'].handler({ commandId: 'editor:save-file' })
+    await getHandler(server, 'cli.execute')({ commandId: 'editor:save-file' })
     expect(fakeApp.commands.executeCommandById).toHaveBeenCalledWith('editor:save-file')
   })
 })

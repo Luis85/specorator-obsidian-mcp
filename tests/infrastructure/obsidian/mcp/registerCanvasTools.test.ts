@@ -4,22 +4,20 @@ import { registerCanvasTools } from '@/infrastructure/obsidian/mcp/registerCanva
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
-import { makeAllowGate, type ServerInternal } from '@@/__fakes__/gate-helpers'
+import { makeAllowGate, getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
 
 function setup() {
   const ports = fakeModulePorts()
   const gate = makeAllowGate(ports.confirmModal)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
   registerCanvasTools(server, { canvas: ports.canvas, gate })
-  const tools = (server as unknown as ServerInternal)._registeredTools
-  return { server, ports, tools }
+  return { server, ports }
 }
 
 describe('registerCanvasTools', () => {
   it('registers exactly the two canonical canvas tools', () => {
     const { server } = setup()
-    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
-      ._registeredTools
+    const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_SETTINGS.toolModes)
       .filter((k) => k.startsWith('canvas.'))
       .sort()
@@ -27,13 +25,13 @@ describe('registerCanvasTools', () => {
   })
 
   it('canvas.read returns canvas data', async () => {
-    const { tools, ports } = setup()
+    const { server, ports } = setup()
     const data = {
       nodes: [{ id: 'n1', type: 'text', text: 'hello', x: 0, y: 0, width: 100, height: 50 }],
       edges: [],
     }
     ports.bridge.seedCanvas('board.canvas', data)
-    const result = (await tools['canvas.read'].handler({ path: 'board.canvas' })) as {
+    const result = (await getHandler(server, 'canvas.read')({ path: 'board.canvas' })) as {
       content: [{ text: string }]
     }
     const parsed = JSON.parse(result.content[0].text) as { canvas: typeof data }
@@ -42,13 +40,13 @@ describe('registerCanvasTools', () => {
   })
 
   it('canvas.write mutates canvas directly (no proposal queue)', async () => {
-    const { tools, ports } = setup()
+    const { server, ports } = setup()
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
     const newData = {
       nodes: [{ id: 'n2', type: 'text', text: 'world', x: 10, y: 10, width: 100, height: 50 }],
       edges: [{ id: 'e1', fromNode: 'n2', toNode: 'n2' }],
     }
-    await tools['canvas.write'].handler({ path: 'board.canvas', data: newData })
+    await getHandler(server, 'canvas.write')({ path: 'board.canvas', data: newData })
     const written = ports.bridge.getWrittenCanvas('board.canvas')
     expect(written).toBeDefined()
     expect(written!.nodes).toHaveLength(1)
@@ -56,9 +54,9 @@ describe('registerCanvasTools', () => {
   })
 
   it('canvas.write uses empty arrays when nodes/edges omitted', async () => {
-    const { tools, ports } = setup()
+    const { server, ports } = setup()
     ports.bridge.seedCanvas('empty.canvas', { nodes: [], edges: [] })
-    await tools['canvas.write'].handler({ path: 'empty.canvas', data: {} })
+    await getHandler(server, 'canvas.write')({ path: 'empty.canvas', data: {} })
     const written = ports.bridge.getWrittenCanvas('empty.canvas')
     expect(written!.nodes).toEqual([])
     expect(written!.edges).toEqual([])
@@ -77,14 +75,12 @@ describe('registerCanvasTools', () => {
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerCanvasTools(server, { canvas: ports.canvas, gate })
-    const tools = (server as unknown as ServerInternal)._registeredTools
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
-    const res = (await tools['canvas.write'].handler({
+    const res = (await getHandler(server, 'canvas.write')({
       path: 'board.canvas',
       data: { nodes: [], edges: [] },
     })) as { isError: boolean }
     expect(res.isError).toBe(true)
-    // canvas must NOT have been written
     expect(ports.bridge.getWrittenCanvas('board.canvas')).toBeUndefined()
   })
 
@@ -101,9 +97,8 @@ describe('registerCanvasTools', () => {
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerCanvasTools(server, { canvas: ports.canvas, gate })
-    const tools = (server as unknown as ServerInternal)._registeredTools
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
-    await tools['canvas.write'].handler({
+    await getHandler(server, 'canvas.write')({
       path: 'board.canvas',
       data: { nodes: [{ id: 'n1' }], edges: [] },
     })
