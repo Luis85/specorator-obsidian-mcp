@@ -3,7 +3,7 @@
   "name": "Specorator Obsidian MCP",
   "version": "0.1.0",
   "minAppVersion": "1.12.7",
-  "description": "In-process Model Context Protocol server exposing the Obsidian vault as a typed agent tool surface over loopback HTTP.",
+  "description": "Lets AI tools (Claude, Cursor, Claude Desktop) read and write your Obsidian vault over a secure local connection. Exposes notes, links, canvas, bases, and Obsidian commands as MCP tools.",
   "author": "Luis Mendez",
   "authorUrl": "https://github.com/Luis85",
   "isDesktopOnly": true

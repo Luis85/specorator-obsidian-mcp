@@ -44,6 +44,17 @@ if (manifest.isDesktopOnly !== true) {
   errors.push('isDesktopOnly must be true (http.Server is Node-only)')
 }
 
+if (manifest.fundingUrl !== undefined) {
+  try {
+    const u = new URL(manifest.fundingUrl)
+    if (!['http:', 'https:'].includes(u.protocol)) {
+      errors.push('fundingUrl must use http or https protocol')
+    }
+  } catch {
+    errors.push(`fundingUrl is not a valid URL: ${manifest.fundingUrl}`)
+  }
+}
+
 if (errors.length > 0) {
   for (const e of errors) console.error(`✗ ${e}`)
   process.exit(1)
