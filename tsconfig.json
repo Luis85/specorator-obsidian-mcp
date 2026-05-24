@@ -14,9 +14,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": false,
-    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": true,
+    // Suppresses TS6 deprecation on the "types" array (vitest/globals + node).
+    // Remove when those type roots ship a proper ambient-module declaration.
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
