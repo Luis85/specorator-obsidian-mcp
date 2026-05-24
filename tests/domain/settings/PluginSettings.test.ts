@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { DEFAULT_SETTINGS, type PluginSettings, type ToolMode } from '@/domain/settings/PluginSettings'
+import {
+  DEFAULT_SETTINGS,
+  type PluginSettings,
+  type ToolMode,
+} from '@/domain/settings/PluginSettings'
 
 describe('PluginSettings defaults', () => {
   it('default port is 7842', () => {

@@ -4,10 +4,7 @@ import { UnsafeVaultPathError } from './UnsafeVaultPathError'
 const WINDOWS_DRIVE_PREFIX = /^[A-Za-z]:[\\/]/
 const RESERVED_ROOTS = new Set(['.obsidian'])
 
-function rejectAbsolute(
-  original: string,
-  trimmed: string,
-): UnsafeVaultPathError | null {
+function rejectAbsolute(original: string, trimmed: string): UnsafeVaultPathError | null {
   if (WINDOWS_DRIVE_PREFIX.test(trimmed)) {
     return new UnsafeVaultPathError(original, 'absolute paths are not allowed')
   }

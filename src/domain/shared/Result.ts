@@ -14,8 +14,6 @@ export function isOk<T, E extends Error>(result: Result<T, E>): result is { ok: 
   return result.ok
 }
 
-export function isErr<T, E extends Error>(
-  result: Result<T, E>,
-): result is { ok: false; error: E } {
+export function isErr<T, E extends Error>(result: Result<T, E>): result is { ok: false; error: E } {
   return !result.ok
 }
