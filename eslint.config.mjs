@@ -38,7 +38,7 @@ export default tseslint.config(
   },
   // Config/script files at root — node globals, no project linting
   {
-    files: ['*.ts', '*.mjs', 'scripts/**/*.js', 'esbuild.config.mjs'],
+    files: ['*.ts', '*.mjs', 'scripts/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node,
