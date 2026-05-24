@@ -1,6 +1,12 @@
 export type ToolMode = 'allow' | 'ask' | 'deny'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
+export interface AutoRegisterSettings {
+  claudeCli: boolean
+  cursor: boolean
+  claudeDesktop: boolean
+}
+
 export interface PluginSettings {
   port: number
   defaultMode: ToolMode
@@ -8,6 +14,7 @@ export interface PluginSettings {
   pathDenyList: string[]
   askTimeoutMs: number
   logLevel: LogLevel
+  autoRegister: AutoRegisterSettings
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
@@ -34,6 +41,12 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'cli.execute': 'deny',
 })
 
+export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({
+  claudeCli: true,
+  cursor: false,
+  claudeDesktop: false,
+})
+
 export const DEFAULT_SETTINGS: PluginSettings = {
   port: 7842,
   defaultMode: 'ask',
@@ -41,4 +54,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   pathDenyList: [],
   askTimeoutMs: 30_000,
   logLevel: 'warn',
+  autoRegister: { ...DEFAULT_AUTO_REGISTER },
 }
