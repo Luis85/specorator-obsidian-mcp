@@ -1,10 +1,14 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
+import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { joinVaultPath, ok } from './shared'
 
-export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }): void {
-  const { vault } = deps
+export function registerVaultTools(
+  server: McpServer,
+  deps: { vault: VaultPort; gate: PermissionGate },
+): void {
+  const { vault, gate } = deps
 
   server.registerTool(
     'vault.read',
@@ -50,6 +54,10 @@ export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }
       },
     },
     async ({ path, content }) => {
+      const d = await gate.resolve('vault.write', { path, content })
+      if (d.decision === 'deny') {
+        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+      }
       await vault.writeFile(path, content)
       return ok({ written: true, path })
     },
@@ -62,6 +70,10 @@ export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }
       inputSchema: { path: z.string().describe('Vault-relative path') },
     },
     async ({ path }) => {
+      const d = await gate.resolve('vault.delete', { path })
+      if (d.decision === 'deny') {
+        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+      }
       await vault.deleteFile(path)
       return ok({ deleted: true, path })
     },
@@ -80,6 +92,10 @@ export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }
     // succeeds, the file will exist at both 'from' and 'to'. Callers must treat
     // a returned error as indeterminate state. VaultPort offers no native move.
     async ({ from, to }) => {
+      const d = await gate.resolve('vault.move', { path: from, from, to })
+      if (d.decision === 'deny') {
+        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+      }
       const content = await vault.readFile(from)
       await vault.writeFile(to, content)
       await vault.deleteFile(from)
@@ -94,6 +110,10 @@ export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }
       inputSchema: { path: z.string().describe('Vault-relative folder path') },
     },
     async ({ path }) => {
+      const d = await gate.resolve('vault.createFolder', { path })
+      if (d.decision === 'deny') {
+        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+      }
       await vault.createFolder(path)
       return ok({ created: true, path })
     },

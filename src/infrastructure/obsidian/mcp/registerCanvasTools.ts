@@ -1,10 +1,14 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { CanvasPort } from '@/domain/ports'
+import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { ok } from './shared'
 
-export function registerCanvasTools(server: McpServer, deps: { canvas: CanvasPort }): void {
-  const { canvas } = deps
+export function registerCanvasTools(
+  server: McpServer,
+  deps: { canvas: CanvasPort; gate: PermissionGate },
+): void {
+  const { canvas, gate } = deps
 
   server.registerTool(
     'canvas.read',
@@ -30,6 +34,10 @@ export function registerCanvasTools(server: McpServer, deps: { canvas: CanvasPor
       },
     },
     async ({ path, data }) => {
+      const d = await gate.resolve('canvas.write', { path })
+      if (d.decision === 'deny') {
+        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+      }
       const canvasData = {
         nodes: Array.isArray(data.nodes) ? data.nodes : [],
         edges: Array.isArray(data.edges) ? data.edges : [],

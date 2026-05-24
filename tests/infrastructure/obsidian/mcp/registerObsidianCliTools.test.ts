@@ -1,19 +1,40 @@
 import { describe, it, expect, vi } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerObsidianCliTools } from '@/infrastructure/obsidian/mcp/registerObsidianCliTools'
+import { PermissionGate } from '@/application/mcp/PermissionGate'
+import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
+import { fakeModulePorts } from '@@/__fakes__/fake-ports'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
 }
 
+function makeAllowGate(ports: ReturnType<typeof fakeModulePorts>) {
+  const allAllow = Object.fromEntries(
+    Object.keys(DEFAULT_SETTINGS.toolModes).map((k) => [k, 'allow' as const]),
+  )
+  return new PermissionGate(
+    {
+      getSettings: () => ({
+        ...DEFAULT_SETTINGS,
+        defaultMode: 'allow' as const,
+        toolModes: allAllow,
+      }),
+    },
+    ports.confirmModal,
+  )
+}
+
 function setup() {
+  const ports = fakeModulePorts()
+  const gate = makeAllowGate(ports)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
   const fakeApp = {
     commands: {
       executeCommandById: vi.fn(() => true),
     },
   }
-  registerObsidianCliTools(server, { app: fakeApp as any })
+  registerObsidianCliTools(server, { app: fakeApp as any, gate })
   const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
     ._registeredTools
   return { server, fakeApp, tools }
@@ -54,5 +75,52 @@ describe('registerObsidianCliTools', () => {
     // Structural: only one tool registered, no extra wrappers
     const { tools } = setup()
     expect(Object.keys(tools)).toEqual(['cli.execute'])
+  })
+
+  it('cli.execute returns deny envelope when gate denies', async () => {
+    const ports = fakeModulePorts()
+    ;(ports.confirmModal as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('deny')
+    const gate = new PermissionGate(
+      { getSettings: () => ({ ...DEFAULT_SETTINGS, defaultMode: 'ask' as const }) },
+      ports.confirmModal,
+    )
+    const server = new McpServer({ name: 'test', version: '0.0.0' })
+    const fakeApp = {
+      commands: { executeCommandById: vi.fn(() => true) },
+    }
+    registerObsidianCliTools(server, { app: fakeApp as any, gate })
+    const tools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
+      ._registeredTools
+    const res = (await tools['cli.execute'].handler({ commandId: 'editor:save-file' })) as {
+      isError: boolean
+    }
+    expect(res.isError).toBe(true)
+    // command must NOT have been executed
+    expect(fakeApp.commands.executeCommandById).not.toHaveBeenCalled()
+  })
+
+  it('cli.execute executes when gate allows', async () => {
+    const ports = fakeModulePorts()
+    ;(ports.confirmModal as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('allow')
+    const gate = new PermissionGate(
+      {
+        getSettings: () => ({
+          ...DEFAULT_SETTINGS,
+          defaultMode: 'ask' as const,
+          // override cli.execute from its default 'deny' to 'ask' so modal answer matters
+          toolModes: { ...DEFAULT_SETTINGS.toolModes, 'cli.execute': 'ask' as const },
+        }),
+      },
+      ports.confirmModal,
+    )
+    const server = new McpServer({ name: 'test', version: '0.0.0' })
+    const fakeApp = {
+      commands: { executeCommandById: vi.fn(() => true) },
+    }
+    registerObsidianCliTools(server, { app: fakeApp as any, gate })
+    const tools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
+      ._registeredTools
+    await tools['cli.execute'].handler({ commandId: 'editor:save-file' })
+    expect(fakeApp.commands.executeCommandById).toHaveBeenCalledWith('editor:save-file')
   })
 })

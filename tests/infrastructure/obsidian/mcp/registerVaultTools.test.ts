@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerVaultTools } from '@/infrastructure/obsidian/mcp/registerVaultTools'
+import { PermissionGate } from '@/application/mcp/PermissionGate'
+import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
-import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
@@ -11,10 +12,28 @@ type ServerInternal = {
   _registeredTools: Record<string, RegisteredTool>
 }
 
+function makeAllowGate(ports: ReturnType<typeof fakeModulePorts>) {
+  // Override all toolModes to 'allow' so the gate passes everything through.
+  const allAllow = Object.fromEntries(
+    Object.keys(DEFAULT_SETTINGS.toolModes).map((k) => [k, 'allow' as const]),
+  )
+  return new PermissionGate(
+    {
+      getSettings: () => ({
+        ...DEFAULT_SETTINGS,
+        defaultMode: 'allow' as const,
+        toolModes: allAllow,
+      }),
+    },
+    ports.confirmModal,
+  )
+}
+
 function setup() {
   const ports = fakeModulePorts()
+  const gate = makeAllowGate(ports)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
-  registerVaultTools(server, { vault: ports.vault })
+  registerVaultTools(server, { vault: ports.vault, gate })
   const tools = (server as unknown as ServerInternal)._registeredTools
   return { server, ports, tools }
 }
@@ -24,7 +43,7 @@ describe('registerVaultTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    const expected = Object.keys(DEFAULT_TOOL_MODES)
+    const expected = Object.keys(DEFAULT_SETTINGS.toolModes)
       .filter((k) => k.startsWith('vault.'))
       .sort()
     expect(Object.keys(tools).sort()).toEqual(expected)
@@ -95,5 +114,37 @@ describe('registerVaultTools', () => {
     const parsed = JSON.parse(result.content[0].text) as { files: string[]; folders: string[] }
     expect(parsed.files).toContain('docs/a.md')
     expect(parsed.folders).toContain('docs/sub')
+  })
+
+  it('vault.write returns deny envelope when gate denies', async () => {
+    const ports = fakeModulePorts()
+    ;(ports.confirmModal as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('deny')
+    const gate = new PermissionGate(
+      { getSettings: () => ({ ...DEFAULT_SETTINGS, defaultMode: 'ask' as const }) },
+      ports.confirmModal,
+    )
+    const server = new McpServer({ name: 'test', version: '0.0.0' })
+    registerVaultTools(server, { vault: ports.vault, gate })
+    const tools = (server as unknown as ServerInternal)._registeredTools
+    const res = (await tools['vault.write'].handler({ path: 'a.md', content: 'hi' })) as {
+      isError: boolean
+    }
+    expect(res.isError).toBe(true)
+    // vault must NOT have been written
+    expect(await ports.vault.fileExists('a.md')).toBe(false)
+  })
+
+  it('vault.write writes when gate allows', async () => {
+    const ports = fakeModulePorts()
+    ;(ports.confirmModal as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('allow')
+    const gate = new PermissionGate(
+      { getSettings: () => ({ ...DEFAULT_SETTINGS, defaultMode: 'ask' as const }) },
+      ports.confirmModal,
+    )
+    const server = new McpServer({ name: 'test', version: '0.0.0' })
+    registerVaultTools(server, { vault: ports.vault, gate })
+    const tools = (server as unknown as ServerInternal)._registeredTools
+    await tools['vault.write'].handler({ path: 'a.md', content: 'hi' })
+    expect(await ports.vault.readFile('a.md')).toBe('hi')
   })
 })
