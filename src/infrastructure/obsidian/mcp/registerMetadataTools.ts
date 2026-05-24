@@ -14,6 +14,7 @@ export function registerMetadataTools(
     {
       description: 'Get the YAML frontmatter fields for a vault note',
       inputSchema: { path: z.string().describe('Vault-relative path') },
+      outputSchema: { frontmatter: z.record(z.string(), z.unknown()) },
     },
     async ({ path }) => {
       // Prefer live metadata cache snapshot when available, fall back to parsing raw file.
@@ -31,6 +32,7 @@ export function registerMetadataTools(
     {
       description: 'Get the tag → count map across the entire vault',
       inputSchema: {},
+      outputSchema: { tags: z.record(z.string(), z.number()) },
     },
     async () => ok({ tags: metadata.getAllTags() }),
   )
@@ -39,13 +41,16 @@ export function registerMetadataTools(
     'metadata.headings',
     {
       description:
-        'Get all headings from a vault note via the metadata cache (path, level, heading text)',
+        'Get all headings from a vault note. Returns { headings: Array<{ heading: string, level: number }> }. Empty array when the note has no headings or the metadata cache has no entry for the path.',
       inputSchema: { path: z.string().describe('Vault-relative path') },
+      outputSchema: {
+        headings: z.array(
+          z.object({ heading: z.string(), level: z.number() }).passthrough(),
+        ),
+      },
     },
     async ({ path }) => {
       const snapshot = metadata.getFileMetadata(path)
-      // FileMetadataSnapshot does not include a headings field — return the raw
-      // snapshot for callers that know the structure; empty array when absent.
       const headings =
         snapshot !== null && 'headings' in snapshot
           ? (snapshot as unknown as { headings: unknown[] }).headings
@@ -63,6 +68,7 @@ export function registerMetadataTools(
         linktext: z.string().describe('Wikilink text, e.g. "Page Name" or "folder/page"'),
         sourcePath: z.string().describe('Source note the link is being resolved from'),
       },
+      outputSchema: { resolved: z.string().nullable() },
     },
     async ({ linktext, sourcePath }) =>
       ok({ resolved: metadata.getFirstLinkpathDest(linktext, sourcePath) }),

@@ -18,8 +18,10 @@ export function registerVaultTools(
   server.registerTool(
     'vault.read',
     {
-      description: 'Read the full content of a vault file',
+      description:
+        'Read the full UTF-8 text content of a vault file. Returns { content: string }. Throws when the file does not exist; call vault.exists first to avoid the error path.',
       inputSchema: { path: z.string().describe('Vault-relative path') },
+      outputSchema: { content: z.string() },
     },
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
@@ -33,6 +35,7 @@ export function registerVaultTools(
     {
       description: 'List files and immediate subfolders in a vault folder',
       inputSchema: { folder: z.string().describe('Vault-relative folder path') },
+      outputSchema: { files: z.array(z.string()), folders: z.array(z.string()) },
     },
     async ({ folder }) => {
       const norm = normalizeVaultPath(folder)
@@ -52,6 +55,7 @@ export function registerVaultTools(
     {
       description: 'Check whether a file exists in the vault',
       inputSchema: { path: z.string().describe('Vault-relative path') },
+      outputSchema: { exists: z.boolean() },
     },
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
