@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerBasesTools } from '@/infrastructure/obsidian/mcp/registerBasesTools'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
+import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
@@ -23,7 +24,8 @@ describe('registerBasesTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    expect(Object.keys(tools).sort()).toEqual(['bases.filter', 'bases.list'])
+    const expected = Object.keys(DEFAULT_TOOL_MODES).filter((k) => k.startsWith('bases.')).sort()
+    expect(Object.keys(tools).sort()).toEqual(expected)
   })
 
   it('bases.list returns all frontmatter records in folder', async () => {

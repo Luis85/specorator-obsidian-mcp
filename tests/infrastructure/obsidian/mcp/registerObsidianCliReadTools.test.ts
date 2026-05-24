@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerObsidianCliReadTools } from '@/infrastructure/obsidian/mcp/registerObsidianCliReadTools'
+import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
@@ -30,7 +31,8 @@ describe('registerObsidianCliReadTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    expect(Object.keys(tools).sort()).toEqual(['cli.read.find', 'cli.read.list'])
+    const expected = Object.keys(DEFAULT_TOOL_MODES).filter((k) => k.startsWith('cli.read.')).sort()
+    expect(Object.keys(tools).sort()).toEqual(expected)
   })
 
   it('cli.read.list returns all commands', async () => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerMetadataTools } from '@/infrastructure/obsidian/mcp/registerMetadataTools'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
+import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
@@ -23,12 +24,8 @@ describe('registerMetadataTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    expect(Object.keys(tools).sort()).toEqual([
-      'metadata.frontmatter',
-      'metadata.headings',
-      'metadata.linkpath',
-      'metadata.tags',
-    ])
+    const expected = Object.keys(DEFAULT_TOOL_MODES).filter((k) => k.startsWith('metadata.')).sort()
+    expect(Object.keys(tools).sort()).toEqual(expected)
   })
 
   it('metadata.frontmatter returns frontmatter from metadata cache snapshot', async () => {

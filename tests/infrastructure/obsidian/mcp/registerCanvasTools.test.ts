@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerCanvasTools } from '@/infrastructure/obsidian/mcp/registerCanvasTools'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
+import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
@@ -23,7 +24,8 @@ describe('registerCanvasTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    expect(Object.keys(tools).sort()).toEqual(['canvas.read', 'canvas.write'])
+    const expected = Object.keys(DEFAULT_TOOL_MODES).filter((k) => k.startsWith('canvas.')).sort()
+    expect(Object.keys(tools).sort()).toEqual(expected)
   })
 
   it('canvas.read returns canvas data', async () => {

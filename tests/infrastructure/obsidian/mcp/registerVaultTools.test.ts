@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerVaultTools } from '@/infrastructure/obsidian/mcp/registerVaultTools'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
+import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 type RegisteredTool = {
   handler: (args: Record<string, unknown>) => Promise<unknown>
@@ -23,15 +24,8 @@ describe('registerVaultTools', () => {
     const { server } = setup()
     const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
       ._registeredTools
-    expect(Object.keys(tools).sort()).toEqual([
-      'vault.createFolder',
-      'vault.delete',
-      'vault.exists',
-      'vault.list',
-      'vault.move',
-      'vault.read',
-      'vault.write',
-    ])
+    const expected = Object.keys(DEFAULT_TOOL_MODES).filter((k) => k.startsWith('vault.')).sort()
+    expect(Object.keys(tools).sort()).toEqual(expected)
   })
 
   it('vault.write mutates vault directly (no proposal queue)', async () => {
