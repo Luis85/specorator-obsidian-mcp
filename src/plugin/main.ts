@@ -19,10 +19,12 @@ import {
   registerObsidianCliTools,
 } from '@/infrastructure/obsidian/mcp'
 import { SpecoratorMcpSettingsTab } from './settings'
+import { McpStatusBar } from './McpStatusBar'
 
 export default class SpecoratorMcpPlugin extends Plugin {
   settings!: PluginSettings
   private mcp?: ObsidianMcpServerAdapter
+  private statusBar!: McpStatusBar
   /**
    * Permission gate constructed when the MCP server starts. Undefined when the server is stopped.
    *
@@ -47,9 +49,12 @@ export default class SpecoratorMcpPlugin extends Plugin {
       name: 'Stop MCP server',
       callback: async () => this.stopServer(),
     })
+
+    this.statusBar = new McpStatusBar(() => this.addStatusBarItem())
   }
 
   async onunload(): Promise<void> {
+    this.statusBar.destroy()
     await this.stopServer()
   }
 
@@ -93,11 +98,13 @@ export default class SpecoratorMcpPlugin extends Plugin {
       })
     })
     await this.mcp.start()
+    this.statusBar.setRunning(this.settings.port)
   }
 
   private async stopServer(): Promise<void> {
     await this.mcp?.stop()
     this.mcp = undefined
     this.gate = undefined
+    this.statusBar.setStopped()
   }
 }
