@@ -80,5 +80,6 @@ describe('live MCP client end-to-end', () => {
       arguments: { path: 'a.md', content: 'x' },
     })
     expect(result.isError).toBe(true)
+    expect((result.content as Array<{ type: string; text: string }>)[0]?.text).toMatch(/^denied:/)
   })
 })
