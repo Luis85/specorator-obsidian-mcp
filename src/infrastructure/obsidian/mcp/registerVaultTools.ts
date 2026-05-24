@@ -66,7 +66,7 @@ export function registerVaultTools(
       description: 'Write (overwrite or create) a vault file',
       inputSchema: {
         path: z.string().describe('Vault-relative path'),
-        content: z.string().describe('Full file content to write'),
+        content: z.string().max(10_000_000).describe('Full file content to write (max 10 MB)'),
       },
     },
     async ({ path, content }) => {

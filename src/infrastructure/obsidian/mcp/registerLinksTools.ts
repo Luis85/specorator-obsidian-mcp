@@ -95,7 +95,7 @@ export function registerLinksTools(server: McpServer, deps: { metadata: Metadata
         'BFS traverse the link graph from a start node. Direction = outgoing | backlinks | both. Depth capped at 5.',
       inputSchema: {
         startPath: z.string().describe('Starting vault path'),
-        depth: z.number().int().min(1).describe('Hop limit (capped at 5)'),
+        depth: z.number().int().min(1).max(5).describe('Hop limit (max 5)'),
         direction: z.enum(['outgoing', 'backlinks', 'both']),
       },
     },

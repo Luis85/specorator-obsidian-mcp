@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerVaultTools } from '@/infrastructure/obsidian/mcp/registerVaultTools'
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
 import { makeAllowGate, getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
+
+const vaultWriteContentSchema = z.string().max(10_000_000)
 
 function setup() {
   const ports = fakeModulePorts()
@@ -175,6 +178,20 @@ describe('registerVaultTools', () => {
     expect(capturedParams).toBeDefined()
     expect('content' in capturedParams!).toBe(false)
     expect(capturedParams!['path']).toBe('a.md')
+  })
+
+  describe('vault.write size limit', () => {
+    it('rejects content over 10 MB at schema layer', () => {
+      const oversized = 'x'.repeat(10_000_001)
+      const result = vaultWriteContentSchema.safeParse(oversized)
+      expect(result.success).toBe(false)
+    })
+
+    it('accepts content exactly at 10 MB limit', () => {
+      const atLimit = 'x'.repeat(10_000_000)
+      const result = vaultWriteContentSchema.safeParse(atLimit)
+      expect(result.success).toBe(true)
+    })
   })
 
   describe('path normalisation — traverse and absolute path rejection', () => {

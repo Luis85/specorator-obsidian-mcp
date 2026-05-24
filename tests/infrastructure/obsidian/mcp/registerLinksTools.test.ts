@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerLinksTools } from '@/infrastructure/obsidian/mcp/registerLinksTools'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
 import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 import { getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
+
+const bfsDepthSchema = z.number().int().min(1).max(5)
 
 function setup() {
   const ports = fakeModulePorts()
@@ -87,6 +90,20 @@ describe('registerLinksTools', () => {
     expect(parsed.nodes).toContain('c.md')
     expect(parsed.edges).toContainEqual(['a.md', 'b.md'])
     expect(parsed.edges).toContainEqual(['b.md', 'c.md'])
+  })
+
+  describe('links.bfs depth schema', () => {
+    it('rejects depth=6 at schema layer', () => {
+      expect(bfsDepthSchema.safeParse(6).success).toBe(false)
+    })
+
+    it('accepts depth=5 at schema layer', () => {
+      expect(bfsDepthSchema.safeParse(5).success).toBe(true)
+    })
+
+    it('rejects depth=0 at schema layer', () => {
+      expect(bfsDepthSchema.safeParse(0).success).toBe(false)
+    })
   })
 
   it('links.bfs caps depth at 5', async () => {

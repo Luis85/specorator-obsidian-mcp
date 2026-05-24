@@ -48,7 +48,7 @@ async function loadBaseRecords(vault: VaultPort, folder: string): Promise<BaseRe
 const FilterSchema = z.object({
   field: z.string(),
   op: z.enum(['eq', 'neq', 'contains', 'in']),
-  value: z.unknown(),
+  value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]),
 })
 
 export function registerBasesTools(server: McpServer, deps: { vault: VaultPort }): void {
