@@ -3,10 +3,10 @@ import { z } from 'zod'
 import type { CanvasPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok } from './shared'
+import { ok, deny, err } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
-  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+  return err(`unsafe path: ${msg}`)
 }
 
 export function registerCanvasTools(
@@ -48,7 +48,7 @@ export function registerCanvasTools(
       const safePath = norm.value
       const d = await gate.resolve('canvas.write', { path: safePath })
       if (d.decision === 'deny') {
-        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+        return deny(d.reason)
       }
       const canvasData = {
         nodes: Array.isArray(data.nodes) ? data.nodes : [],

@@ -5,6 +5,8 @@ import {
   joinVaultPath,
   collectFiles,
   ok,
+  deny,
+  err,
 } from '@/infrastructure/obsidian/mcp/shared'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
 
@@ -27,6 +29,18 @@ describe('mcp/shared', () => {
 
   it('ok wraps JSON for MCP content reply', () => {
     expect(ok({ x: 1 })).toEqual({ content: [{ type: 'text', text: '{"x":1}' }] })
+  })
+
+  it('deny returns isError envelope with denied: prefix', () => {
+    const result = deny('not allowed')
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toBe('denied: not allowed')
+  })
+
+  it('err returns isError envelope with error: prefix', () => {
+    const result = err('something went wrong')
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toBe('error: something went wrong')
   })
 
   it('applyFrontmatterUpdate merges into existing block', async () => {

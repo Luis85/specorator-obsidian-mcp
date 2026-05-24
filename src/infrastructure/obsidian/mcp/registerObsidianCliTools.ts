@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
-import { ok } from './shared'
+import { ok, deny } from './shared'
 
 /** Minimal surface of Obsidian's App.commands we need to execute commands. */
 export interface CommandExecutorPort {
@@ -33,7 +33,7 @@ export function registerObsidianCliTools(
     async ({ commandId }) => {
       const d = await gate.resolve('cli.execute', { commandId })
       if (d.decision === 'deny') {
-        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+        return deny(d.reason)
       }
       const executed = app.commands.executeCommandById(commandId)
       return ok({ executed, commandId })

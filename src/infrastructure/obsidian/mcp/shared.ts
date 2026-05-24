@@ -58,3 +58,11 @@ export async function collectFiles(vault: VaultPort, folder: string): Promise<st
 export function ok(data: unknown): { content: [{ type: 'text'; text: string }] } {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] }
 }
+
+export function deny(reason: string): { isError: true; content: [{ type: 'text'; text: string }] } {
+  return { isError: true, content: [{ type: 'text' as const, text: `denied: ${reason}` }] }
+}
+
+export function err(message: string): { isError: true; content: [{ type: 'text'; text: string }] } {
+  return { isError: true, content: [{ type: 'text' as const, text: `error: ${message}` }] }
+}

@@ -3,10 +3,10 @@ import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { joinVaultPath, ok } from './shared'
+import { joinVaultPath, ok, deny, err } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
-  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+  return err(`unsafe path: ${msg}`)
 }
 
 export function registerVaultTools(
@@ -75,7 +75,7 @@ export function registerVaultTools(
       const safePath = norm.value
       const d = await gate.resolve('vault.write', { path: safePath })
       if (d.decision === 'deny') {
-        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+        return deny(d.reason)
       }
       await vault.writeFile(safePath, content)
       return ok({ written: true, path: safePath })
@@ -94,7 +94,7 @@ export function registerVaultTools(
       const safePath = norm.value
       const d = await gate.resolve('vault.delete', { path: safePath })
       if (d.decision === 'deny') {
-        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+        return deny(d.reason)
       }
       await vault.deleteFile(safePath)
       return ok({ deleted: true, path: safePath })
@@ -122,7 +122,7 @@ export function registerVaultTools(
       const safeTo = normTo.value
       const d = await gate.resolve('vault.move', { path: safeFrom, from: safeFrom, to: safeTo })
       if (d.decision === 'deny') {
-        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+        return deny(d.reason)
       }
       const content = await vault.readFile(safeFrom)
       await vault.writeFile(safeTo, content)
@@ -143,7 +143,7 @@ export function registerVaultTools(
       const safePath = norm.value
       const d = await gate.resolve('vault.createFolder', { path: safePath })
       if (d.decision === 'deny') {
-        return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
+        return deny(d.reason)
       }
       await vault.createFolder(safePath)
       return ok({ created: true, path: safePath })

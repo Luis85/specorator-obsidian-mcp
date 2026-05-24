@@ -2,10 +2,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok } from './shared'
+import { ok, err } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
-  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+  return err(`unsafe path: ${msg}`)
 }
 
 type TraverseDirection = 'outgoing' | 'backlinks' | 'both'

@@ -2,10 +2,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { collectFiles, ok, parseFrontmatter } from './shared'
+import { collectFiles, ok, err, parseFrontmatter } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
-  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+  return err(`unsafe path: ${msg}`)
 }
 
 type FilterOp = 'eq' | 'neq' | 'contains' | 'in'
