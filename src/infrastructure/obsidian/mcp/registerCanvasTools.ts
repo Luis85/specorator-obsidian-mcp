@@ -9,6 +9,25 @@ function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; tex
   return err(`unsafe path: ${msg}`)
 }
 
+const CanvasNodeSchema = z
+  .object({
+    id: z.string(),
+    type: z.enum(['text', 'file', 'link', 'group']),
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  })
+  .passthrough()
+
+const CanvasEdgeSchema = z
+  .object({
+    id: z.string(),
+    fromNode: z.string(),
+    toNode: z.string(),
+  })
+  .passthrough()
+
 export function registerCanvasTools(
   server: McpServer,
   deps: { canvas: CanvasPort; gate: PermissionGate },
@@ -36,8 +55,8 @@ export function registerCanvasTools(
         path: z.string().describe('Vault-relative .canvas path'),
         data: z
           .object({
-            nodes: z.array(z.unknown()).optional(),
-            edges: z.array(z.unknown()).optional(),
+            nodes: z.array(CanvasNodeSchema).optional(),
+            edges: z.array(CanvasEdgeSchema).optional(),
           })
           .describe('Full canvas data to write'),
       },

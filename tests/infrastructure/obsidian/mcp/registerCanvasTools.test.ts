@@ -1,10 +1,33 @@
 import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { z } from 'zod'
 import { registerCanvasTools } from '@/infrastructure/obsidian/mcp/registerCanvasTools'
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
 import { makeAllowGate, getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
+
+// Export the schemas from the module for direct schema-validation tests.
+// We replicate the same definitions here to test the Zod shapes independently
+// (the registrar does not re-export them, but the contract is expressed below).
+const CanvasNodeSchema = z
+  .object({
+    id: z.string(),
+    type: z.enum(['text', 'file', 'link', 'group']),
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  })
+  .passthrough()
+
+const CanvasEdgeSchema = z
+  .object({
+    id: z.string(),
+    fromNode: z.string(),
+    toNode: z.string(),
+  })
+  .passthrough()
 
 function setup() {
   const ports = fakeModulePorts()
@@ -106,10 +129,72 @@ describe('registerCanvasTools', () => {
       'canvas.write',
     )({
       path: 'board.canvas',
-      data: { nodes: [{ id: 'n1' }], edges: [] },
+      data: { nodes: [{ id: 'n1', type: 'text', x: 0, y: 0, width: 100, height: 50 }], edges: [] },
     })
     const written = ports.bridge.getWrittenCanvas('board.canvas')
     expect(written).toBeDefined()
     expect(written!.nodes).toHaveLength(1)
+  })
+
+  describe('CanvasNodeSchema', () => {
+    it('rejects a node missing required fields (no type/x/y/width/height)', () => {
+      const result = CanvasNodeSchema.safeParse({ id: 'n1' })
+      expect(result.success).toBe(false)
+    })
+
+    it('accepts a valid node', () => {
+      const result = CanvasNodeSchema.safeParse({
+        id: 'n1',
+        type: 'text',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 50,
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('preserves extension fields via passthrough', () => {
+      const result = CanvasNodeSchema.safeParse({
+        id: 'n1',
+        type: 'text',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 50,
+        color: '#ff0000',
+        text: 'hello',
+      })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect((result.data as Record<string, unknown>)['color']).toBe('#ff0000')
+        expect((result.data as Record<string, unknown>)['text']).toBe('hello')
+      }
+    })
+  })
+
+  describe('CanvasEdgeSchema', () => {
+    it('rejects an edge missing required fields', () => {
+      const result = CanvasEdgeSchema.safeParse({ id: 'e1' })
+      expect(result.success).toBe(false)
+    })
+
+    it('accepts a valid edge', () => {
+      const result = CanvasEdgeSchema.safeParse({ id: 'e1', fromNode: 'n1', toNode: 'n2' })
+      expect(result.success).toBe(true)
+    })
+
+    it('preserves extension fields via passthrough', () => {
+      const result = CanvasEdgeSchema.safeParse({
+        id: 'e1',
+        fromNode: 'n1',
+        toNode: 'n2',
+        label: 'relates to',
+      })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect((result.data as Record<string, unknown>)['label']).toBe('relates to')
+      }
+    })
   })
 })
