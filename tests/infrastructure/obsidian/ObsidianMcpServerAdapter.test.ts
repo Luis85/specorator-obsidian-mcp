@@ -90,4 +90,20 @@ describe('ObsidianMcpServerAdapter', () => {
     const second = makeAdapter() // same port
     await expect(second.start()).rejects.toThrow(/EADDRINUSE/i)
   })
+
+  it('getConnectionConfig throws before start', () => {
+    const a = makeAdapter()
+    expect(() => a.getConnectionConfig()).toThrow(/not started/i)
+  })
+
+  it('stop before start is a no-op', async () => {
+    const a = makeAdapter()
+    await expect(a.stop()).resolves.toBeUndefined()
+  })
+
+  it('throws on double-start without intervening stop', async () => {
+    adapter = makeAdapter()
+    await adapter.start()
+    await expect(adapter.start()).rejects.toThrow(/already running/i)
+  })
 })

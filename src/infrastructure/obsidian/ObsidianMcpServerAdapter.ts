@@ -36,6 +36,7 @@ export interface McpConnectionConfig {
 export class ObsidianMcpServerAdapter {
   private readonly settings: McpSettingsSource
   private httpServer: http.Server | null = null
+  private boundPort: number | null = null
   private toolRegistrar: ((server: McpServer) => void) | undefined
 
   constructor(settings: McpSettingsSource) {
@@ -56,6 +57,9 @@ export class ObsidianMcpServerAdapter {
   // -------------------------------------------------------------------------
 
   async start(): Promise<{ port: number }> {
+    if (this.httpServer !== null) {
+      throw new Error('MCP server already running — call stop() first')
+    }
     const port = this.settings.getSettings().port
 
     const server = http.createServer((req, res) => {
@@ -79,12 +83,16 @@ export class ObsidianMcpServerAdapter {
     })
 
     this.httpServer = server
+    this.boundPort = port
     return { port }
   }
 
   async stop(): Promise<void> {
     const server = this.httpServer
     if (server === null) return
+    if (typeof server.closeAllConnections === 'function') {
+      server.closeAllConnections()
+    }
     await new Promise<void>((resolve, reject) => {
       server.close((err) => {
         if (err !== undefined) reject(err)
@@ -92,14 +100,14 @@ export class ObsidianMcpServerAdapter {
       })
     })
     this.httpServer = null
+    this.boundPort = null
   }
 
   getConnectionConfig(): McpConnectionConfig {
-    const port = this.settings.getSettings().port
-    if (this.httpServer === null) {
+    if (this.boundPort === null) {
       throw new Error('MCP server not started — call start() first')
     }
-    return { transport: 'http', url: `http://127.0.0.1:${port}/mcp` }
+    return { transport: 'http', url: `http://127.0.0.1:${this.boundPort}/mcp` }
   }
 
   // -------------------------------------------------------------------------
