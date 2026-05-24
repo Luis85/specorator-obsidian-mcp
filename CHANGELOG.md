@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Auto-register MCP server URL with Claude CLI (default), Claude Desktop, Cursor on server start; deregister on stop. Opt-in toggles per client in settings.
+
 ## 0.1.0 — 2026-05-24
 
 - Initial release.

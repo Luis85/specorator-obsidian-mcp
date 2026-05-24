@@ -20,16 +20,48 @@ In active development — not yet functional. The 0.0.1 release is a scaffolding
 - `cli.execute` (Obsidian command palette execution) defaults to `deny`. Opt in by changing the mode in settings.
 - The server is **disabled by default**. Start it from the command palette: "Start MCP server".
 
+## Client integration
+
+When the MCP server starts, the plugin can automatically write the server URL into well-known client config files so MCP clients discover it without manual configuration. When the server stops, the entry is removed.
+
+The plugin writes only its own key (`specorator-obsidian-mcp`) and never touches other entries in the same file.
+
+| Client         | Config file                  | Default     |
+| -------------- | ---------------------------- | ----------- |
+| Claude CLI     | `~/.claude.json`             | **enabled** |
+| Cursor         | `~/.cursor/mcp.json`         | disabled    |
+| Claude Desktop | `claude_desktop_config.json` | disabled    |
+
+The entry shape written to every target:
+
+```json
+{
+  "mcpServers": {
+    "specorator-obsidian-mcp": {
+      "type": "http",
+      "url": "http://127.0.0.1:7842/mcp"
+    }
+  }
+}
+```
+
+Toggle each client in **Settings → Auto-register MCP URL with clients**. Changes take effect on next server start.
+
+**Manual integration (other clients):** copy the URL shown in the Obsidian status bar and add it to your client's MCP config using the key `specorator-obsidian-mcp`.
+
 ## Settings
 
-| Setting        | Type                                     | Default                              |
-| -------------- | ---------------------------------------- | ------------------------------------ |
-| `port`         | number                                   | `7842`                               |
-| `defaultMode`  | `'allow' \| 'ask' \| 'deny'`             | `'ask'`                              |
-| `toolModes`    | per-tool overrides                       | sensible defaults (see settings tab) |
-| `pathDenyList` | glob patterns                            | `[]`                                 |
-| `askTimeoutMs` | number (ms)                              | `30000`                              |
-| `logLevel`     | `'debug' \| 'info' \| 'warn' \| 'error'` | `'warn'`                             |
+| Setting                      | Type                                     | Default                              |
+| ---------------------------- | ---------------------------------------- | ------------------------------------ |
+| `port`                       | number                                   | `7842`                               |
+| `defaultMode`                | `'allow' \| 'ask' \| 'deny'`             | `'ask'`                              |
+| `toolModes`                  | per-tool overrides                       | sensible defaults (see settings tab) |
+| `pathDenyList`               | glob patterns                            | `[]`                                 |
+| `askTimeoutMs`               | number (ms)                              | `30000`                              |
+| `logLevel`                   | `'debug' \| 'info' \| 'warn' \| 'error'` | `'warn'`                             |
+| `autoRegister.claudeCli`     | boolean                                  | `true`                               |
+| `autoRegister.cursor`        | boolean                                  | `false`                              |
+| `autoRegister.claudeDesktop` | boolean                                  | `false`                              |
 
 ## Tool groups
 
