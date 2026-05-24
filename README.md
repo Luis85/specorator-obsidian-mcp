@@ -4,7 +4,7 @@ In-process Model Context Protocol server for Obsidian. Exposes the vault, metada
 
 ## Status
 
-Pre-release. Server lifecycle and permission model are stable; tool coverage is incremental.
+In active development — not yet functional. The 0.0.1 release is a scaffolding-only commit; the MCP server, tool registrars, and permission gate land in subsequent versions on `develop`.
 
 ## How it works
 
