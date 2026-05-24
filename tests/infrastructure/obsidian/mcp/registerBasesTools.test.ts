@@ -61,7 +61,7 @@ describe('registerBasesTools', () => {
     expect(paths).not.toContain('db/image.png')
   })
 
-  it('bases.filter returns only matching records (eq)', async () => {
+  it('bases.filter returns only matching records (eq) — single filter object', async () => {
     const { server, ports } = setup()
     await ports.vault.writeFile('proj/a.md', '---\nstatus: active\n---\n')
     await ports.vault.writeFile('proj/b.md', '---\nstatus: archived\n---\n')
@@ -71,7 +71,7 @@ describe('registerBasesTools', () => {
       'bases.filter',
     )({
       folder: 'proj',
-      filter: { field: 'status', op: 'eq', value: 'active' },
+      filters: { field: 'status', op: 'eq', value: 'active' },
     })) as { content: [{ text: string }] }
     const parsed = JSON.parse(result.content[0].text) as {
       records: Array<{ path: string }>
@@ -119,10 +119,47 @@ describe('registerBasesTools', () => {
       'bases.filter',
     )({
       folder: 't',
-      filter: { field: 'title', op: 'contains', value: 'Hello' },
+      filters: { field: 'title', op: 'contains', value: 'Hello' },
     })) as { content: [{ text: string }] }
     const parsed = JSON.parse(result.content[0].text) as { records: Array<{ path: string }> }
     expect(parsed.records).toHaveLength(1)
     expect(parsed.records[0]!.path).toBe('t/x.md')
+  })
+
+  it('bases.filter supports array of filters with AND semantics', async () => {
+    const { server, ports } = setup()
+    await ports.vault.writeFile('and/a.md', '---\nstatus: active\npriority: high\n---\n')
+    await ports.vault.writeFile('and/b.md', '---\nstatus: active\npriority: low\n---\n')
+    await ports.vault.writeFile('and/c.md', '---\nstatus: archived\npriority: high\n---\n')
+    const result = (await getHandler(
+      server,
+      'bases.filter',
+    )({
+      folder: 'and',
+      filters: [
+        { field: 'status', op: 'eq', value: 'active' },
+        { field: 'priority', op: 'eq', value: 'high' },
+      ],
+    })) as { content: [{ text: string }] }
+    const parsed = JSON.parse(result.content[0].text) as { records: Array<{ path: string }> }
+    expect(parsed.records).toHaveLength(1)
+    expect(parsed.records[0]!.path).toBe('and/a.md')
+  })
+
+  it('bases.filter returns empty when filters are contradictory', async () => {
+    const { server, ports } = setup()
+    await ports.vault.writeFile('contra/a.md', '---\nstatus: active\n---\n')
+    const result = (await getHandler(
+      server,
+      'bases.filter',
+    )({
+      folder: 'contra',
+      filters: [
+        { field: 'status', op: 'eq', value: 'active' },
+        { field: 'status', op: 'eq', value: 'archived' },
+      ],
+    })) as { content: [{ text: string }] }
+    const parsed = JSON.parse(result.content[0].text) as { records: Array<{ path: string }> }
+    expect(parsed.records).toHaveLength(0)
   })
 })

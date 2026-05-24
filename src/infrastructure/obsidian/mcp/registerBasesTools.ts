@@ -71,22 +71,31 @@ export function registerBasesTools(server: McpServer, deps: { vault: VaultPort }
     },
   )
 
+  const FiltersInput = z.union([
+    FilterSchema, // single (back-compat)
+    z.array(FilterSchema).min(1), // multiple, AND
+  ])
+
   server.registerTool(
     'bases.filter',
     {
       description:
-        'Filter frontmatter records in a folder by a field condition. op: eq|neq|contains|in.',
+        'Filter Obsidian Bases records by one or more field/op/value criteria. Multiple filters combine with AND semantics.',
       inputSchema: {
         folder: z.string().describe('Vault-relative folder to scan recursively'),
-        filter: FilterSchema.describe('Field filter condition'),
+        filters: FiltersInput.describe(
+          'One filter object OR an array of filter objects (AND semantics)',
+        ),
       },
     },
-    async ({ folder, filter }) => {
+    async ({ folder, filters }) => {
       const norm = normalizeVaultPath(folder)
       if (!norm.ok) return unsafePath(norm.error.message)
       const records = await loadBaseRecords(vault, norm.value)
+      // Normalise to array
+      const filterArray = Array.isArray(filters) ? filters : [filters]
       const matched = records.filter((r) =>
-        matchesFilter(r.frontmatter[filter.field], filter.op, filter.value),
+        filterArray.every((f) => matchesFilter(r.frontmatter[f.field], f.op, f.value)),
       )
       return ok({ records: matched })
     },
