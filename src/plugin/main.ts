@@ -1,5 +1,5 @@
 import { Plugin } from 'obsidian'
-import { DEFAULT_SETTINGS, type PluginSettings } from '@/domain/settings/PluginSettings'
+import { DEFAULT_SETTINGS, DEFAULT_TOOL_MODES, type PluginSettings, type ToolMode } from '@/domain/settings/PluginSettings'
 import { ObsidianMcpServerAdapter } from '@/infrastructure/obsidian/ObsidianMcpServerAdapter'
 import { ObsidianConfirmModalAdapter } from '@/infrastructure/obsidian/ObsidianConfirmModalAdapter'
 import { PermissionGate } from '@/application/mcp/PermissionGate'
@@ -35,11 +35,14 @@ export default class SpecoratorMcpPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     const stored = (await this.loadData()) as Partial<PluginSettings> | null
-    this.settings = {
-      ...DEFAULT_SETTINGS,
-      ...(stored ?? {}),
-      toolModes: { ...DEFAULT_SETTINGS.toolModes, ...(stored?.toolModes ?? {}) },
-    }
+    const storedToolModes = stored?.toolModes ?? {}
+    const toolModes = Object.fromEntries(
+      Object.keys(DEFAULT_TOOL_MODES).map((k) => [
+        k,
+        storedToolModes[k] ?? DEFAULT_SETTINGS.toolModes[k],
+      ]),
+    ) as Record<string, ToolMode>
+    this.settings = { ...DEFAULT_SETTINGS, ...(stored ?? {}), toolModes }
   }
 
   async saveSettings(): Promise<void> {
