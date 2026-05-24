@@ -1,5 +1,10 @@
 import { Plugin } from 'obsidian'
-import { DEFAULT_SETTINGS, DEFAULT_TOOL_MODES, type PluginSettings, type ToolMode } from '@/domain/settings/PluginSettings'
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_TOOL_MODES,
+  type PluginSettings,
+  type ToolMode,
+} from '@/domain/settings/PluginSettings'
 import { ObsidianMcpServerAdapter } from '@/infrastructure/obsidian/ObsidianMcpServerAdapter'
 import { ObsidianConfirmModalAdapter } from '@/infrastructure/obsidian/ObsidianConfirmModalAdapter'
 import { PermissionGate } from '@/application/mcp/PermissionGate'

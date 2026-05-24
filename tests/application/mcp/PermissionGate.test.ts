@@ -76,7 +76,10 @@ describe('PermissionGate.resolve', () => {
       // Create a controllable modal that resolves on demand, not on call.
       let resolveModal!: (choice: 'allow' | 'allow-session' | 'deny') => void
       const modal: ConfirmModalPort = {
-        confirm: () => new Promise((res) => { resolveModal = res }),
+        confirm: () =>
+          new Promise((res) => {
+            resolveModal = res
+          }),
       } as ConfirmModalPort
 
       const settings: PluginSettings = { ...DEFAULT_SETTINGS, defaultMode: 'ask', askTimeoutMs: 10 }
@@ -93,8 +96,12 @@ describe('PermissionGate.resolve', () => {
 
       // Second call must still be ask/deny — not silently allowed from poisoned cache
       let resolveModal2!: (choice: 'allow' | 'allow-session' | 'deny') => void
-      ;(modal as { confirm: (req: unknown) => Promise<'allow' | 'allow-session' | 'deny'> }).confirm = () =>
-        new Promise((res) => { resolveModal2 = res })
+      ;(
+        modal as { confirm: (req: unknown) => Promise<'allow' | 'allow-session' | 'deny'> }
+      ).confirm = () =>
+        new Promise((res) => {
+          resolveModal2 = res
+        })
       const secondPromise = gate.resolve('vault.write', { path: 'b.md' })
       resolveModal2('deny')
       const second = await secondPromise
