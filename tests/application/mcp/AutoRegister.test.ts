@@ -124,6 +124,37 @@ describe('AutoRegister.register', () => {
     const lines = written.split('\n')
     expect(lines[1]).toMatch(/^ {2}"mcpServers"/)
   })
+
+  describe('.bak rotation', () => {
+    it('writes .bak with original content before mutating', async () => {
+      const original = JSON.stringify({ mcpServers: {} })
+      mockFs.files.set(target.configPath, original)
+      await ar.register(URL, [target])
+      const bak = mockFs.files.get(`${target.configPath}.bak`)
+      expect(bak).toBe(original)
+    })
+
+    it('does NOT write .bak when file did not exist', async () => {
+      // file does not exist in mockFs
+      const writesBefore = mockFs.writeCallCount
+      await ar.register(URL, [target])
+      // Only 1 write: the config itself; no .bak write
+      const bak = mockFs.files.get(`${target.configPath}.bak`)
+      expect(bak).toBeUndefined()
+      expect(mockFs.writeCallCount).toBe(writesBefore + 1)
+    })
+
+    it('does NOT write .bak when URL is unchanged (skips write)', async () => {
+      mockFs.files.set(
+        target.configPath,
+        JSON.stringify({ mcpServers: { [SERVER_KEY]: { type: 'http', url: URL } } }),
+      )
+      const writesBefore = mockFs.writeCallCount
+      await ar.register(URL, [target])
+      expect(mockFs.writeCallCount).toBe(writesBefore)
+      expect(mockFs.files.get(`${target.configPath}.bak`)).toBeUndefined()
+    })
+  })
 })
 
 describe('AutoRegister.deregister', () => {
@@ -212,5 +243,15 @@ describe('AutoRegister.deregister', () => {
     const results = await arThrow.deregister([target])
     expect(results[0]?.status).toBe('failed')
     expect(results[0]?.reason).toBe('permission denied')
+  })
+
+  it('writes .bak with original content before deregistering', async () => {
+    const original = JSON.stringify({
+      mcpServers: { [SERVER_KEY]: { type: 'http', url: URL } },
+    })
+    mockFs.files.set(target.configPath, original)
+    await ar.deregister([target])
+    const bak = mockFs.files.get(`${target.configPath}.bak`)
+    expect(bak).toBe(original)
   })
 })

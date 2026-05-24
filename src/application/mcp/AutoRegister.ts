@@ -78,6 +78,10 @@ export class AutoRegister {
           continue
         }
 
+        // Back up existing content before mutating (single rotation — overwrites previous .bak).
+        if (existing !== null) {
+          await this.fs.writeText(`${t.configPath}.bak`, existing)
+        }
         servers[SERVER_KEY] = entry
         blob['mcpServers'] = servers
         await this.fs.writeText(t.configPath, JSON.stringify(blob, null, 2) + '\n')
@@ -117,6 +121,8 @@ export class AutoRegister {
           continue
         }
         delete (servers as Record<string, unknown>)[SERVER_KEY]
+        // Back up existing content before mutating (single rotation — overwrites previous .bak).
+        await this.fs.writeText(`${t.configPath}.bak`, existing)
         await this.fs.writeText(t.configPath, JSON.stringify(blob, null, 2) + '\n')
         out.push({ target: t, status: 'registered', reason: 'deregistered' })
       } catch (err) {
