@@ -34,7 +34,7 @@ const ctx = await esbuild.context({
   format: 'cjs',
   target: 'es2022',
   logLevel: 'info',
-  sourcemap: 'inline',
+  sourcemap: watch ? 'inline' : false,
   treeShaking: true,
   platform: 'node',
   outfile: 'main.js',

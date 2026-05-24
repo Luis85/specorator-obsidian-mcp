@@ -49,3 +49,22 @@ if (errors.length > 0) {
   process.exit(1)
 }
 console.log('✓ manifest.json valid')
+
+// Bundle size gate: main.js must be < 2 MB in production builds.
+// Inline sourcemaps inflate the file to ~4.6 MB — this catches regressions.
+// (Production bundle without sourcemaps is ~1.4 MB due to MCP SDK + zod + yaml.)
+const mainJsPath = path.join(repoRoot, 'main.js')
+if (fs.existsSync(mainJsPath)) {
+  const bundleSizeBytes = fs.statSync(mainJsPath).size
+  const LIMIT_BYTES = 2_000_000 // 2 MB
+  if (bundleSizeBytes > LIMIT_BYTES) {
+    console.error(
+      `✗ main.js is ${(bundleSizeBytes / 1024).toFixed(0)} KB — exceeds 2 MB limit.` +
+        ' Inline sourcemaps may have been re-enabled for a production build.',
+    )
+    process.exit(1)
+  }
+  console.log(`✓ main.js bundle size: ${(bundleSizeBytes / 1024).toFixed(0)} KB (limit 2 MB)`)
+} else {
+  console.log('⚠ main.js not found — skipping bundle size check (run npm run build first)')
+}
