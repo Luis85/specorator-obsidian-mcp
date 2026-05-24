@@ -40,7 +40,7 @@ export interface McpConnectionConfig {
 export class ObsidianMcpServerAdapter {
   private readonly settings: McpSettingsSource
   private httpServer: http.Server | null = null
-  private boundPort: number | null = null
+  private _boundPort: number | null = null
   private toolRegistrar: ((server: McpServer) => void) | undefined
 
   constructor(settings: McpSettingsSource) {
@@ -88,7 +88,7 @@ export class ObsidianMcpServerAdapter {
     })
 
     this.httpServer = server
-    this.boundPort = port
+    this._boundPort = port
     return { port }
   }
 
@@ -105,14 +105,18 @@ export class ObsidianMcpServerAdapter {
       })
     })
     this.httpServer = null
-    this.boundPort = null
+    this._boundPort = null
+  }
+
+  get boundPort(): number | null {
+    return this._boundPort
   }
 
   getConnectionConfig(): McpConnectionConfig {
-    if (this.boundPort === null) {
+    if (this._boundPort === null) {
       throw new Error('MCP server not started — call start() first')
     }
-    return { transport: 'http', url: `http://127.0.0.1:${this.boundPort}/mcp` }
+    return { transport: 'http', url: `http://127.0.0.1:${this._boundPort}/mcp` }
   }
 
   // -------------------------------------------------------------------------

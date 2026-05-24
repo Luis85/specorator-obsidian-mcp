@@ -98,7 +98,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
       })
     })
     await this.mcp.start()
-    this.statusBar.setRunning(this.settings.port)
+    const port = this.mcp.boundPort ?? this.settings.port
+    this.statusBar.setRunning(port)
   }
 
   private async stopServer(): Promise<void> {
