@@ -61,6 +61,15 @@ export default class SpecoratorMcpPlugin extends Plugin {
       callback: async () => this.stopServer(),
     })
 
+    this.addCommand({
+      id: 'restart-mcp-server',
+      name: 'Restart MCP server',
+      callback: async () => {
+        await this.stopServer()
+        await this.startServer()
+      },
+    })
+
     this.statusBar = new McpStatusBar(
       () => this.addStatusBarItem(),
       () => {
