@@ -1,0 +1,3 @@
+/* specorator-obsidian-mcp — no plugin CSS; status bar element uses Obsidian's default styling.
+ * This file exists because BRAT and the Obsidian community-plugin convention require
+ * styles.css to be a release asset; an empty stylesheet keeps the contract satisfied. */
