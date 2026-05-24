@@ -1,10 +1,33 @@
 # Specorator Obsidian MCP
 
-In-process Model Context Protocol server for Obsidian. Exposes the vault, metadata cache, link graph, canvas, bases, and Obsidian command palette as a typed agent tool surface over loopback HTTP.
+Specorator Obsidian MCP lets AI tools — Claude, Cursor, Claude Desktop — read and write your Obsidian vault over a secure local connection. Notes, links, canvas, bases, and Obsidian commands are exposed as Model Context Protocol (MCP) tools.
 
 ## Status
 
-In active development — not yet functional. The 0.0.1 release is a scaffolding-only commit; the MCP server, tool registrars, and permission gate land in subsequent versions on `develop`.
+**0.1.0 — first public release.** Active development; feedback welcome.
+
+<!-- TODO: add settings tab screenshot, modal screenshot -->
+
+## Install
+
+### Via BRAT (recommended now)
+
+1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) community plugin and enable it.
+2. Open the command palette → **BRAT: Add a beta plugin for testing**.
+3. Paste `Luis85/specorator-obsidian-mcp` and click **Add Plugin**.
+4. Enable **Specorator Obsidian MCP** in **Settings → Community plugins**.
+
+### Via Obsidian Community Plugins
+
+Coming soon — pending marketplace review.
+
+## Quick start
+
+1. Enable the plugin in **Settings → Community plugins**.
+2. Open the command palette and run **Start MCP server**.
+3. The status bar shows `MCP: 127.0.0.1:7842` — the server is running.
+4. The plugin auto-registers the URL with Claude CLI by default (`~/.claude.json`). Verify with `claude mcp list`.
+5. Open Claude Code and ask it to list your vault files.
 
 ## How it works
 
@@ -13,12 +36,16 @@ In active development — not yet functional. The 0.0.1 release is a scaffolding
 - Path-based deny-list takes precedence over per-tool modes.
 - All writes are direct (no proposal queue).
 
-## Security
+## Security & trust
 
 - Loopback bind only. The server rejects any request whose `Host` header is not `127.0.0.1` or `localhost` (HTTP 421).
+- Origin header gate rejects cross-origin browser requests.
 - Configurable port; defaults to `7842`. Choose any unused local port.
-- `cli.execute` (Obsidian command palette execution) defaults to `deny`. Opt in by changing the mode in settings.
+- `cli.execute` (Obsidian command palette execution) defaults to `deny`. Opt in per-prefix in settings.
 - The server is **disabled by default**. Start it from the command palette: "Start MCP server".
+- When you start the server, every tool the LLM can call shows the configured mode in Settings. Defaults err on the side of asking before any write.
+
+See [SECURITY.md](./SECURITY.md) for the full trust model and vulnerability reporting.
 
 ## Client integration
 
@@ -93,6 +120,18 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 | `cli.read.list`        | `allow`      | List all Obsidian command palette commands                                                                                 |
 | `cli.read.find`        | `allow`      | Find commands by id/name substring                                                                                         |
 | `cli.execute`          | `deny`       | Execute a command palette command by id; opt in per-prefix via the allowlist setting                                       |
+
+## Troubleshooting
+
+**`EADDRINUSE`:** Another process is using port 7842. Change the port in **Settings → Port** and restart the server.
+
+**`421 Misdirected Request`:** The client is sending a non-loopback `Host` header. Add the server URL via the auto-register feature, or set the `Host` header to `127.0.0.1:7842` in your client's MCP config.
+
+**Auto-register permission denied on Windows:** Check that `~/.claude.json` is writable. The plugin shows a Notice in Obsidian if it cannot write the config file. You can also add the entry manually — see the JSON snippet in Client integration above.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
