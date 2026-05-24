@@ -56,8 +56,9 @@ export default class SpecoratorMcpPlugin extends Plugin {
   }
 
   async onunload(): Promise<void> {
-    this.statusBar.destroy()
-    await this.stopServer()
+    this.statusBar?.destroy()
+    this.mcp?.drainSync()
+    void this.mcp?.stop() // fire-and-forget — Obsidian does not await onunload
   }
 
   async loadSettings(): Promise<void> {
