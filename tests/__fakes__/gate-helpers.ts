@@ -1,5 +1,9 @@
 import { PermissionGate } from '@/application/mcp/PermissionGate'
-import { DEFAULT_SETTINGS, DEFAULT_TOOL_MODES, type ToolMode } from '@/domain/settings/PluginSettings'
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_TOOL_MODES,
+  type ToolMode,
+} from '@/domain/settings/PluginSettings'
 import type { ConfirmModalPort } from '@/domain/ports'
 
 /** Construct a PermissionGate that allows everything (every tool override → 'allow'). */
