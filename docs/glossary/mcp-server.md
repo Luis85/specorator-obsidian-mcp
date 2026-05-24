@@ -32,8 +32,8 @@ Running the MCP server inside the plugin (not as a separate process or REST inte
 
 ## Permission model
 
-Write tools resolve a permission mode (`allow` / `ask` / `deny`) via `PermissionGate` before touching the vault. Read tools bypass the gate. See [ADR-002](docs/adr/ADR-002-permission-modes.md) for the full resolution order.
+Write tools resolve a permission mode (`allow` / `ask` / `deny`) via `PermissionGate` before touching the vault. Read tools bypass the gate. See [ADR-002](../adr/ADR-002-permission-modes.md) for the full resolution order.
 
 ## Full specification
 
-See [ADR-001](docs/adr/ADR-001-loopback-mcp-server.md) for the loopback HTTP design and lifecycle decisions.
+See [ADR-001](../adr/ADR-001-loopback-mcp-server.md) for the loopback HTTP design and lifecycle decisions.
