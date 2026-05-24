@@ -72,6 +72,16 @@ export class ObsidianMcpServerAdapter {
         res.writeHead(421).end()
         return
       }
+      // DNS-rebinding defence: if Origin is present it must be a loopback origin.
+      // SDK clients and curl omit Origin entirely; browsers always send it.
+      const origin = req.headers.origin?.toLowerCase()
+      if (origin && origin !== 'null') {
+        const allowed = [`http://127.0.0.1:${port}`, `http://localhost:${port}`]
+        if (!allowed.includes(origin)) {
+          res.writeHead(421).end()
+          return
+        }
+      }
       if (req.url === '/mcp') {
         void this._handleMcpRequest(req, res).catch((_err) => {
           // TODO(PR4-or-later): inject LoggerPort and log _err here.
@@ -90,6 +100,20 @@ export class ObsidianMcpServerAdapter {
     this.httpServer = server
     this._boundPort = port
     return { port }
+  }
+
+  /**
+   * Synchronous socket drain — fire-and-forget counterpart to `stop()`.
+   * Called from `onunload()` where Obsidian does not await async work.
+   * Safe to call before `start()` (no-op) or after `stop()` (no-op).
+   */
+  drainSync(): void {
+    const server = this.httpServer
+    if (server === null) return
+    if (typeof server.closeAllConnections === 'function') {
+      server.closeAllConnections()
+    }
+    server.unref()
   }
 
   async stop(): Promise<void> {

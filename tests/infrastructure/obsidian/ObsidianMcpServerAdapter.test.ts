@@ -33,6 +33,35 @@ function rawPost(port: number, host: string, body: string): Promise<number> {
   })
 }
 
+/**
+ * Like rawPost but also sets an Origin header to test the DNS-rebinding gate.
+ */
+function rawPostWithOrigin(port: number, origin: string, body: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const bodyBuf = Buffer.from(body, 'utf8')
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        path: '/mcp',
+        method: 'POST',
+        headers: {
+          Host: '127.0.0.1',
+          Origin: origin,
+          'Content-Type': 'application/json',
+          'Content-Length': bodyBuf.length,
+        },
+      },
+      (res) => {
+        res.resume()
+        resolve(res.statusCode ?? 0)
+      },
+    )
+    req.on('error', reject)
+    req.end(bodyBuf)
+  })
+}
+
 const TEST_PORT = 17842 // ephemeral test port; collision-unlikely
 
 function makeAdapter(overrides: Partial<typeof DEFAULT_SETTINGS> = {}) {
@@ -129,5 +158,68 @@ describe('ObsidianMcpServerAdapter', () => {
     adapter = makeAdapter()
     await adapter.start()
     await expect(adapter.start()).rejects.toThrow(/already running/i)
+  })
+
+  describe('Origin header gate (DNS-rebinding defence)', () => {
+    it('rejects cross-origin request with 421', async () => {
+      adapter = makeAdapter()
+      await adapter.start()
+      const status = await rawPostWithOrigin(
+        TEST_PORT,
+        'https://evil.com',
+        JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+      )
+      expect(status).toBe(421)
+    })
+
+    it('accepts loopback origin http://127.0.0.1:<port>', async () => {
+      adapter = makeAdapter()
+      await adapter.start()
+      let status: number | undefined
+      try {
+        status = await rawPostWithOrigin(
+          TEST_PORT,
+          `http://127.0.0.1:${TEST_PORT}`,
+          JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+        )
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code
+        if (code === 'ECONNRESET' || code === 'ECONNREFUSED') return
+        throw err
+      }
+      expect(status).not.toBe(421)
+    })
+
+    it('accepts requests with no Origin header (SDK / curl clients)', async () => {
+      adapter = makeAdapter()
+      await adapter.start()
+      // rawPost sends no Origin header — should not be blocked
+      let status: number | undefined
+      try {
+        status = await rawPost(
+          TEST_PORT,
+          '127.0.0.1',
+          JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+        )
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code
+        if (code === 'ECONNRESET' || code === 'ECONNREFUSED') return
+        throw err
+      }
+      expect(status).not.toBe(421)
+    })
+  })
+
+  describe('drainSync', () => {
+    it('is a no-op when the server has never been started', () => {
+      const a = makeAdapter()
+      expect(() => a.drainSync()).not.toThrow()
+    })
+
+    it('can be called before stop without throwing', async () => {
+      adapter = makeAdapter()
+      await adapter.start()
+      expect(() => adapter!.drainSync()).not.toThrow()
+    })
   })
 })
