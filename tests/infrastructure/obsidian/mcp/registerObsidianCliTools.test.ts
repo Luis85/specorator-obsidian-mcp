@@ -4,30 +4,11 @@ import { registerObsidianCliTools } from '@/infrastructure/obsidian/mcp/register
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
-
-type RegisteredTool = {
-  handler: (args: Record<string, unknown>) => Promise<unknown>
-}
-
-function makeAllowGate(ports: ReturnType<typeof fakeModulePorts>) {
-  const allAllow = Object.fromEntries(
-    Object.keys(DEFAULT_SETTINGS.toolModes).map((k) => [k, 'allow' as const]),
-  )
-  return new PermissionGate(
-    {
-      getSettings: () => ({
-        ...DEFAULT_SETTINGS,
-        defaultMode: 'allow' as const,
-        toolModes: allAllow,
-      }),
-    },
-    ports.confirmModal,
-  )
-}
+import { makeAllowGate, type RegisteredTool } from '@@/__fakes__/gate-helpers'
 
 function setup() {
   const ports = fakeModulePorts()
-  const gate = makeAllowGate(ports)
+  const gate = makeAllowGate(ports.confirmModal)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
   const fakeApp = {
     commands: {
