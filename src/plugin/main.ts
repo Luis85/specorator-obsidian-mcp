@@ -101,7 +101,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
       registerVaultTools(server, { vault: bridge, gate: this.gate! })
       registerMetadataTools(server, { metadata: bridge, vault: bridge })
       registerLinksTools(server, { metadata: bridge })
-      registerCanvasTools(server, { canvas: bridge, gate: this.gate! })
+      registerCanvasTools(server, { canvas: bridge, gate: this.gate!, vault: bridge })
       registerBasesTools(server, { vault: bridge })
       // `app.commands` is a stable runtime property not exposed in Obsidian's public TS types.
       // Cast through unknown to the minimal interface each registrar declares.

@@ -33,12 +33,12 @@ function setup() {
   const ports = fakeModulePorts()
   const gate = makeAllowGate(ports.confirmModal)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
-  registerCanvasTools(server, { canvas: ports.canvas, gate })
+  registerCanvasTools(server, { canvas: ports.canvas, gate, vault: ports.vault })
   return { server, ports }
 }
 
 describe('registerCanvasTools', () => {
-  it('registers exactly the two canonical canvas tools', () => {
+  it('registers exactly the canonical canvas tools (per DEFAULT_TOOL_MODES)', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_SETTINGS.toolModes)
@@ -97,7 +97,7 @@ describe('registerCanvasTools', () => {
       ports.confirmModal,
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
-    registerCanvasTools(server, { canvas: ports.canvas, gate })
+    registerCanvasTools(server, { canvas: ports.canvas, gate, vault: ports.vault })
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
     const res = (await getHandler(
       server,
@@ -122,7 +122,7 @@ describe('registerCanvasTools', () => {
       ports.confirmModal,
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
-    registerCanvasTools(server, { canvas: ports.canvas, gate })
+    registerCanvasTools(server, { canvas: ports.canvas, gate, vault: ports.vault })
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
     await getHandler(
       server,
@@ -195,6 +195,42 @@ describe('registerCanvasTools', () => {
       if (result.success) {
         expect((result.data as Record<string, unknown>)['label']).toBe('relates to')
       }
+    })
+  })
+
+  describe('canvas.list', () => {
+    it('returns all .canvas files in the vault when no folder given', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('boards/work.canvas', '{}')
+      await ports.vault.writeFile('boards/personal.canvas', '{}')
+      await ports.vault.writeFile('notes/idea.md', '# idea')
+      const result = (await getHandler(server, 'canvas.list')({})) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as { canvases: string[] }
+      expect(parsed.canvases).toContain('boards/work.canvas')
+      expect(parsed.canvases).toContain('boards/personal.canvas')
+      expect(parsed.canvases).not.toContain('notes/idea.md')
+    })
+
+    it('scopes to folder when folder param provided', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('work/project.canvas', '{}')
+      await ports.vault.writeFile('personal/hobby.canvas', '{}')
+      const result = (await getHandler(server, 'canvas.list')({ folder: 'work' })) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as { canvases: string[] }
+      expect(parsed.canvases).toContain('work/project.canvas')
+      expect(parsed.canvases).not.toContain('personal/hobby.canvas')
+    })
+
+    it('rejects traversal in folder param', async () => {
+      const { server } = setup()
+      const res = (await getHandler(server, 'canvas.list')({ folder: '../outside' })) as {
+        isError: boolean
+      }
+      expect(res.isError).toBe(true)
     })
   })
 })

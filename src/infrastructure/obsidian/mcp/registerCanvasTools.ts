@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import type { CanvasPort } from '@/domain/ports'
+import type { CanvasPort, VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok, deny, err } from './shared'
+import { ok, deny, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -30,9 +30,9 @@ const CanvasEdgeSchema = z
 
 export function registerCanvasTools(
   server: McpServer,
-  deps: { canvas: CanvasPort; gate: PermissionGate },
+  deps: { canvas: CanvasPort; gate: PermissionGate; vault: VaultPort },
 ): void {
-  const { canvas, gate } = deps
+  const { canvas, gate, vault } = deps
 
   server.registerTool(
     'canvas.read',
@@ -75,6 +75,32 @@ export function registerCanvasTools(
       }
       await canvas.writeCanvas(safePath, canvasData)
       return ok({ written: true, path: safePath })
+    },
+  )
+
+  server.registerTool(
+    'canvas.list',
+    {
+      description:
+        'List all canvas files in the vault or under a folder. Returns vault-relative .canvas file paths.',
+      inputSchema: {
+        folder: z
+          .string()
+          .optional()
+          .describe("Vault-relative folder to scope the search. Omit or use '' for vault root."),
+      },
+      outputSchema: { canvases: z.array(z.string()) },
+    },
+    async ({ folder }) => {
+      let rootFolder = ''
+      if (folder !== undefined && folder !== '' && folder !== '/') {
+        const norm = normalizeVaultPath(folder)
+        if (!norm.ok) return unsafePath(norm.error.message)
+        rootFolder = norm.value
+      }
+      const allFiles = await collectFiles(vault, rootFolder)
+      const canvases = allFiles.filter((f) => f.endsWith('.canvas'))
+      return ok({ canvases })
     },
   )
 }
