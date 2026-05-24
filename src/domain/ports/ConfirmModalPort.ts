@@ -12,6 +12,10 @@ export interface ConfirmModalRequest {
   tool: string
   params: Record<string, unknown>
   summary: string
+  /** Milliseconds until modal auto-denies. Populated by PermissionGate.ask. */
+  timeoutMs: number
+  /** Full file content at the time of the request, for future diff-preview use. Optional. */
+  currentContent?: string
 }
 
 export type ConfirmModalChoice = 'allow' | 'allow-session' | 'deny'

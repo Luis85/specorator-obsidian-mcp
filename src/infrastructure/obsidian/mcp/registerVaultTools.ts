@@ -78,7 +78,7 @@ export function registerVaultTools(
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
       const safePath = norm.value
-      const d = await gate.resolve('vault.write', { path: safePath })
+      const d = await gate.resolve('vault.write', { path: safePath, contentSize: content.length })
       if (d.decision === 'deny') {
         return deny(d.reason)
       }

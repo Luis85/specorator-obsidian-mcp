@@ -80,7 +80,7 @@ export class PermissionGate {
       }, timeoutMs)
     })
     const answer = this.modal
-      .confirm({ tool: toolName, params, summary: summarise(toolName, params) })
+      .confirm({ tool: toolName, params, summary: summarise(toolName, params), timeoutMs })
       .then((choice): GateDecision => {
         if (timedOut) return { decision: 'deny', reason: 'ask timeout (late answer discarded)' }
         if (choice === 'allow-session') {
@@ -98,9 +98,31 @@ export class PermissionGate {
   }
 }
 
-function summarise(toolName: string, params: Record<string, unknown>): string {
+export function summarise(toolName: string, params: Record<string, unknown>): string {
   const path = typeof params.path === 'string' ? params.path : undefined
-  return path ? `${toolName} ${path}` : toolName
+  const from = typeof params.from === 'string' ? params.from : undefined
+  const to = typeof params.to === 'string' ? params.to : undefined
+  const commandId = typeof params.commandId === 'string' ? params.commandId : undefined
+  const contentSize = typeof params.contentSize === 'number' ? params.contentSize : undefined
+
+  switch (toolName) {
+    case 'vault.write':
+      return contentSize !== undefined
+        ? `Write ${contentSize} chars to "${path ?? ''}"`
+        : `Write to "${path ?? ''}"`
+    case 'vault.delete':
+      return `Delete "${path ?? ''}"`
+    case 'vault.move':
+      return `Move "${from ?? ''}" → "${to ?? ''}"`
+    case 'vault.createFolder':
+      return `Create folder "${path ?? ''}"`
+    case 'canvas.write':
+      return `Update canvas "${path ?? ''}"`
+    case 'cli.execute':
+      return `Run Obsidian command "${commandId ?? ''}"`
+    default:
+      return path ? `${toolName} ${path}` : toolName
+  }
 }
 
 // Minimal glob: supports * (non-slash wildcard) and ** (multi-segment wildcard).
