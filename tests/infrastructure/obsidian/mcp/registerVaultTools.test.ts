@@ -161,4 +161,87 @@ describe('registerVaultTools', () => {
     await tools['vault.write'].handler({ path: 'a.md', content: 'hi' })
     expect(await ports.vault.readFile('a.md')).toBe('hi')
   })
+
+  describe('path normalisation — traverse and absolute path rejection', () => {
+    it('vault.read rejects ../ traversal', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.read'].handler({ path: '../etc/passwd' })) as {
+        isError: boolean
+        content: [{ text: string }]
+      }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/unsafe path/)
+    })
+
+    it('vault.read rejects absolute Unix path', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.read'].handler({ path: '/etc/passwd' })) as {
+        isError: boolean
+        content: [{ text: string }]
+      }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/unsafe path/)
+    })
+
+    it('vault.read rejects absolute Windows path', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.read'].handler({ path: 'C:\\Windows\\System32' })) as {
+        isError: boolean
+        content: [{ text: string }]
+      }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/unsafe path/)
+    })
+
+    it('vault.write rejects ../ traversal', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.write'].handler({
+        path: '../../evil.md',
+        content: 'x',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+
+    it('vault.delete rejects absolute path', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.delete'].handler({ path: '/root/secret' })) as {
+        isError: boolean
+      }
+      expect(res.isError).toBe(true)
+    })
+
+    it('vault.move rejects traversal in from', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.move'].handler({
+        from: '../outside.md',
+        to: 'safe.md',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+
+    it('vault.move rejects traversal in to', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.move'].handler({
+        from: 'safe.md',
+        to: '../../evil.md',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+
+    it('vault.list rejects traversal in folder', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.list'].handler({ folder: '../outside' })) as {
+        isError: boolean
+      }
+      expect(res.isError).toBe(true)
+    })
+
+    it('vault.createFolder rejects absolute path', async () => {
+      const { tools } = setup()
+      const res = (await tools['vault.createFolder'].handler({ path: '/tmp/evil' })) as {
+        isError: boolean
+      }
+      expect(res.isError).toBe(true)
+    })
+  })
 })

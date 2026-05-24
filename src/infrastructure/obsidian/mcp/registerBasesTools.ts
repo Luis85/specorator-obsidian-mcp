@@ -1,7 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
+import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { collectFiles, ok, parseFrontmatter } from './shared'
+
+function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
+  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+}
 
 type FilterOp = 'eq' | 'neq' | 'contains' | 'in'
 
@@ -59,7 +64,9 @@ export function registerBasesTools(server: McpServer, deps: { vault: VaultPort }
       },
     },
     async ({ folder }) => {
-      const records = await loadBaseRecords(vault, folder)
+      const norm = normalizeVaultPath(folder)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const records = await loadBaseRecords(vault, norm.value)
       return ok({ records })
     },
   )
@@ -75,7 +82,9 @@ export function registerBasesTools(server: McpServer, deps: { vault: VaultPort }
       },
     },
     async ({ folder, filter }) => {
-      const records = await loadBaseRecords(vault, folder)
+      const norm = normalizeVaultPath(folder)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const records = await loadBaseRecords(vault, norm.value)
       const matched = records.filter((r) =>
         matchesFilter(r.frontmatter[filter.field], filter.op, filter.value),
       )

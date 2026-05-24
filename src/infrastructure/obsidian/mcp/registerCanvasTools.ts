@@ -2,7 +2,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { CanvasPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
+import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { ok } from './shared'
+
+function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
+  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+}
 
 export function registerCanvasTools(
   server: McpServer,
@@ -16,7 +21,11 @@ export function registerCanvasTools(
       description: 'Read a JSON Canvas file (.canvas) — returns { nodes, edges }',
       inputSchema: { path: z.string().describe('Vault-relative .canvas path') },
     },
-    async ({ path }) => ok({ canvas: await canvas.readCanvas(path) }),
+    async ({ path }) => {
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      return ok({ canvas: await canvas.readCanvas(norm.value) })
+    },
   )
 
   server.registerTool(
@@ -34,7 +43,10 @@ export function registerCanvasTools(
       },
     },
     async ({ path, data }) => {
-      const d = await gate.resolve('canvas.write', { path })
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const safePath = norm.value
+      const d = await gate.resolve('canvas.write', { path: safePath })
       if (d.decision === 'deny') {
         return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
       }
@@ -42,8 +54,8 @@ export function registerCanvasTools(
         nodes: Array.isArray(data.nodes) ? data.nodes : [],
         edges: Array.isArray(data.edges) ? data.edges : [],
       }
-      await canvas.writeCanvas(path, canvasData)
-      return ok({ written: true, path })
+      await canvas.writeCanvas(safePath, canvasData)
+      return ok({ written: true, path: safePath })
     },
   )
 }

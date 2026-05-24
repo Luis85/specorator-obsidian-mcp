@@ -1,7 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort } from '@/domain/ports'
+import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { ok } from './shared'
+
+function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
+  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+}
 
 type TraverseDirection = 'outgoing' | 'backlinks' | 'both'
 
@@ -62,7 +67,11 @@ export function registerLinksTools(server: McpServer, deps: { metadata: Metadata
       description: 'Get vault paths that link to the given note',
       inputSchema: { path: z.string().describe('Vault-relative path') },
     },
-    async ({ path }) => ok({ backlinks: metadata.getBacklinks(path) }),
+    async ({ path }) => {
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      return ok({ backlinks: metadata.getBacklinks(norm.value) })
+    },
   )
 
   server.registerTool(
@@ -72,7 +81,9 @@ export function registerLinksTools(server: McpServer, deps: { metadata: Metadata
       inputSchema: { path: z.string().describe('Vault-relative path') },
     },
     async ({ path }) => {
-      const snapshot = metadata.getFileMetadata(path)
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const snapshot = metadata.getFileMetadata(norm.value)
       return ok({ links: snapshot?.links ?? [] })
     },
   )
@@ -89,7 +100,9 @@ export function registerLinksTools(server: McpServer, deps: { metadata: Metadata
       },
     },
     async ({ startPath, depth, direction }) => {
-      const result = bfsTraverse(metadata, startPath, Math.min(depth, 5), direction)
+      const norm = normalizeVaultPath(startPath)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const result = bfsTraverse(metadata, norm.value, Math.min(depth, 5), direction)
       return ok(result)
     },
   )

@@ -2,7 +2,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
+import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { joinVaultPath, ok } from './shared'
+
+function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
+  return { isError: true, content: [{ type: 'text' as const, text: `unsafe path: ${msg}` }] }
+}
 
 export function registerVaultTools(
   server: McpServer,
@@ -16,7 +21,11 @@ export function registerVaultTools(
       description: 'Read the full content of a vault file',
       inputSchema: { path: z.string().describe('Vault-relative path') },
     },
-    async ({ path }) => ok({ content: await vault.readFile(path) }),
+    async ({ path }) => {
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      return ok({ content: await vault.readFile(norm.value) })
+    },
   )
 
   server.registerTool(
@@ -26,11 +35,14 @@ export function registerVaultTools(
       inputSchema: { folder: z.string().describe('Vault-relative folder path') },
     },
     async ({ folder }) => {
+      const norm = normalizeVaultPath(folder)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const safeFolder = norm.value
       const [files, subfolderNames] = await Promise.all([
-        vault.listFiles(folder),
-        vault.listFolders(folder),
+        vault.listFiles(safeFolder),
+        vault.listFolders(safeFolder),
       ])
-      const folders = subfolderNames.map((sub) => joinVaultPath(folder, sub))
+      const folders = subfolderNames.map((sub) => joinVaultPath(safeFolder, sub))
       return ok({ files, folders })
     },
   )
@@ -41,7 +53,11 @@ export function registerVaultTools(
       description: 'Check whether a file exists in the vault',
       inputSchema: { path: z.string().describe('Vault-relative path') },
     },
-    async ({ path }) => ok({ exists: await vault.fileExists(path) }),
+    async ({ path }) => {
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      return ok({ exists: await vault.fileExists(norm.value) })
+    },
   )
 
   server.registerTool(
@@ -54,12 +70,15 @@ export function registerVaultTools(
       },
     },
     async ({ path, content }) => {
-      const d = await gate.resolve('vault.write', { path, content })
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const safePath = norm.value
+      const d = await gate.resolve('vault.write', { path: safePath })
       if (d.decision === 'deny') {
         return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
       }
-      await vault.writeFile(path, content)
-      return ok({ written: true, path })
+      await vault.writeFile(safePath, content)
+      return ok({ written: true, path: safePath })
     },
   )
 
@@ -70,12 +89,15 @@ export function registerVaultTools(
       inputSchema: { path: z.string().describe('Vault-relative path') },
     },
     async ({ path }) => {
-      const d = await gate.resolve('vault.delete', { path })
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const safePath = norm.value
+      const d = await gate.resolve('vault.delete', { path: safePath })
       if (d.decision === 'deny') {
         return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
       }
-      await vault.deleteFile(path)
-      return ok({ deleted: true, path })
+      await vault.deleteFile(safePath)
+      return ok({ deleted: true, path: safePath })
     },
   )
 
@@ -92,14 +114,20 @@ export function registerVaultTools(
     // succeeds, the file will exist at both 'from' and 'to'. Callers must treat
     // a returned error as indeterminate state. VaultPort offers no native move.
     async ({ from, to }) => {
-      const d = await gate.resolve('vault.move', { path: from, from, to })
+      const normFrom = normalizeVaultPath(from)
+      if (!normFrom.ok) return unsafePath(normFrom.error.message)
+      const normTo = normalizeVaultPath(to)
+      if (!normTo.ok) return unsafePath(normTo.error.message)
+      const safeFrom = normFrom.value
+      const safeTo = normTo.value
+      const d = await gate.resolve('vault.move', { path: safeFrom, from: safeFrom, to: safeTo })
       if (d.decision === 'deny') {
         return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
       }
-      const content = await vault.readFile(from)
-      await vault.writeFile(to, content)
-      await vault.deleteFile(from)
-      return ok({ moved: true, from, to })
+      const content = await vault.readFile(safeFrom)
+      await vault.writeFile(safeTo, content)
+      await vault.deleteFile(safeFrom)
+      return ok({ moved: true, from: safeFrom, to: safeTo })
     },
   )
 
@@ -110,12 +138,15 @@ export function registerVaultTools(
       inputSchema: { path: z.string().describe('Vault-relative folder path') },
     },
     async ({ path }) => {
-      const d = await gate.resolve('vault.createFolder', { path })
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return unsafePath(norm.error.message)
+      const safePath = norm.value
+      const d = await gate.resolve('vault.createFolder', { path: safePath })
       if (d.decision === 'deny') {
         return { isError: true, content: [{ type: 'text' as const, text: `denied: ${d.reason}` }] }
       }
-      await vault.createFolder(path)
-      return ok({ created: true, path })
+      await vault.createFolder(safePath)
+      return ok({ created: true, path: safePath })
     },
   )
 }
