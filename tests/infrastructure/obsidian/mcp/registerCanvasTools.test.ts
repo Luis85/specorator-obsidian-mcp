@@ -4,7 +4,7 @@ import { registerCanvasTools } from '@/infrastructure/obsidian/mcp/registerCanva
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
-import { makeAllowGate, type RegisteredTool, type ServerInternal } from '@@/__fakes__/gate-helpers'
+import { makeAllowGate, type ServerInternal } from '@@/__fakes__/gate-helpers'
 
 function setup() {
   const ports = fakeModulePorts()

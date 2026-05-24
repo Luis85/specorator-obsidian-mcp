@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { registerObsidianCliTools } from '@/infrastructure/obsidian/mcp/registerObsidianCliTools'
+import {
+  registerObsidianCliTools,
+  type CliApp,
+} from '@/infrastructure/obsidian/mcp/registerObsidianCliTools'
 import { PermissionGate } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
@@ -10,12 +13,12 @@ function setup() {
   const ports = fakeModulePorts()
   const gate = makeAllowGate(ports.confirmModal)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
-  const fakeApp = {
+  const fakeApp: CliApp = {
     commands: {
       executeCommandById: vi.fn(() => true),
     },
   }
-  registerObsidianCliTools(server, { app: fakeApp as any, gate })
+  registerObsidianCliTools(server, { app: fakeApp, gate })
   const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
     ._registeredTools
   return { server, fakeApp, tools }
@@ -42,7 +45,7 @@ describe('registerObsidianCliTools', () => {
 
   it('cli.execute returns executed: false when command not found', async () => {
     const { fakeApp, tools } = setup()
-    fakeApp.commands.executeCommandById.mockReturnValue(false)
+    vi.mocked(fakeApp.commands.executeCommandById).mockReturnValue(false)
     const result = (await (tools['cli.execute'] as RegisteredTool).handler({
       commandId: 'unknown:cmd',
     })) as {
@@ -70,10 +73,10 @@ describe('registerObsidianCliTools', () => {
       ports.confirmModal,
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
-    const fakeApp = {
+    const fakeApp: CliApp = {
       commands: { executeCommandById: vi.fn(() => true) },
     }
-    registerObsidianCliTools(server, { app: fakeApp as any, gate })
+    registerObsidianCliTools(server, { app: fakeApp, gate })
     const tools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
       ._registeredTools
     const res = (await tools['cli.execute'].handler({ commandId: 'editor:save-file' })) as {
@@ -103,10 +106,10 @@ describe('registerObsidianCliTools', () => {
       ports.confirmModal,
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
-    const fakeApp = {
+    const fakeApp: CliApp = {
       commands: { executeCommandById: vi.fn(() => true) },
     }
-    registerObsidianCliTools(server, { app: fakeApp as any, gate })
+    registerObsidianCliTools(server, { app: fakeApp, gate })
     const tools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
       ._registeredTools
     await tools['cli.execute'].handler({ commandId: 'editor:save-file' })
