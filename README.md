@@ -66,33 +66,33 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 
 ## Tool groups
 
-| Tool | Default mode | Description |
-| ---- | ------------ | ----------- |
-| `vault.read` | `allow` | Read full UTF-8 content of a vault file |
-| `vault.write` | `ask` | Write (overwrite or create) a vault file |
-| `vault.delete` | `ask` | Delete a vault file |
-| `vault.move` | `ask` | Move (rename) a vault file |
-| `vault.list` | `allow` | List files and immediate subfolders in a folder |
-| `vault.list_recursive` | `allow` | Recursively enumerate all files under a folder |
-| `vault.exists` | `allow` | Check whether a file exists |
-| `vault.createFolder` | `ask` | Create a folder |
-| `vault.search` | `allow` | Case-insensitive substring search over vault contents; ≤100 results with ~120-char excerpts; optionally scoped to a folder |
-| `metadata.frontmatter` | `allow` | YAML frontmatter for a single note |
-| `metadata.tags` | `allow` | Global tag → count map across the vault |
-| `metadata.headings` | `allow` | Heading list for a single note |
-| `metadata.linkpath` | `allow` | Resolve a wikilink to its vault path |
-| `metadata.search` | `allow` | Find files by tag **or** frontmatter field=value |
-| `links.backlinks` | `allow` | Backlinks (files that link to a given note) |
-| `links.outgoing` | `allow` | Outgoing link map for a note |
-| `links.bfs` | `allow` | BFS traversal of the link graph |
-| `canvas.read` | `allow` | Read a JSON Canvas file |
-| `canvas.write` | `ask` | Write (overwrite) a JSON Canvas file |
-| `canvas.list` | `allow` | List all `.canvas` files in the vault or under a folder |
-| `bases.list` | `allow` | Scan a folder recursively for all frontmatter records |
-| `bases.filter` | `allow` | Filter records by one or more field/op/value criteria (AND semantics) |
-| `cli.read.list` | `allow` | List all Obsidian command palette commands |
-| `cli.read.find` | `allow` | Find commands by id/name substring |
-| `cli.execute` | `deny` | Execute a command palette command by id; opt in per-prefix via the allowlist setting |
+| Tool                   | Default mode | Description                                                                                                                |
+| ---------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `vault.read`           | `allow`      | Read full UTF-8 content of a vault file                                                                                    |
+| `vault.write`          | `ask`        | Write (overwrite or create) a vault file                                                                                   |
+| `vault.delete`         | `ask`        | Delete a vault file                                                                                                        |
+| `vault.move`           | `ask`        | Move (rename) a vault file                                                                                                 |
+| `vault.list`           | `allow`      | List files and immediate subfolders in a folder                                                                            |
+| `vault.list_recursive` | `allow`      | Recursively enumerate all files under a folder                                                                             |
+| `vault.exists`         | `allow`      | Check whether a file exists                                                                                                |
+| `vault.createFolder`   | `ask`        | Create a folder                                                                                                            |
+| `vault.search`         | `allow`      | Case-insensitive substring search over vault contents; ≤100 results with ~120-char excerpts; optionally scoped to a folder |
+| `metadata.frontmatter` | `allow`      | YAML frontmatter for a single note                                                                                         |
+| `metadata.tags`        | `allow`      | Global tag → count map across the vault                                                                                    |
+| `metadata.headings`    | `allow`      | Heading list for a single note                                                                                             |
+| `metadata.linkpath`    | `allow`      | Resolve a wikilink to its vault path                                                                                       |
+| `metadata.search`      | `allow`      | Find files by tag **or** frontmatter field=value                                                                           |
+| `links.backlinks`      | `allow`      | Backlinks (files that link to a given note)                                                                                |
+| `links.outgoing`       | `allow`      | Outgoing link map for a note                                                                                               |
+| `links.bfs`            | `allow`      | BFS traversal of the link graph                                                                                            |
+| `canvas.read`          | `allow`      | Read a JSON Canvas file                                                                                                    |
+| `canvas.write`         | `ask`        | Write (overwrite) a JSON Canvas file                                                                                       |
+| `canvas.list`          | `allow`      | List all `.canvas` files in the vault or under a folder                                                                    |
+| `bases.list`           | `allow`      | Scan a folder recursively for all frontmatter records                                                                      |
+| `bases.filter`         | `allow`      | Filter records by one or more field/op/value criteria (AND semantics)                                                      |
+| `cli.read.list`        | `allow`      | List all Obsidian command palette commands                                                                                 |
+| `cli.read.find`        | `allow`      | Find commands by id/name substring                                                                                         |
+| `cli.execute`          | `deny`       | Execute a command palette command by id; opt in per-prefix via the allowlist setting                                       |
 
 ## License
 

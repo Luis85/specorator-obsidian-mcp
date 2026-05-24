@@ -81,7 +81,11 @@ export class MockVaultPort implements VaultPort {
     const lower = query.toLowerCase()
     const results: Array<{ path: string; excerpt: string }> = []
     for (const [path, content] of this.files) {
-      if (folder !== undefined && folder !== '' && !path.startsWith(folder.endsWith('/') ? folder : `${folder}/`)) {
+      if (
+        folder !== undefined &&
+        folder !== '' &&
+        !path.startsWith(folder.endsWith('/') ? folder : `${folder}/`)
+      ) {
         continue
       }
       const lowerContent = content.toLowerCase()

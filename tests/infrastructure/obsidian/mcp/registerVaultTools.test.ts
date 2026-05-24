@@ -185,7 +185,10 @@ describe('registerVaultTools', () => {
       const { server, ports } = setup()
       await ports.vault.writeFile('notes/a.md', 'Hello world, this is a test note.')
       await ports.vault.writeFile('notes/b.md', 'Nothing interesting here.')
-      const result = (await getHandler(server, 'vault.search')({
+      const result = (await getHandler(
+        server,
+        'vault.search',
+      )({
         query: 'Hello',
       })) as { content: [{ text: string }] }
       const parsed = JSON.parse(result.content[0].text) as {
@@ -199,7 +202,10 @@ describe('registerVaultTools', () => {
     it('is case-insensitive', async () => {
       const { server, ports } = setup()
       await ports.vault.writeFile('doc.md', 'The QUICK brown fox.')
-      const result = (await getHandler(server, 'vault.search')({
+      const result = (await getHandler(
+        server,
+        'vault.search',
+      )({
         query: 'quick',
       })) as { content: [{ text: string }] }
       const parsed = JSON.parse(result.content[0].text) as {
@@ -212,7 +218,10 @@ describe('registerVaultTools', () => {
       const { server, ports } = setup()
       await ports.vault.writeFile('work/task.md', 'important task here')
       await ports.vault.writeFile('personal/task.md', 'important task here')
-      const result = (await getHandler(server, 'vault.search')({
+      const result = (await getHandler(
+        server,
+        'vault.search',
+      )({
         query: 'important',
         folder: 'work',
       })) as { content: [{ text: string }] }
@@ -228,7 +237,10 @@ describe('registerVaultTools', () => {
       for (let i = 0; i < 120; i++) {
         await ports.vault.writeFile(`n${i}.md`, 'needle content inside')
       }
-      const result = (await getHandler(server, 'vault.search')({
+      const result = (await getHandler(
+        server,
+        'vault.search',
+      )({
         query: 'needle',
       })) as { content: [{ text: string }] }
       const parsed = JSON.parse(result.content[0].text) as {
@@ -239,7 +251,10 @@ describe('registerVaultTools', () => {
 
     it('rejects traversal in folder param', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.search')({
+      const res = (await getHandler(
+        server,
+        'vault.search',
+      )({
         query: 'x',
         folder: '../outside',
       })) as { isError: boolean }
@@ -253,7 +268,10 @@ describe('registerVaultTools', () => {
       await ports.vault.writeFile('root/a.md', '')
       await ports.vault.writeFile('root/sub/b.md', '')
       await ports.vault.writeFile('root/sub/deep/c.md', '')
-      const result = (await getHandler(server, 'vault.list_recursive')({
+      const result = (await getHandler(
+        server,
+        'vault.list_recursive',
+      )({
         folder: 'root',
       })) as { content: [{ text: string }] }
       const parsed = JSON.parse(result.content[0].text) as { files: string[] }
@@ -265,7 +283,10 @@ describe('registerVaultTools', () => {
     it('returns empty array for empty folder', async () => {
       const { server, ports } = setup()
       await ports.vault.createFolder('emptydir')
-      const result = (await getHandler(server, 'vault.list_recursive')({
+      const result = (await getHandler(
+        server,
+        'vault.list_recursive',
+      )({
         folder: 'emptydir',
       })) as { content: [{ text: string }] }
       const parsed = JSON.parse(result.content[0].text) as { files: string[] }
@@ -274,7 +295,10 @@ describe('registerVaultTools', () => {
 
     it('rejects absolute path in folder', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.list_recursive')({
+      const res = (await getHandler(
+        server,
+        'vault.list_recursive',
+      )({
         folder: '/tmp/evil',
       })) as { isError: boolean }
       expect(res.isError).toBe(true)
@@ -282,7 +306,10 @@ describe('registerVaultTools', () => {
 
     it('rejects traversal in folder', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.list_recursive')({
+      const res = (await getHandler(
+        server,
+        'vault.list_recursive',
+      )({
         folder: '../outside',
       })) as { isError: boolean }
       expect(res.isError).toBe(true)

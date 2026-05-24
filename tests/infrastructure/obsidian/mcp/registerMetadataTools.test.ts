@@ -173,7 +173,10 @@ describe('registerMetadataTools', () => {
         links: [],
         embeds: [],
       })
-      const result = (await getHandler(server, 'metadata.search')({
+      const result = (await getHandler(
+        server,
+        'metadata.search',
+      )({
         field: 'status',
         value: 'active',
       })) as { content: [{ text: string }] }
@@ -184,7 +187,10 @@ describe('registerMetadataTools', () => {
 
     it('returns error when both tag and field are provided', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'metadata.search')({
+      const res = (await getHandler(
+        server,
+        'metadata.search',
+      )({
         tag: '#todo',
         field: 'status',
         value: 'active',

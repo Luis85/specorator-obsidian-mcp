@@ -132,7 +132,10 @@ describe('registerObsidianCliTools', () => {
         commands: { executeCommandById: vi.fn(() => true) },
       }
       registerObsidianCliTools(server, { app: fakeApp, gate })
-      const result = (await getHandler(server, 'cli.execute')({
+      const result = (await getHandler(
+        server,
+        'cli.execute',
+      )({
         commandId: 'editor:toggle-bold',
       })) as { content: [{ text: string }] }
       const parsed = JSON.parse(result.content[0].text) as { executed: boolean }
@@ -158,7 +161,10 @@ describe('registerObsidianCliTools', () => {
         commands: { executeCommandById: vi.fn(() => true) },
       }
       registerObsidianCliTools(server, { app: fakeApp, gate })
-      const res = (await getHandler(server, 'cli.execute')({
+      const res = (await getHandler(
+        server,
+        'cli.execute',
+      )({
         commandId: 'app:reload',
       })) as { isError: boolean }
       expect(res.isError).toBe(true)
