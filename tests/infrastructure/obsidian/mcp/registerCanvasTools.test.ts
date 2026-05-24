@@ -76,7 +76,10 @@ describe('registerCanvasTools', () => {
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerCanvasTools(server, { canvas: ports.canvas, gate })
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
-    const res = (await getHandler(server, 'canvas.write')({
+    const res = (await getHandler(
+      server,
+      'canvas.write',
+    )({
       path: 'board.canvas',
       data: { nodes: [], edges: [] },
     })) as { isError: boolean }
@@ -98,7 +101,10 @@ describe('registerCanvasTools', () => {
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerCanvasTools(server, { canvas: ports.canvas, gate })
     ports.bridge.seedCanvas('board.canvas', { nodes: [], edges: [] })
-    await getHandler(server, 'canvas.write')({
+    await getHandler(
+      server,
+      'canvas.write',
+    )({
       path: 'board.canvas',
       data: { nodes: [{ id: 'n1' }], edges: [] },
     })

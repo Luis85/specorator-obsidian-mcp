@@ -70,7 +70,10 @@ describe('registerLinksTools', () => {
     const { server, ports } = setup()
     ports.bridge.seedResolvedLinks('a.md', { 'b.md': 1 })
     ports.bridge.seedResolvedLinks('b.md', { 'c.md': 1 })
-    const result = (await getHandler(server, 'links.bfs')({
+    const result = (await getHandler(
+      server,
+      'links.bfs',
+    )({
       startPath: 'a.md',
       depth: 2,
       direction: 'outgoing',
@@ -92,7 +95,10 @@ describe('registerLinksTools', () => {
     for (let i = 0; i < chain.length - 1; i++) {
       ports.bridge.seedResolvedLinks(chain[i]!, { [chain[i + 1]!]: 1 })
     }
-    const result = (await getHandler(server, 'links.bfs')({
+    const result = (await getHandler(
+      server,
+      'links.bfs',
+    )({
       startPath: 'a.md',
       depth: 10,
       direction: 'outgoing',

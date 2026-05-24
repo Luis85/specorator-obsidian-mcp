@@ -13,11 +13,11 @@ npm run verify       # must exit 0 before opening a PR
 
 ## Branching
 
-| Branch    | Purpose                                                                 |
-| --------- | ----------------------------------------------------------------------- |
+| Branch    | Purpose                                                                  |
+| --------- | ------------------------------------------------------------------------ |
 | `develop` | Integration branch. Cut all feature branches from here; PRs target here. |
 | `demo`    | Preview branch. GitHub Pages deploys from here (PR from `develop` only). |
-| `main`    | Stable release gate. Only merges from `develop`.                        |
+| `main`    | Stable release gate. Only merges from `develop`.                         |
 
 - **Branch name:** `<type>/<short-kebab>` — types: `feature`, `fix`, `docs`, `chore`, `refactor`.
 - **To cut a release:** PR `develop` → `main`, merge, then tag `main` HEAD with the plain semver version `X.Y.Z` (no `v` prefix). Use `npm version <bump>` to keep `manifest.json`, `package.json`, `versions.json`, and the tag in sync.

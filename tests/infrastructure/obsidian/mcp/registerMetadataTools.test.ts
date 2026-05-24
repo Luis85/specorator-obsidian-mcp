@@ -41,7 +41,10 @@ describe('registerMetadataTools', () => {
   it('metadata.frontmatter falls back to raw file parse when snapshot absent', async () => {
     const { server, ports } = setup()
     await ports.vault.writeFile('fallback.md', '---\nauthor: Bob\n---\nbody')
-    const result = (await getHandler(server, 'metadata.frontmatter')({
+    const result = (await getHandler(
+      server,
+      'metadata.frontmatter',
+    )({
       path: 'fallback.md',
     })) as {
       content: [{ text: string }]
@@ -79,7 +82,10 @@ describe('registerMetadataTools', () => {
   it('metadata.linkpath resolves known linktext', async () => {
     const { server, ports } = setup()
     ports.bridge.seedLinkpathDest('Page', 'src.md', 'folder/Page.md')
-    const result = (await getHandler(server, 'metadata.linkpath')({
+    const result = (await getHandler(
+      server,
+      'metadata.linkpath',
+    )({
       linktext: 'Page',
       sourcePath: 'src.md',
     })) as { content: [{ text: string }] }
@@ -89,7 +95,10 @@ describe('registerMetadataTools', () => {
 
   it('metadata.linkpath returns null for unresolved linktext', async () => {
     const { server } = setup()
-    const result = (await getHandler(server, 'metadata.linkpath')({
+    const result = (await getHandler(
+      server,
+      'metadata.linkpath',
+    )({
       linktext: 'Unknown',
       sourcePath: 'src.md',
     })) as { content: [{ text: string }] }

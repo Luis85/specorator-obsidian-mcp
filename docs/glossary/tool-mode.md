@@ -14,11 +14,11 @@ last_updated: 2026-05-25
 
 The `ToolMode` type (`src/domain/settings/PluginSettings.ts`) is a three-value enum that governs how the permission gate responds to a specific MCP tool call.
 
-| Mode    | Behaviour                                                                                       |
-| ------- | ----------------------------------------------------------------------------------------------- |
-| `allow` | The tool runs immediately without user interaction.                                             |
+| Mode    | Behaviour                                                                                      |
+| ------- | ---------------------------------------------------------------------------------------------- |
+| `allow` | The tool runs immediately without user interaction.                                            |
 | `ask`   | An Obsidian modal opens, presenting "Allow once / Allow for session / Deny". Timeout → `deny`. |
-| `deny`  | The tool is rejected immediately and an MCP error envelope is returned.                         |
+| `deny`  | The tool is rejected immediately and an MCP error envelope is returned.                        |
 
 Each tool has a default mode in `DEFAULT_TOOL_MODES` (e.g. reads default to `allow`, writes to `ask`, `cli.execute` to `deny`). The user can override individual tools in plugin settings.
 

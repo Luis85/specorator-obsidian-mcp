@@ -129,7 +129,10 @@ describe('registerVaultTools', () => {
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerVaultTools(server, { vault: ports.vault, gate })
     await ports.vault.writeFile('notes/a.md', 'content')
-    const res = (await getHandler(server, 'vault.move')({
+    const res = (await getHandler(
+      server,
+      'vault.move',
+    )({
       from: 'notes/a.md',
       to: '.obsidian/community-plugins.json',
     })) as { isError: boolean }
@@ -197,7 +200,10 @@ describe('registerVaultTools', () => {
 
     it('vault.read rejects absolute Windows path', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.read')({
+      const res = (await getHandler(
+        server,
+        'vault.read',
+      )({
         path: 'C:\\Windows\\System32',
       })) as {
         isError: boolean
@@ -209,7 +215,10 @@ describe('registerVaultTools', () => {
 
     it('vault.write rejects ../ traversal', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.write')({
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
         path: '../../evil.md',
         content: 'x',
       })) as { isError: boolean }
@@ -226,7 +235,10 @@ describe('registerVaultTools', () => {
 
     it('vault.move rejects traversal in from', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.move')({
+      const res = (await getHandler(
+        server,
+        'vault.move',
+      )({
         from: '../outside.md',
         to: 'safe.md',
       })) as { isError: boolean }
@@ -235,7 +247,10 @@ describe('registerVaultTools', () => {
 
     it('vault.move rejects traversal in to', async () => {
       const { server } = setup()
-      const res = (await getHandler(server, 'vault.move')({
+      const res = (await getHandler(
+        server,
+        'vault.move',
+      )({
         from: 'safe.md',
         to: '../../evil.md',
       })) as { isError: boolean }

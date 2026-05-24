@@ -57,7 +57,10 @@ describe('registerBasesTools', () => {
     await ports.vault.writeFile('proj/a.md', '---\nstatus: active\n---\n')
     await ports.vault.writeFile('proj/b.md', '---\nstatus: archived\n---\n')
     await ports.vault.writeFile('proj/c.md', '---\nstatus: active\n---\n')
-    const result = (await getHandler(server, 'bases.filter')({
+    const result = (await getHandler(
+      server,
+      'bases.filter',
+    )({
       folder: 'proj',
       filter: { field: 'status', op: 'eq', value: 'active' },
     })) as { content: [{ text: string }] }
@@ -75,7 +78,10 @@ describe('registerBasesTools', () => {
     const { server, ports } = setup()
     await ports.vault.writeFile('t/x.md', '---\ntitle: Hello World\n---\n')
     await ports.vault.writeFile('t/y.md', '---\ntitle: Goodbye\n---\n')
-    const result = (await getHandler(server, 'bases.filter')({
+    const result = (await getHandler(
+      server,
+      'bases.filter',
+    )({
       folder: 't',
       filter: { field: 'title', op: 'contains', value: 'Hello' },
     })) as { content: [{ text: string }] }

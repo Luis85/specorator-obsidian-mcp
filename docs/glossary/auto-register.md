@@ -16,11 +16,11 @@ The `AutoRegister` class (`src/application/mcp/AutoRegister.ts`) automatically i
 
 **Config files touched** (one per target, controlled by `autoRegister` settings):
 
-| Target          | Config file path                                                             |
-| --------------- | ---------------------------------------------------------------------------- |
-| `claudeCli`     | `~/.claude.json`                                                            |
-| `cursor`        | `~/.cursor/mcp.json`                                                        |
-| `claudeDesktop` | Platform-dependent (`~/Library/Application Support/Claude/...` on macOS)   |
+| Target          | Config file path                                                         |
+| --------------- | ------------------------------------------------------------------------ |
+| `claudeCli`     | `~/.claude.json`                                                         |
+| `cursor`        | `~/.cursor/mcp.json`                                                     |
+| `claudeDesktop` | Platform-dependent (`~/Library/Application Support/Claude/...` on macOS) |
 
 **When it runs:** `register()` is called at the end of `startServer()` in `main.ts`; `deregister()` is called at the start of `stopServer()`. The `AutoRegister` instance is constructed once on plugin load and reused for both calls.
 

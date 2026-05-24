@@ -31,7 +31,10 @@ describe('registerObsidianCliTools', () => {
 
   it('cli.execute invokes command and returns executed: true on success', async () => {
     const { server, fakeApp } = setup()
-    const result = (await getHandler(server, 'cli.execute')({
+    const result = (await getHandler(
+      server,
+      'cli.execute',
+    )({
       commandId: 'editor:save-file',
     })) as {
       content: [{ text: string }]
@@ -74,7 +77,10 @@ describe('registerObsidianCliTools', () => {
       commands: { executeCommandById: vi.fn(() => true) },
     }
     registerObsidianCliTools(server, { app: fakeApp, gate })
-    const res = (await getHandler(server, 'cli.execute')({
+    const res = (await getHandler(
+      server,
+      'cli.execute',
+    )({
       commandId: 'editor:save-file',
     })) as { isError: boolean }
     expect(res.isError).toBe(true)
