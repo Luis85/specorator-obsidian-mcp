@@ -51,10 +51,7 @@ export function registerMetadataTools(
     },
     async ({ path }) => {
       const snapshot = metadata.getFileMetadata(path)
-      const headings =
-        snapshot !== null && 'headings' in snapshot
-          ? (snapshot as unknown as { headings: unknown[] }).headings
-          : []
+      const headings = snapshot?.headings ?? []
       return ok({ headings })
     },
   )

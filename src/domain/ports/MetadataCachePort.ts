@@ -1,11 +1,17 @@
 import type { Unsubscriber } from './shared'
 
+export interface HeadingSnapshot {
+  heading: string
+  level: number
+}
+
 export interface FileMetadataSnapshot {
   path: string
   tags: string[]
   frontmatter: Record<string, unknown>
   links: string[]
   embeds: string[]
+  headings?: HeadingSnapshot[]
 }
 
 export interface MetadataCachePort {

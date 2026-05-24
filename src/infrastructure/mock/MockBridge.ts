@@ -6,6 +6,7 @@ import type {
   LoggerPort,
   SettingsPort,
   FileMetadataSnapshot,
+  HeadingSnapshot,
   JsonCanvasData,
   Unsubscriber,
 } from '@/domain/ports'
@@ -84,6 +85,10 @@ export class MockBridge
   }
   seedLinkpathDest(linktext: string, sourcePath: string, dest: string): void {
     this.metadataCachePort.seedLinkpathDest(linktext, sourcePath, dest)
+  }
+
+  seedHeadings(path: string, headings: HeadingSnapshot[]): void {
+    this.metadataCachePort.seedHeadings(path, headings)
   }
   triggerMetadataChange(path: string): void {
     this.metadataCachePort.triggerMetadataChange(path)

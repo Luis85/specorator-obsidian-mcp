@@ -16,6 +16,7 @@ import type {
   LoggerPort,
   SettingsPort,
   FileMetadataSnapshot,
+  HeadingSnapshot,
   Unsubscriber,
   JsonCanvasData,
 } from '@/domain/ports'
@@ -239,5 +240,9 @@ function metadataCacheToSnapshot(path: string, cache: CachedMetadata): FileMetad
   const frontmatter = (cache.frontmatter ?? {}) as Record<string, unknown>
   const links = (cache.links ?? []).map((l) => l.link)
   const embeds = (cache.embeds ?? []).map((e) => e.link)
-  return { path, tags, frontmatter, links, embeds }
+  const headings: HeadingSnapshot[] | undefined =
+    cache.headings !== undefined
+      ? cache.headings.map((h) => ({ heading: h.heading, level: h.level }))
+      : undefined
+  return { path, tags, frontmatter, links, embeds, headings }
 }

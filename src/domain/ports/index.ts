@@ -1,5 +1,5 @@
 export type { VaultPort } from './VaultPort'
-export type { MetadataCachePort, FileMetadataSnapshot } from './MetadataCachePort'
+export type { MetadataCachePort, FileMetadataSnapshot, HeadingSnapshot } from './MetadataCachePort'
 export type { CanvasPort, JsonCanvasData } from './CanvasPort'
 export type { NotificationPort } from './NotificationPort'
 export type { LoggerPort } from './LoggerPort'

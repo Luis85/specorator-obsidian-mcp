@@ -1,4 +1,9 @@
-import type { MetadataCachePort, FileMetadataSnapshot, Unsubscriber } from '@/domain/ports'
+import type {
+  MetadataCachePort,
+  FileMetadataSnapshot,
+  HeadingSnapshot,
+  Unsubscriber,
+} from '@/domain/ports'
 
 /**
  * In-memory {@link MetadataCachePort} for unit tests.
@@ -29,6 +34,22 @@ export class MockMetadataCachePort implements MetadataCachePort {
 
   seedLinkpathDest(linktext: string, sourcePath: string, dest: string): void {
     this.linkpathDestMap.set(`${linktext}|${sourcePath}`, dest)
+  }
+
+  seedHeadings(path: string, headings: HeadingSnapshot[]): void {
+    const existing = this.metadataMap.get(path)
+    if (existing) {
+      this.metadataMap.set(path, { ...existing, headings })
+    } else {
+      this.metadataMap.set(path, {
+        path,
+        tags: [],
+        frontmatter: {},
+        links: [],
+        embeds: [],
+        headings,
+      })
+    }
   }
 
   triggerMetadataChange(path: string): void {

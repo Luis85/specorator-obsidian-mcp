@@ -79,6 +79,32 @@ describe('registerMetadataTools', () => {
     expect(parsed.headings).toEqual([])
   })
 
+  it('metadata.headings returns seeded headings with correct shape', async () => {
+    const { server, ports } = setup()
+    ports.bridge.seedHeadings('doc.md', [
+      { heading: 'Introduction', level: 1 },
+      { heading: 'Overview', level: 2 },
+    ])
+    const result = (await getHandler(server, 'metadata.headings')({ path: 'doc.md' })) as {
+      content: [{ text: string }]
+    }
+    const parsed = JSON.parse(result.content[0].text) as {
+      headings: Array<{ heading: string; level: number }>
+    }
+    expect(parsed.headings).toHaveLength(2)
+    expect(parsed.headings[0]).toEqual({ heading: 'Introduction', level: 1 })
+    expect(parsed.headings[1]).toEqual({ heading: 'Overview', level: 2 })
+  })
+
+  it('metadata.headings returns empty array when snapshot absent', async () => {
+    const { server } = setup()
+    const result = (await getHandler(server, 'metadata.headings')({ path: 'absent.md' })) as {
+      content: [{ text: string }]
+    }
+    const parsed = JSON.parse(result.content[0].text) as { headings: unknown[] }
+    expect(parsed.headings).toEqual([])
+  })
+
   it('metadata.linkpath resolves known linktext', async () => {
     const { server, ports } = setup()
     ports.bridge.seedLinkpathDest('Page', 'src.md', 'folder/Page.md')
