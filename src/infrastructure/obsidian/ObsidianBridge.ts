@@ -197,9 +197,7 @@ export class ObsidianBridge
 
   private _shouldLog(level: 'debug' | 'info' | 'warn' | 'error'): boolean {
     const configured = this.plugin.settings.logLevel
-    return (
-      (ObsidianBridge._LEVEL_RANK[level] ?? 0) >= (ObsidianBridge._LEVEL_RANK[configured] ?? 0)
-    )
+    return (ObsidianBridge._LEVEL_RANK[level] ?? 0) >= (ObsidianBridge._LEVEL_RANK[configured] ?? 0)
   }
 
   debug(message: string, context?: Record<string, unknown>): void {
