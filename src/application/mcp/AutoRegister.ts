@@ -28,7 +28,7 @@ export function wellKnownTargets(): AutoRegisterTarget[] {
 
 export interface RegisterResult {
   target: AutoRegisterTarget
-  status: 'registered' | 'skipped' | 'unchanged' | 'failed'
+  status: 'registered' | 'deregistered' | 'skipped' | 'unchanged' | 'failed'
   reason?: string
 }
 
@@ -124,7 +124,7 @@ export class AutoRegister {
         // Back up existing content before mutating (single rotation — overwrites previous .bak).
         await this.fs.writeText(`${t.configPath}.bak`, existing)
         await this.fs.writeText(t.configPath, JSON.stringify(blob, null, 2) + '\n')
-        out.push({ target: t, status: 'registered', reason: 'deregistered' })
+        out.push({ target: t, status: 'deregistered' })
       } catch (err) {
         out.push({ target: t, status: 'failed', reason: (err as Error).message })
       }

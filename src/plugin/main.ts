@@ -137,7 +137,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
       if (enabledTargets.length > 0 && this.autoRegister) {
         const results = await this.autoRegister.deregister(enabledTargets)
         const deregistered = results
-          .filter((r) => r.status === 'registered' && r.reason === 'deregistered')
+          .filter((r) => r.status === 'deregistered')
           .map((r) => r.target.name)
         if (deregistered.length > 0) {
           new Notice(`MCP server unregistered from: ${deregistered.join(', ')}`)

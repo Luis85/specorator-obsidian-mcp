@@ -178,8 +178,7 @@ describe('AutoRegister.deregister', () => {
       }),
     )
     const results = await ar.deregister([target])
-    expect(results[0]?.status).toBe('registered') // 'deregistered' sub-status
-    expect(results[0]?.reason).toBe('deregistered')
+    expect(results[0]?.status).toBe('deregistered')
     const parsed = JSON.parse(mockFs.files.get(target.configPath)!)
     expect(SERVER_KEY in parsed.mcpServers).toBe(false)
     expect(parsed.mcpServers['other-server']).toBeDefined()
@@ -243,6 +242,16 @@ describe('AutoRegister.deregister', () => {
     const results = await arThrow.deregister([target])
     expect(results[0]?.status).toBe('failed')
     expect(results[0]?.reason).toBe('permission denied')
+  })
+
+  it('returns deregistered status on successful removal', async () => {
+    mockFs.files.set(
+      target.configPath,
+      JSON.stringify({ mcpServers: { [SERVER_KEY]: { type: 'http', url: URL } } }),
+    )
+    const results = await ar.deregister([target])
+    expect(results[0]?.status).toBe('deregistered')
+    expect(results[0]?.reason).toBeUndefined()
   })
 
   it('writes .bak with original content before deregistering', async () => {
