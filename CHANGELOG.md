@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## 0.1.0 — 2026-05-24
 
 - Initial release.
@@ -10,5 +12,3 @@
 - Obsidian modal adapter for ask flow.
 - Server disabled by default; start/stop via command palette.
 - Status bar item shows running port.
-
-## [Unreleased]
