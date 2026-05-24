@@ -12,6 +12,7 @@ If you discover a security vulnerability, please **do not** open a public issue.
 - **Response time:** best-effort within 7 days.
 
 Please include:
+
 - A description of the vulnerability
 - Steps to reproduce
 - Affected version(s)
@@ -28,6 +29,7 @@ See [ADR-001](docs/adr/ADR-001-loopback-mcp-server.md) and [ADR-002](docs/adr/AD
 ## Hardening checklist
 
 The plugin applies:
+
 - Loopback-only HTTP bind (127.0.0.1)
 - Host-header gate (rejects non-loopback hosts with HTTP 421)
 - Origin header gate (rejects cross-origin browser requests)
