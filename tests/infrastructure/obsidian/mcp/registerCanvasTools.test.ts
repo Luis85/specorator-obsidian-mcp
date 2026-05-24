@@ -88,7 +88,7 @@ describe('registerCanvasTools', () => {
 
   it('canvas.write returns deny envelope when gate denies', async () => {
     const ports = fakeModulePorts()
-    ;(ports.confirmModal as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('deny')
+    ;(ports.confirmModal as unknown as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('deny')
     const gate = new PermissionGate(
       { getSettings: () => ({ ...DEFAULT_SETTINGS, defaultMode: 'ask' as const }) },
       ports.confirmModal,
@@ -108,7 +108,7 @@ describe('registerCanvasTools', () => {
 
   it('canvas.write writes when gate allows', async () => {
     const ports = fakeModulePorts()
-    ;(ports.confirmModal as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('allow')
+    ;(ports.confirmModal as unknown as { answerWith: (c: 'allow' | 'allow-session' | 'deny') => void }).answerWith('allow')
     const gate = new PermissionGate(
       { getSettings: () => ({ ...DEFAULT_SETTINGS, defaultMode: 'ask' as const }) },
       ports.confirmModal,

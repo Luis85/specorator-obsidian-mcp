@@ -6,8 +6,18 @@ import {
   type ToolMode,
 } from '@/domain/settings/PluginSettings'
 import { ObsidianMcpServerAdapter } from '@/infrastructure/obsidian/ObsidianMcpServerAdapter'
+import { ObsidianBridge } from '@/infrastructure/obsidian/ObsidianBridge'
 import { ObsidianConfirmModalAdapter } from '@/infrastructure/obsidian/ObsidianConfirmModalAdapter'
 import { PermissionGate } from '@/application/mcp/PermissionGate'
+import {
+  registerVaultTools,
+  registerMetadataTools,
+  registerLinksTools,
+  registerCanvasTools,
+  registerBasesTools,
+  registerObsidianCliReadTools,
+  registerObsidianCliTools,
+} from '@/infrastructure/obsidian/mcp'
 import { SpecoratorMcpSettingsTab } from './settings'
 
 export default class SpecoratorMcpPlugin extends Plugin {
@@ -16,8 +26,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
   /**
    * Permission gate constructed when the MCP server starts. Undefined when the server is stopped.
    *
-   * PR6 wires this into register*Tools registrars via the setToolRegistrar callback.
-   * Callers MUST null-check before invoking — otherwise calls between stop and start will throw.
+   * gate is assigned synchronously BEFORE setToolRegistrar in startServer, so
+   * the `this.gate!` non-null assertion inside the registrar callback is safe.
    */
   gate?: PermissionGate
 
@@ -62,11 +72,25 @@ export default class SpecoratorMcpPlugin extends Plugin {
   private async startServer(): Promise<void> {
     if (this.mcp) return
     const modal = new ObsidianConfirmModalAdapter(this.app)
+    // gate is assigned BEFORE setToolRegistrar — the `this.gate!` assertion below is safe.
     this.gate = new PermissionGate({ getSettings: () => this.settings }, modal)
     this.mcp = new ObsidianMcpServerAdapter({ getSettings: () => this.settings })
+    const bridge = new ObsidianBridge(this.app, this)
     this.mcp.setToolRegistrar((server) => {
-      // tool registrars wired in PR6
-      void server
+      registerVaultTools(server, { vault: bridge, gate: this.gate! })
+      registerMetadataTools(server, { metadata: bridge, vault: bridge })
+      registerLinksTools(server, { metadata: bridge })
+      registerCanvasTools(server, { canvas: bridge, gate: this.gate! })
+      registerBasesTools(server, { vault: bridge })
+      // `app.commands` is a stable runtime property not exposed in Obsidian's public TS types.
+      // Cast through unknown to the minimal interface each registrar declares.
+      registerObsidianCliReadTools(server, {
+        app: this.app as unknown as Parameters<typeof registerObsidianCliReadTools>[1]['app'],
+      })
+      registerObsidianCliTools(server, {
+        app: this.app as unknown as Parameters<typeof registerObsidianCliTools>[1]['app'],
+        gate: this.gate!,
+      })
     })
     await this.mcp.start()
   }
