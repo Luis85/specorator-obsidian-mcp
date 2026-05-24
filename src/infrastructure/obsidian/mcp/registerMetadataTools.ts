@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
-import { ok, parseFrontmatter } from './shared'
+import { ok, err, parseFrontmatter } from './shared'
 
 export function registerMetadataTools(
   server: McpServer,
@@ -67,5 +67,40 @@ export function registerMetadataTools(
     },
     async ({ linktext, sourcePath }) =>
       ok({ resolved: metadata.getFirstLinkpathDest(linktext, sourcePath) }),
+  )
+
+  server.registerTool(
+    'metadata.search',
+    {
+      description:
+        'Find files by tag or by frontmatter field=value. Specify either { tag } OR { field, value }. Returns flat array of matching vault paths.',
+      inputSchema: {
+        tag: z.string().optional().describe('Tag to search for (e.g. "#todo" or "todo")'),
+        field: z.string().optional().describe('Frontmatter field name'),
+        value: z
+          .union([z.string(), z.number(), z.boolean(), z.null()])
+          .optional()
+          .describe('Frontmatter field value'),
+      },
+      outputSchema: { paths: z.array(z.string()) },
+    },
+    async ({ tag, field, value }) => {
+      const hasTag = tag !== undefined
+      const hasField = field !== undefined
+      // Exactly one of tag or field+value must be present
+      if (hasTag && hasField) {
+        return err('Specify either tag or field+value, not both')
+      }
+      if (!hasTag && !hasField) {
+        return err('Specify either tag or field+value')
+      }
+      if (hasTag) {
+        const paths = await metadata.searchByTag(tag!)
+        return ok({ paths })
+      }
+      // field+value search
+      const paths = await metadata.searchByFrontmatter(field!, value !== undefined ? value : null)
+      return ok({ paths })
+    },
   )
 }

@@ -26,4 +26,8 @@ export interface MetadataCachePort {
    */
   getFirstLinkpathDest(linktext: string, sourcePath: string): string | null
   onMetadataChanged(handler: (path: string) => void): Unsubscriber
+  /** Return paths of all files that have the given tag (e.g. "#todo"). */
+  searchByTag(tag: string): Promise<string[]>
+  /** Return paths of all files whose frontmatter has field===value. */
+  searchByFrontmatter(field: string, value: unknown): Promise<string[]>
 }

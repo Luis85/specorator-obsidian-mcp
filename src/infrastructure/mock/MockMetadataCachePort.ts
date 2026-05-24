@@ -85,4 +85,26 @@ export class MockMetadataCachePort implements MetadataCachePort {
       this.metadataHandlers.delete(handler)
     }
   }
+
+  async searchByTag(tag: string): Promise<string[]> {
+    const results: string[] = []
+    const normalised = tag.startsWith('#') ? tag : `#${tag}`
+    for (const snapshot of this.metadataMap.values()) {
+      if (snapshot.tags.some((t) => t === normalised)) {
+        results.push(snapshot.path)
+      }
+    }
+    return results
+  }
+
+  async searchByFrontmatter(field: string, value: unknown): Promise<string[]> {
+    const results: string[] = []
+    for (const snapshot of this.metadataMap.values()) {
+      // eslint-disable-next-line eqeqeq
+      if (snapshot.frontmatter[field] === value) {
+        results.push(snapshot.path)
+      }
+    }
+    return results
+  }
 }

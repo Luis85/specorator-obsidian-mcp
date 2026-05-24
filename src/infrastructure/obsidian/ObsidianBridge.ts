@@ -189,6 +189,34 @@ export class ObsidianBridge
     }
   }
 
+  async searchByTag(tag: string): Promise<string[]> {
+    const normalised = tag.startsWith('#') ? tag : `#${tag}`
+    const results: string[] = []
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      const cache = this.app.metadataCache.getCache(file.path)
+      if (!cache) continue
+      const tags = (cache.tags ?? []).map((t) => t.tag)
+      if (tags.includes(normalised)) {
+        results.push(file.path)
+      }
+    }
+    return results
+  }
+
+  async searchByFrontmatter(field: string, value: unknown): Promise<string[]> {
+    const results: string[] = []
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      const cache = this.app.metadataCache.getCache(file.path)
+      if (!cache) continue
+      const fm = (cache.frontmatter ?? {}) as Record<string, unknown>
+      // eslint-disable-next-line eqeqeq
+      if (fm[field] === value) {
+        results.push(file.path)
+      }
+    }
+    return results
+  }
+
   // ── CanvasPort ───────────────────────────────────────────────────────────
 
   isCanvas(path: string): boolean {

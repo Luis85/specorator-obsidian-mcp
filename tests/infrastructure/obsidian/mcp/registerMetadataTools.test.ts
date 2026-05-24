@@ -13,7 +13,7 @@ function setup() {
 }
 
 describe('registerMetadataTools', () => {
-  it('registers exactly the four canonical metadata tools', () => {
+  it('registers exactly the canonical metadata tools (per DEFAULT_TOOL_MODES)', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_TOOL_MODES)
@@ -130,5 +130,72 @@ describe('registerMetadataTools', () => {
     })) as { content: [{ text: string }] }
     const parsed = JSON.parse(result.content[0].text) as { resolved: string | null }
     expect(parsed.resolved).toBeNull()
+  })
+
+  describe('metadata.search', () => {
+    it('finds files by tag', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedMetadata('tagged.md', {
+        path: 'tagged.md',
+        tags: ['#todo'],
+        frontmatter: {},
+        links: [],
+        embeds: [],
+      })
+      ports.bridge.seedMetadata('other.md', {
+        path: 'other.md',
+        tags: ['#done'],
+        frontmatter: {},
+        links: [],
+        embeds: [],
+      })
+      const result = (await getHandler(server, 'metadata.search')({ tag: '#todo' })) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as { paths: string[] }
+      expect(parsed.paths).toContain('tagged.md')
+      expect(parsed.paths).not.toContain('other.md')
+    })
+
+    it('finds files by frontmatter field+value', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedMetadata('active.md', {
+        path: 'active.md',
+        tags: [],
+        frontmatter: { status: 'active' },
+        links: [],
+        embeds: [],
+      })
+      ports.bridge.seedMetadata('archived.md', {
+        path: 'archived.md',
+        tags: [],
+        frontmatter: { status: 'archived' },
+        links: [],
+        embeds: [],
+      })
+      const result = (await getHandler(server, 'metadata.search')({
+        field: 'status',
+        value: 'active',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as { paths: string[] }
+      expect(parsed.paths).toContain('active.md')
+      expect(parsed.paths).not.toContain('archived.md')
+    })
+
+    it('returns error when both tag and field are provided', async () => {
+      const { server } = setup()
+      const res = (await getHandler(server, 'metadata.search')({
+        tag: '#todo',
+        field: 'status',
+        value: 'active',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+
+    it('returns error when neither tag nor field is provided', async () => {
+      const { server } = setup()
+      const res = (await getHandler(server, 'metadata.search')({})) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
   })
 })

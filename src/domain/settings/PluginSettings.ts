@@ -41,6 +41,7 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'cli.execute': 'deny',
   'vault.search': 'allow',
   'vault.list_recursive': 'allow',
+  'metadata.search': 'allow',
 })
 
 export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({
