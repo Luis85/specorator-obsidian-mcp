@@ -58,7 +58,7 @@ export function registerBasesTools(server: McpServer, deps: { vault: VaultPort }
     'bases.list',
     {
       description:
-        'List all frontmatter records in a folder (recursively). Returns { records: [{ path, frontmatter }] }.',
+        'Scans recursively for Obsidian Bases. Returns { records: [{ path, frontmatter }] }. On large vaults (>1000 notes) prefer bases.filter to narrow the scan.',
       inputSchema: {
         folder: z.string().describe('Vault-relative folder to scan recursively'),
       },

@@ -67,7 +67,8 @@ export function registerVaultTools(
   server.registerTool(
     'vault.write',
     {
-      description: 'Write (overwrite or create) a vault file',
+      description:
+        'Write (overwrite or create) a vault file. Content is capped at 10 MB. Returns { written: true, path }.',
       inputSchema: {
         path: z.string().describe('Vault-relative path'),
         content: z.string().max(10_000_000).describe('Full file content to write (max 10 MB)'),
@@ -108,7 +109,8 @@ export function registerVaultTools(
   server.registerTool(
     'vault.move',
     {
-      description: 'Move (rename) a vault file to a new path',
+      description:
+        "Move (rename) a vault file. Non-atomic: implemented as write-then-delete. If the delete fails after the write, the file will exist at both 'from' and 'to'. Returns { moved: true, from, to }.",
       inputSchema: {
         from: z.string().describe('Current vault-relative path'),
         to: z.string().describe('Destination vault-relative path'),

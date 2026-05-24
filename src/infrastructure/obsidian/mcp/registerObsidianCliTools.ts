@@ -23,8 +23,8 @@ export function registerObsidianCliTools(
     'cli.execute',
     {
       description:
-        'Execute an Obsidian command palette command by its id. ' +
-        'This tool defaults to "deny" mode in settings; opt in explicitly. ' +
+        'Execute an Obsidian command palette command by id. Use cli.read.find to discover valid command ids first. ' +
+        'Defaults to deny mode in settings; opt in per-command-prefix via the cli.execute allow-list. ' +
         'Returns { executed: true } on success, { executed: false } when the command was not found.',
       inputSchema: {
         commandId: z.string().describe('Obsidian command id, e.g. "editor:save-file"'),
