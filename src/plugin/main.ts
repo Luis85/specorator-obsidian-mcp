@@ -143,8 +143,10 @@ export default class SpecoratorMcpPlugin extends Plugin {
       if (registered.length > 0) {
         new Notice(`MCP server registered with: ${registered.join(', ')}`)
       }
-      for (const f of results.filter((r) => r.status === 'failed')) {
+      const failed = results.filter((r) => r.status === 'failed')
+      for (const f of failed) {
         console.warn(`[specorator-mcp] Auto-register ${f.target.name} failed: ${f.reason}`)
+        new Notice(`MCP auto-register failed for ${f.target.name}: ${f.reason}`, 10000)
       }
     }
   }
@@ -160,8 +162,10 @@ export default class SpecoratorMcpPlugin extends Plugin {
         if (deregistered.length > 0) {
           new Notice(`MCP server unregistered from: ${deregistered.join(', ')}`)
         }
-        for (const f of results.filter((r) => r.status === 'failed')) {
+        const deregFailed = results.filter((r) => r.status === 'failed')
+        for (const f of deregFailed) {
           console.warn(`[specorator-mcp] Auto-deregister ${f.target.name} failed: ${f.reason}`)
+          new Notice(`MCP deregister failed for ${f.target.name}: ${f.reason}`, 10000)
         }
       }
     }
