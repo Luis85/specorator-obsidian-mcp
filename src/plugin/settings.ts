@@ -24,16 +24,25 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
 
     containerEl.createEl('h2', { text: 'Server' })
 
+    const portErrorEl = containerEl.createEl('div', {
+      cls: 'setting-item-description mod-warning',
+      text: '',
+    })
+    portErrorEl.style.display = 'none'
     new Setting(containerEl)
       .setName('Port')
-      .setDesc('Loopback TCP port. Restart the server after changing.')
+      .setDesc('Loopback TCP port (1–65535). Restart the server after changing.')
       .addText((t) =>
         t.setValue(String(this.plugin.settings.port)).onChange(async (v) => {
           const n = Number(v)
-          if (Number.isInteger(n) && n > 0 && n < 65536) {
-            this.plugin.settings.port = n
-            await this.plugin.saveSettings()
+          if (!Number.isInteger(n) || n < 1 || n >= 65536) {
+            portErrorEl.setText(`Invalid port "${v}" — must be an integer 1–65535.`)
+            portErrorEl.style.display = 'block'
+            return
           }
+          portErrorEl.style.display = 'none'
+          this.plugin.settings.port = n
+          await this.plugin.saveSettings()
         }),
       )
 
