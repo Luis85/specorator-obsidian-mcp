@@ -19,16 +19,19 @@ function setup() {
 }
 
 describe('registerVaultTools', () => {
-  it('registers vault.read, vault.list, vault.exists, vault.write, vault.delete, vault.move, vault.createFolder', () => {
-    const { tools } = setup()
-    const names = Object.keys(tools).sort()
-    expect(names).toContain('vault.read')
-    expect(names).toContain('vault.list')
-    expect(names).toContain('vault.exists')
-    expect(names).toContain('vault.write')
-    expect(names).toContain('vault.delete')
-    expect(names).toContain('vault.move')
-    expect(names).toContain('vault.createFolder')
+  it('registers exactly the seven canonical vault tools', () => {
+    const { server } = setup()
+    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+      ._registeredTools
+    expect(Object.keys(tools).sort()).toEqual([
+      'vault.createFolder',
+      'vault.delete',
+      'vault.exists',
+      'vault.list',
+      'vault.move',
+      'vault.read',
+      'vault.write',
+    ])
   })
 
   it('vault.write mutates vault directly (no proposal queue)', async () => {

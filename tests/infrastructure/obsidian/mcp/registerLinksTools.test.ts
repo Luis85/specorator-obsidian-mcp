@@ -19,14 +19,11 @@ function setup() {
 }
 
 describe('registerLinksTools', () => {
-  it('registers links.backlinks, links.outgoing, links.bfs', () => {
-    const { tools } = setup()
-    const names = Object.keys(tools).sort()
-    expect(names).toContain('links.backlinks')
-    expect(names).toContain('links.outgoing')
-    expect(names).toContain('links.bfs')
-    // no write tool registered
-    expect(names).not.toContain('links.add')
+  it('registers exactly the three canonical links tools', () => {
+    const { server } = setup()
+    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+      ._registeredTools
+    expect(Object.keys(tools).sort()).toEqual(['links.backlinks', 'links.bfs', 'links.outgoing'])
   })
 
   it('links.backlinks returns backlinks for a note', async () => {

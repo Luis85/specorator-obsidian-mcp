@@ -19,13 +19,11 @@ function setup() {
 }
 
 describe('registerBasesTools', () => {
-  it('registers bases.list and bases.filter', () => {
-    const { tools } = setup()
-    const names = Object.keys(tools).sort()
-    expect(names).toContain('bases.list')
-    expect(names).toContain('bases.filter')
-    // no write tools
-    expect(names).not.toContain('bases_update_record')
+  it('registers exactly the two canonical bases tools', () => {
+    const { server } = setup()
+    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+      ._registeredTools
+    expect(Object.keys(tools).sort()).toEqual(['bases.filter', 'bases.list'])
   })
 
   it('bases.list returns all frontmatter records in folder', async () => {

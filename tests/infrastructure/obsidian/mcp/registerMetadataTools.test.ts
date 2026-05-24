@@ -19,13 +19,16 @@ function setup() {
 }
 
 describe('registerMetadataTools', () => {
-  it('registers metadata.frontmatter, metadata.tags, metadata.headings, metadata.linkpath', () => {
-    const { tools } = setup()
-    const names = Object.keys(tools).sort()
-    expect(names).toContain('metadata.frontmatter')
-    expect(names).toContain('metadata.tags')
-    expect(names).toContain('metadata.headings')
-    expect(names).toContain('metadata.linkpath')
+  it('registers exactly the four canonical metadata tools', () => {
+    const { server } = setup()
+    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+      ._registeredTools
+    expect(Object.keys(tools).sort()).toEqual([
+      'metadata.frontmatter',
+      'metadata.headings',
+      'metadata.linkpath',
+      'metadata.tags',
+    ])
   })
 
   it('metadata.frontmatter returns frontmatter from metadata cache snapshot', async () => {

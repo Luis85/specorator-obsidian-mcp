@@ -19,14 +19,11 @@ function setup() {
 }
 
 describe('registerCanvasTools', () => {
-  it('registers canvas.read and canvas.write', () => {
-    const { tools } = setup()
-    const names = Object.keys(tools).sort()
-    expect(names).toContain('canvas.read')
-    expect(names).toContain('canvas.write')
-    // no proposal-queue tools
-    expect(names).not.toContain('canvas_create')
-    expect(names).not.toContain('canvas_add_text_node')
+  it('registers exactly the two canonical canvas tools', () => {
+    const { server } = setup()
+    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+      ._registeredTools
+    expect(Object.keys(tools).sort()).toEqual(['canvas.read', 'canvas.write'])
   })
 
   it('canvas.read returns canvas data', async () => {

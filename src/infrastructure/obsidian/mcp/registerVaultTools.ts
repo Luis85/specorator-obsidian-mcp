@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
-import { collectFiles, joinVaultPath, ok } from './shared'
+import { joinVaultPath, ok } from './shared'
 
 export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }): void {
   const { vault } = deps
@@ -93,38 +93,6 @@ export function registerVaultTools(server: McpServer, deps: { vault: VaultPort }
     async ({ path }) => {
       await vault.createFolder(path)
       return ok({ created: true, path })
-    },
-  )
-
-  // vault.search is a bonus utility — list-only tools use collectFiles
-  // (not part of DEFAULT_TOOL_MODES but registered for completeness)
-  server.registerTool(
-    'vault.search',
-    {
-      description: 'Search vault files for a query string (case-insensitive, recursive)',
-      inputSchema: {
-        query: z.string().describe('Substring to search for'),
-        folder: z.string().describe('Vault-relative folder to search in'),
-      },
-    },
-    async ({ query, folder }) => {
-      const files = await collectFiles(vault, folder)
-      const lower = query.toLowerCase()
-      const matches: Array<{ path: string; excerpt: string }> = []
-      for (const path of files) {
-        try {
-          const content = await vault.readFile(path)
-          const idx = content.toLowerCase().indexOf(lower)
-          if (idx !== -1) {
-            const start = Math.max(0, idx - 60)
-            const end = Math.min(content.length, idx + query.length + 60)
-            matches.push({ path, excerpt: content.slice(start, end).trim() })
-          }
-        } catch {
-          // skip unreadable files
-        }
-      }
-      return ok({ matches })
     },
   )
 }

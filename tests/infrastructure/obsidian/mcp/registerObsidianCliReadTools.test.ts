@@ -26,11 +26,11 @@ function setup() {
 }
 
 describe('registerObsidianCliReadTools', () => {
-  it('registers cli.read.list and cli.read.find', () => {
-    const { tools } = setup()
-    const names = Object.keys(tools).sort()
-    expect(names).toContain('cli.read.list')
-    expect(names).toContain('cli.read.find')
+  it('registers exactly the two canonical cli read tools', () => {
+    const { server } = setup()
+    const tools = (server as unknown as { _registeredTools: Record<string, unknown> })
+      ._registeredTools
+    expect(Object.keys(tools).sort()).toEqual(['cli.read.find', 'cli.read.list'])
   })
 
   it('cli.read.list returns all commands', async () => {
