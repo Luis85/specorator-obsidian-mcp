@@ -5,9 +5,17 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 
-const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'manifest.json'), 'utf8'))
-const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
-const versions = JSON.parse(fs.readFileSync(path.join(repoRoot, 'versions.json'), 'utf8'))
+function readJson(filePath) {
+  if (!fs.existsSync(filePath)) {
+    console.error(`✗ Required file not found: ${filePath}`)
+    process.exit(1)
+  }
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+}
+
+const manifest = readJson(path.join(repoRoot, 'manifest.json'))
+const pkg = readJson(path.join(repoRoot, 'package.json'))
+const versions = readJson(path.join(repoRoot, 'versions.json'))
 
 const errors = []
 
