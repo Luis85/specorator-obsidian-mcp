@@ -57,17 +57,30 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         })
       })
 
+    const timeoutErrorEl = containerEl.createEl('div', {
+      cls: 'setting-item-description mod-warning',
+      text: '',
+    })
+    timeoutErrorEl.style.display = 'none'
     new Setting(containerEl)
-      .setName('Ask timeout (ms)')
-      .setDesc('Modal auto-denies after this many milliseconds.')
+      .setName('Ask timeout (seconds)')
+      .setDesc(
+        'Modal auto-denies if you do not respond within this many seconds. Current: 30s = 30000ms internally.',
+      )
       .addText((t) =>
-        t.setValue(String(this.plugin.settings.askTimeoutMs)).onChange(async (v) => {
-          const n = Number(v)
-          if (Number.isInteger(n) && n > 0) {
-            this.plugin.settings.askTimeoutMs = n
+        t
+          .setValue(String(Math.round(this.plugin.settings.askTimeoutMs / 1000)))
+          .onChange(async (v) => {
+            const seconds = Number(v)
+            if (!Number.isInteger(seconds) || seconds < 1) {
+              timeoutErrorEl.setText(`Invalid timeout "${v}" — must be a whole number ≥ 1.`)
+              timeoutErrorEl.style.display = 'block'
+              return
+            }
+            timeoutErrorEl.style.display = 'none'
+            this.plugin.settings.askTimeoutMs = Math.round(seconds * 1000)
             await this.plugin.saveSettings()
-          }
-        }),
+          }),
       )
 
     new Setting(containerEl).setName('Log level').addDropdown((d) => {
