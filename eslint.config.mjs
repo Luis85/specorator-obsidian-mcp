@@ -36,6 +36,30 @@ export default tseslint.config(
       ],
     },
   },
+  // Promote no-explicit-any to error for src (excluding tests and plugin/infra entry points)
+  {
+    files: ['src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
+  // Domain and application layers must not import obsidian — use a port
+  {
+    files: ['src/domain/**/*.ts', 'src/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['obsidian'],
+              message: 'Domain/application must not import obsidian directly. Use a port.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Config/script files at root — node globals, no project linting
   {
     files: ['*.ts', '*.mjs', 'scripts/**/*.js'],
