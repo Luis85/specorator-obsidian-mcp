@@ -22,11 +22,11 @@ Three commitments shape the implementation in `ObsidianMcpServerAdapter`:
 
 3. **Server is disabled by default; lifecycle is demand-driven.** `main.ts` exposes two command-palette commands ("Start MCP server" / "Stop MCP server"). The adapter is constructed and started only when the user runs the start command. The server does not open a localhost listener on every Obsidian startup.
 
-| State | How reached |
-|---|---|
-| Off (default) | Plugin loads; no adapter constructed |
-| On | User runs "Start MCP server" |
-| Off again | User runs "Stop MCP server", or plugin unloads |
+| State         | How reached                                    |
+| ------------- | ---------------------------------------------- |
+| Off (default) | Plugin loads; no adapter constructed           |
+| On            | User runs "Start MCP server"                   |
+| Off again     | User runs "Stop MCP server", or plugin unloads |
 
 ## Rationale
 

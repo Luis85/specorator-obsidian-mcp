@@ -1,9 +1,9 @@
 ---
-term: "MCP server"
-aliases: ["Obsidian MCP server", "ObsidianMcpServer", "native MCP server"]
+term: 'MCP server'
+aliases: ['Obsidian MCP server', 'ObsidianMcpServer', 'native MCP server']
 category: technical
 status: accepted
-version: "0.1.0"
+version: '0.1.0'
 related:
   - docs/adr/ADR-001-loopback-mcp-server.md
   - docs/adr/ADR-002-permission-modes.md
@@ -18,7 +18,7 @@ The MCP server exposes a structured tool surface: vault read/write, frontmatter 
 
 ## Why native
 
-Running the MCP server inside the plugin (not as a separate process or REST intermediary) gives it full access to Obsidian's internal APIs: `MetadataCache`, `Canvas`, `Bases`, and the complete `App` and `Vault` object graph. This is the difference between an MCP server that knows about Obsidian and one that *is* Obsidian.
+Running the MCP server inside the plugin (not as a separate process or REST intermediary) gives it full access to Obsidian's internal APIs: `MetadataCache`, `Canvas`, `Bases`, and the complete `App` and `Vault` object graph. This is the difference between an MCP server that knows about Obsidian and one that _is_ Obsidian.
 
 ## Tool catalogue (summary)
 
