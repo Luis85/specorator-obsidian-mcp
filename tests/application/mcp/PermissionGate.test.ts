@@ -118,5 +118,31 @@ describe('PermissionGate.resolve', () => {
       const d = await gate.resolve('cli.execute', {})
       expect(d.decision).toBe('allow')
     })
+
+    it('pathDenyList matches params.to (vault.move destination)', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['.obsidian/**'],
+        toolModes: { 'vault.move': 'allow' },
+      })
+      const d = await gate.resolve('vault.move', {
+        path: 'notes/a.md',
+        from: 'notes/a.md',
+        to: '.obsidian/community-plugins.json',
+      })
+      expect(d.decision).toBe('deny')
+      expect(d.reason).toContain('pathDenyList')
+    })
+
+    it('pathDenyList matches params.from', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['private/**'],
+        toolModes: { 'vault.move': 'allow' },
+      })
+      const d = await gate.resolve('vault.move', {
+        from: 'private/secret.md',
+        to: 'public/secret.md',
+      })
+      expect(d.decision).toBe('deny')
+    })
   })
 })

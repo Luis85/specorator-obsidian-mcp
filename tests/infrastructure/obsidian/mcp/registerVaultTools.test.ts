@@ -138,6 +138,35 @@ describe('registerVaultTools', () => {
     expect(await ports.vault.fileExists('a.md')).toBe(false)
   })
 
+  it('vault.move returns deny envelope when to falls inside a denied path', async () => {
+    const ports = fakeModulePorts()
+    const gate = new PermissionGate(
+      {
+        getSettings: () => ({
+          ...DEFAULT_SETTINGS,
+          defaultMode: 'allow' as const,
+          pathDenyList: ['.obsidian/**'],
+          toolModes: {
+            ...DEFAULT_SETTINGS.toolModes,
+            'vault.move': 'allow' as const,
+          },
+        }),
+      },
+      ports.confirmModal,
+    )
+    const server = new McpServer({ name: 'test', version: '0.0.0' })
+    registerVaultTools(server, { vault: ports.vault, gate })
+    const tools = (server as unknown as ServerInternal)._registeredTools
+    await ports.vault.writeFile('notes/a.md', 'content')
+    const res = (await tools['vault.move'].handler({
+      from: 'notes/a.md',
+      to: '.obsidian/community-plugins.json',
+    })) as { isError: boolean }
+    expect(res.isError).toBe(true)
+    // original file must NOT have been moved
+    expect(await ports.vault.fileExists('notes/a.md')).toBe(true)
+  })
+
   it('vault.write writes when gate allows', async () => {
     const ports = fakeModulePorts()
     ;(

@@ -43,10 +43,13 @@ export class PermissionGate {
   }
 
   private matchPathDeny(patterns: string[], params: Record<string, unknown>): string | null {
-    const path = typeof params.path === 'string' ? params.path : null
-    if (!path) return null
-    for (const pat of patterns) {
-      if (matchGlob(pat, path)) return pat
+    const candidates = ['path', 'from', 'to']
+      .map((k) => params[k])
+      .filter((v): v is string => typeof v === 'string')
+    for (const candidate of candidates) {
+      for (const pat of patterns) {
+        if (matchGlob(pat, candidate)) return pat
+      }
     }
     return null
   }
