@@ -69,9 +69,7 @@ class ToolConfirmModal extends Modal {
           .setCta()
           .onClick(() => this.decide('allow')),
       )
-      .addButton((b) =>
-        b.setButtonText('Deny').onClick(() => this.decide('deny')),
-      )
+      .addButton((b) => b.setButtonText('Deny').onClick(() => this.decide('deny')))
       .addButton((b) =>
         b
           .setButtonText('Allow for session')
