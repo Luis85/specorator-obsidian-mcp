@@ -7,6 +7,10 @@ import type { PluginSettings } from '@/domain/settings/PluginSettings'
  * Minimal settings source accepted by the constructor.
  * A full SettingsPort satisfies this interface; raw objects also work for
  * tests that want to pass settings directly without a mock.
+ *
+ * Called once per `start()` to read the bind port; that value is cached for
+ * the lifetime of the running server. A full SettingsPort satisfies this
+ * interface.
  */
 export interface McpSettingsSource {
   getSettings(): PluginSettings
@@ -69,7 +73,8 @@ export class ObsidianMcpServerAdapter {
         return
       }
       if (req.url === '/mcp') {
-        void this._handleMcpRequest(req, res).catch(() => {
+        void this._handleMcpRequest(req, res).catch((_err) => {
+          // TODO(PR4-or-later): inject LoggerPort and log _err here.
           if (!res.headersSent) res.writeHead(500).end()
         })
       } else {

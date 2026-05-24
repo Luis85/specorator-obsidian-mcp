@@ -99,7 +99,11 @@ describe('ObsidianMcpServerAdapter', () => {
     // (ECONNRESET) that still means the gate passed — only a 421 means rejection.
     let status: number | undefined
     try {
-      status = await rawPost(TEST_PORT, 'LOCALHOST', JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }))
+      status = await rawPost(
+        TEST_PORT,
+        'LOCALHOST',
+        JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+      )
     } catch (err: unknown) {
       const code = (err as NodeJS.ErrnoException).code
       if (code === 'ECONNRESET' || code === 'ECONNREFUSED') {
