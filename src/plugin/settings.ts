@@ -69,17 +69,15 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
       text: 'Glob patterns. Tool calls whose "path" param matches any pattern are denied regardless of mode.',
     })
 
-    new Setting(containerEl)
-      .setName('Patterns (one per line)')
-      .addTextArea((t) =>
-        t.setValue(this.plugin.settings.pathDenyList.join('\n')).onChange(async (v) => {
-          this.plugin.settings.pathDenyList = v
-            .split(/\r?\n/)
-            .map((s) => s.trim())
-            .filter(Boolean)
-          await this.plugin.saveSettings()
-        }),
-      )
+    new Setting(containerEl).setName('Patterns (one per line)').addTextArea((t) =>
+      t.setValue(this.plugin.settings.pathDenyList.join('\n')).onChange(async (v) => {
+        this.plugin.settings.pathDenyList = v
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+        await this.plugin.saveSettings()
+      }),
+    )
 
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
