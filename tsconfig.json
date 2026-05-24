@@ -20,7 +20,8 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@@/*": ["tests/*"]
     },
     "types": ["node", "vitest/globals"]
   },
