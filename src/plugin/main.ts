@@ -8,7 +8,12 @@ import { SpecoratorMcpSettingsTab } from './settings'
 export default class SpecoratorMcpPlugin extends Plugin {
   settings!: PluginSettings
   private mcp?: ObsidianMcpServerAdapter
-  /** Exposed for PR6 registrar wiring. */
+  /**
+   * Permission gate constructed when the MCP server starts. Undefined when the server is stopped.
+   *
+   * PR6 wires this into register*Tools registrars via the setToolRegistrar callback.
+   * Callers MUST null-check before invoking — otherwise calls between stop and start will throw.
+   */
   gate?: PermissionGate
 
   async onload(): Promise<void> {
