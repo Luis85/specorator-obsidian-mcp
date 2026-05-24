@@ -84,10 +84,10 @@ export default class SpecoratorMcpPlugin extends Plugin {
   private async startServer(): Promise<void> {
     if (this.mcp) return
     const modal = new ObsidianConfirmModalAdapter(this.app)
+    const bridge = new ObsidianBridge(this.app, this)
     // gate is assigned BEFORE setToolRegistrar — the `this.gate!` assertion below is safe.
     this.gate = new PermissionGate({ getSettings: () => this.settings }, modal)
-    this.mcp = new ObsidianMcpServerAdapter({ getSettings: () => this.settings })
-    const bridge = new ObsidianBridge(this.app, this)
+    this.mcp = new ObsidianMcpServerAdapter({ getSettings: () => this.settings }, bridge)
     this.mcp.setToolRegistrar((server) => {
       registerVaultTools(server, { vault: bridge, gate: this.gate! })
       registerMetadataTools(server, { metadata: bridge, vault: bridge })

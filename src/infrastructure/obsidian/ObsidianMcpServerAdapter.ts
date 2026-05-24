@@ -2,6 +2,7 @@ import * as http from 'node:http'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import type { PluginSettings } from '@/domain/settings/PluginSettings'
+import type { LoggerPort } from '@/domain/ports'
 
 /**
  * Minimal settings source accepted by the constructor.
@@ -39,12 +40,14 @@ export interface McpConnectionConfig {
  */
 export class ObsidianMcpServerAdapter {
   private readonly settings: McpSettingsSource
+  private readonly logger: LoggerPort | undefined
   private httpServer: http.Server | null = null
   private _boundPort: number | null = null
   private toolRegistrar: ((server: McpServer) => void) | undefined
 
-  constructor(settings: McpSettingsSource) {
+  constructor(settings: McpSettingsSource, logger?: LoggerPort) {
     this.settings = settings
+    this.logger = logger
   }
 
   /**
@@ -84,7 +87,7 @@ export class ObsidianMcpServerAdapter {
       }
       if (req.url === '/mcp') {
         void this._handleMcpRequest(req, res).catch((_err) => {
-          // TODO(PR4-or-later): inject LoggerPort and log _err here.
+          this.logger?.error('mcp request failed', { error: String(_err) })
           if (!res.headersSent) res.writeHead(500).end()
         })
       } else {
