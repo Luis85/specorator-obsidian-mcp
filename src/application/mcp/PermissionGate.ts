@@ -27,18 +27,30 @@ export class PermissionGate {
       return { decision: 'deny', reason: `pathDenyList matched glob "${pathHit}"` }
     }
 
-    // 2. Session allow cache
+    // 2. cli.execute prefix allowlist — sits between deny-list and toolModes lookup
+    if (
+      toolName === 'cli.execute' &&
+      typeof params['commandId'] === 'string' &&
+      s.cliExecuteAllowedPrefixes.length > 0
+    ) {
+      const commandId = params['commandId']
+      if (s.cliExecuteAllowedPrefixes.some((p) => commandId.startsWith(p))) {
+        return { decision: 'allow', reason: 'cli.execute prefix-allowed' }
+      }
+    }
+
+    // 3. Session allow cache
     if (this.sessionAllowed.has(toolName)) {
       return { decision: 'allow', reason: 'session allow' }
     }
 
-    // 3. Per-tool mode → defaultMode
+    // 4. Per-tool mode → defaultMode
     const mode: ToolMode = s.toolModes[toolName] ?? s.defaultMode
 
     if (mode === 'allow') return { decision: 'allow', reason: 'toolMode allow' }
     if (mode === 'deny') return { decision: 'deny', reason: 'toolMode deny' }
 
-    // 4. ask
+    // 5. ask
     return await this.ask(toolName, params, s.askTimeoutMs)
   }
 

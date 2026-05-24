@@ -119,6 +119,23 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         )
     }
 
+    containerEl.createEl('h2', { text: 'cli.execute allowed prefixes' })
+    containerEl.createEl('p', {
+      text: 'Command-id prefixes that bypass the ask-gate for cli.execute (e.g. "editor:"). One per line. Does not bypass the path deny-list.',
+    })
+
+    new Setting(containerEl).setName('Allowed prefixes (one per line)').addTextArea((t) =>
+      t
+        .setValue((this.plugin.settings.cliExecuteAllowedPrefixes ?? []).join('\n'))
+        .onChange(async (v) => {
+          this.plugin.settings.cliExecuteAllowedPrefixes = v
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+          await this.plugin.saveSettings()
+        }),
+    )
+
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
 

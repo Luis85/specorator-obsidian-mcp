@@ -15,6 +15,8 @@ export interface PluginSettings {
   askTimeoutMs: number
   logLevel: LogLevel
   autoRegister: AutoRegisterSettings
+  /** Command-id prefixes (e.g. "editor:") that bypass the ask-gate for cli.execute. */
+  cliExecuteAllowedPrefixes: string[]
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
@@ -59,4 +61,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   askTimeoutMs: 30_000,
   logLevel: 'warn',
   autoRegister: { ...DEFAULT_AUTO_REGISTER },
+  cliExecuteAllowedPrefixes: [],
 }

@@ -112,4 +112,57 @@ describe('registerObsidianCliTools', () => {
     await getHandler(server, 'cli.execute')({ commandId: 'editor:save-file' })
     expect(fakeApp.commands.executeCommandById).toHaveBeenCalledWith('editor:save-file')
   })
+
+  describe('cli.execute prefix allowlist', () => {
+    it('allows editor: prefix to bypass deny mode', async () => {
+      const ports = fakeModulePorts()
+      const gate = new PermissionGate(
+        {
+          getSettings: () => ({
+            ...DEFAULT_SETTINGS,
+            defaultMode: 'deny' as const,
+            toolModes: { ...DEFAULT_SETTINGS.toolModes, 'cli.execute': 'deny' as const },
+            cliExecuteAllowedPrefixes: ['editor:'],
+          }),
+        },
+        ports.confirmModal,
+      )
+      const server = new McpServer({ name: 'test', version: '0.0.0' })
+      const fakeApp: CliApp = {
+        commands: { executeCommandById: vi.fn(() => true) },
+      }
+      registerObsidianCliTools(server, { app: fakeApp, gate })
+      const result = (await getHandler(server, 'cli.execute')({
+        commandId: 'editor:toggle-bold',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as { executed: boolean }
+      expect(parsed.executed).toBe(true)
+      expect(fakeApp.commands.executeCommandById).toHaveBeenCalledWith('editor:toggle-bold')
+    })
+
+    it('does NOT allow app: prefix when only editor: is in the allowlist', async () => {
+      const ports = fakeModulePorts()
+      const gate = new PermissionGate(
+        {
+          getSettings: () => ({
+            ...DEFAULT_SETTINGS,
+            defaultMode: 'deny' as const,
+            toolModes: { ...DEFAULT_SETTINGS.toolModes, 'cli.execute': 'deny' as const },
+            cliExecuteAllowedPrefixes: ['editor:'],
+          }),
+        },
+        ports.confirmModal,
+      )
+      const server = new McpServer({ name: 'test', version: '0.0.0' })
+      const fakeApp: CliApp = {
+        commands: { executeCommandById: vi.fn(() => true) },
+      }
+      registerObsidianCliTools(server, { app: fakeApp, gate })
+      const res = (await getHandler(server, 'cli.execute')({
+        commandId: 'app:reload',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+      expect(fakeApp.commands.executeCommandById).not.toHaveBeenCalled()
+    })
+  })
 })
