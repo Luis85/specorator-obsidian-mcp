@@ -57,12 +57,17 @@ export class PermissionGate {
     timeoutMs: number,
   ): Promise<GateDecision> {
     let timer: ReturnType<typeof setTimeout> | undefined
+    let timedOut = false
     const timeout = new Promise<GateDecision>((resolve) => {
-      timer = setTimeout(() => resolve({ decision: 'deny', reason: 'ask timeout' }), timeoutMs)
+      timer = setTimeout(() => {
+        timedOut = true
+        resolve({ decision: 'deny', reason: 'ask timeout' })
+      }, timeoutMs)
     })
     const answer = this.modal
       .confirm({ tool: toolName, params, summary: summarise(toolName, params) })
       .then((choice): GateDecision => {
+        if (timedOut) return { decision: 'deny', reason: 'ask timeout (late answer discarded)' }
         if (choice === 'allow-session') {
           this.sessionAllowed.add(toolName)
           return { decision: 'allow', reason: 'user allowed for session' }

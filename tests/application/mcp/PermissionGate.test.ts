@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { PermissionGate, type GateDecision } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS, type PluginSettings } from '@/domain/settings/PluginSettings'
 import { MockConfirmModalPort } from '@/infrastructure/mock/MockConfirmModalPort'
+import type { ConfirmModalPort } from '@/domain/ports/ConfirmModalPort'
 
 function makeGate(
   overrides: Partial<PluginSettings> = {},
@@ -69,6 +70,46 @@ describe('PermissionGate.resolve', () => {
       const d = await gate.resolve('vault.write', { path: 'a.md' })
       expect(d.decision).toBe('deny')
       expect(d.reason).toContain('timeout')
+    })
+
+    it('discards late modal answer after timeout (no ghost session-allow)', async () => {
+      // Create a controllable modal that resolves on demand, not on call.
+      let resolveModal!: (choice: 'allow' | 'allow-session' | 'deny') => void
+      const modal: ConfirmModalPort = {
+        confirm: () => new Promise((res) => { resolveModal = res }),
+      } as ConfirmModalPort
+
+      const settings: PluginSettings = { ...DEFAULT_SETTINGS, defaultMode: 'ask', askTimeoutMs: 10 }
+      const gate = new PermissionGate({ getSettings: () => settings }, modal)
+
+      // First call times out
+      const first = await gate.resolve('vault.write', { path: 'a.md' })
+      expect(first.decision).toBe('deny')
+
+      // User clicks "allow for session" AFTER the timeout
+      resolveModal('allow-session')
+      // Give the late .then() a tick to run
+      await new Promise((r) => setTimeout(r, 5))
+
+      // Second call must still be ask/deny — not silently allowed from poisoned cache
+      let resolveModal2!: (choice: 'allow' | 'allow-session' | 'deny') => void
+      ;(modal as { confirm: (req: unknown) => Promise<'allow' | 'allow-session' | 'deny'> }).confirm = () =>
+        new Promise((res) => { resolveModal2 = res })
+      const secondPromise = gate.resolve('vault.write', { path: 'b.md' })
+      resolveModal2('deny')
+      const second = await secondPromise
+      expect(second.decision).toBe('deny')
+    })
+  })
+
+  describe('pathDenyList edge cases', () => {
+    it('pathDenyList does not block path-less params', async () => {
+      const { gate } = makeGate({
+        pathDenyList: ['**/private/**'],
+        toolModes: { 'cli.execute': 'allow' },
+      })
+      const d = await gate.resolve('cli.execute', {})
+      expect(d.decision).toBe('allow')
     })
   })
 })
