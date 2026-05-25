@@ -126,6 +126,55 @@ Pattern to follow:
 
 5. **Declare `outputSchema`** and use `okStructured` — aggregate tools always return structured JSON so clients can process results programmatically.
 
+## Adding a catalog asset
+
+Catalog assets live under `catalog/<type>/<id>/` where `<type>` is one of `skill`, `command`, `agent`, or `hook`. The primary file for each type is:
+
+| Type    | File         |
+| ------- | ------------ |
+| skill   | `SKILL.md`   |
+| command | `command.md` |
+| agent   | `agent.md`   |
+| hook    | `hook.md`    |
+
+**Required frontmatter fields:**
+
+| Field         | Notes                                                 |
+| ------------- | ----------------------------------------------------- |
+| `name`        | Gerund phrase for skills (e.g. "Reading vault files") |
+| `description` | Must include a "use when" trigger phrase              |
+| `type`        | One of `skill`, `command`, `agent`, `hook`            |
+| `version`     | Semver string                                         |
+| `bundle`      | The bundle this asset belongs to                      |
+| `requires`    | List of MCP tool names this asset depends on          |
+| `dependsOn`   | List of other asset IDs this asset depends on         |
+
+After creating the asset file, run `npm run build:catalog` to regenerate `catalog/index.json`. Confirm the new asset appears in the index, then commit both the asset file and the updated index together.
+
+## Common first-PR failures
+
+- **Missing entry in `DEFAULT_TOOL_MODES`** — the registration test in the matching `register*.test.ts` file prints a set-diff of expected vs actual tool names. Add the tool to `DEFAULT_TOOL_MODES` in `src/domain/settings/PluginSettings.ts`.
+- **New registrar not added to the barrel** — if you created a new `register*Tools.ts` file, export it from `src/infrastructure/obsidian/mcp/index.ts`.
+- **Registrar not wired in `ObsidianMcpServerAdapter`** — a tool registered in a file but not called from `ObsidianMcpServerAdapter` will be absent from the live server. Check that `server.tool(...)` is reachable at runtime.
+- **`verbatimModuleSyntax` violation** — the TypeScript config requires `import type { Foo }` for type-only imports. Using `import { Foo }` for a type causes a compile error.
+- **Skipped `okStructured` when declaring `outputSchema`** — if your tool declares `outputSchema` but returns `ok(payload)` instead of `okStructured(payload)`, the MCP SDK throws "Output validation error: no structured content" on the client side.
+
+## Where things live
+
+| Concept                      | File path                                                          |
+| ---------------------------- | ------------------------------------------------------------------ |
+| Tool mode defaults           | `src/domain/settings/PluginSettings.ts` — `DEFAULT_TOOL_MODES`     |
+| Canonical tool name list     | `src/application/mcp/ToolModeRegistry.ts` — `CANONICAL_TOOL_NAMES` |
+| MCP tool registrars (vault)  | `src/infrastructure/obsidian/mcp/registerVaultTools.ts`            |
+| MCP tool registrars (barrel) | `src/infrastructure/obsidian/mcp/index.ts`                         |
+| MCP server wiring            | `src/infrastructure/obsidian/ObsidianMcpServerAdapter.ts`          |
+| Shared response helpers      | `src/infrastructure/obsidian/mcp/shared.ts`                        |
+| Application-layer aggregates | `src/application/mcp/` (audit, graph, frontmatter query, etc.)     |
+| Permission gate              | `src/application/mcp/PermissionGate.ts`                            |
+| Catalog assets               | `catalog/<type>/<id>/`                                             |
+| Catalog index (generated)    | `catalog/index.json`                                               |
+| ADRs                         | `docs/adr/`                                                        |
+
 ## Reporting bugs / security issues
 
 Security vulnerabilities: see [SECURITY.md](./SECURITY.md). For critical issues, use GitHub's private vulnerability reporting.
