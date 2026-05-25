@@ -35,8 +35,12 @@ The plugin applies:
 - Origin header gate (rejects cross-origin browser requests)
 - Settings-driven allow/ask/deny permission gate per tool
 - Path deny-list (glob-matched, applied to every path-shaped param)
-- Vault path normalization (rejects `..` traversal and absolute paths)
+- Vault path normalisation (rejects `..` traversal and absolute paths)
 - Atomic writes to user config files (tmp + rename)
 - Symlink guard before writing user config files
 - `.bak` backup before rotating user config files
 - No source maps in production builds
+- `vault.write` requires explicit `mode: 'overwrite'` plus `expectedHash` to overwrite an existing file — prevents blind overwrite and surfaces concurrent-edit conflicts (see [ADR-004](docs/adr/ADR-004-write-safety-hash-guard.md))
+- Write tools pass minimal params to the permission gate — no large content fields (e.g. full file content) included in the confirmation modal, limiting what the permission gate serialises and displays
+- Aggregate tools (`audit.report`, `graph.stats`, `frontmatter.query`, etc.) compute results server-side; the agent receives a summary payload and never sees raw per-note content unless it makes a separate explicit call
+- `cli.eval` is registered only when `developerMode` is explicitly enabled in plugin settings; it defaults to `deny` even when registered
