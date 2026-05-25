@@ -12,6 +12,9 @@ import { applyPreset } from '@/application/settings/presets'
 const MODES: ToolMode[] = ['allow', 'ask', 'deny']
 const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
 
+/** Shell metacharacters that must not appear in cliRunAllowedPrefixes entries. */
+const CLI_RUN_METACHAR_RE = /[;|&$`<>\\\n]/
+
 /** One-line descriptions shown under each namespace header. */
 const NS_DESCRIPTIONS: Record<string, string> = {
   vault: 'Read and write notes in your vault.',
@@ -328,12 +331,27 @@ export function renderMcpServerSettings(
     text: 'Commands whose name starts with any prefix here bypass the ask flow for cli.run (external Obsidian CLI binary). Leave empty to require explicit confirmation for every CLI command. One prefix per line (e.g. "version", "help", "search", "base:"). This list is separate from the cli.execute allow-list — the two tools have different risk profiles.',
   })
 
+  const cliRunErrorEl = containerEl.createEl('div', {
+    cls: 'setting-item-description mod-warning',
+    text: '',
+  })
+  cliRunErrorEl.style.display = 'none'
   new Setting(containerEl).setName('Allowed prefixes (one per line)').addTextArea((t) =>
     t.setValue((plugin.settings.cliRunAllowedPrefixes ?? []).join('\n')).onChange(async (v) => {
-      plugin.settings.cliRunAllowedPrefixes = v
+      const parsed = v
         .split(/\r?\n/)
         .map((s) => s.trim())
         .filter(Boolean)
+      const invalid = parsed.filter((p) => CLI_RUN_METACHAR_RE.test(p))
+      if (invalid.length > 0) {
+        cliRunErrorEl.setText(
+          `Rejected prefix(es) contain shell metacharacters (;|&$\`<>\\): ${invalid.map((p) => `"${p}"`).join(', ')}`,
+        )
+        cliRunErrorEl.style.display = 'block'
+        return
+      }
+      cliRunErrorEl.style.display = 'none'
+      plugin.settings.cliRunAllowedPrefixes = parsed
       await plugin.saveSettings()
     }),
   )

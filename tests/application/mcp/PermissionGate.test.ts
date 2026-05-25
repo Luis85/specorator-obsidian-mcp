@@ -225,5 +225,21 @@ describe('PermissionGate.resolve', () => {
       const execDecision = await gate.resolve('cli.execute', { commandId: 'version:x' })
       expect(execDecision.decision).toBe('deny')
     })
+
+    it('cliRunAllowedPrefixes with shell metacharacter is silently ignored at runtime', async () => {
+      // A malicious prefix containing ;rm should not bypass the gate
+      const { gate } = makeGate({
+        defaultMode: 'deny',
+        toolModes: { 'cli.run': 'deny' },
+        cliRunAllowedPrefixes: [';rm', 'safe'],
+      })
+      // The metachar prefix ;rm is stripped at consumption time → only "safe" remains
+      const dangerous = await gate.resolve('cli.run', { command: ';rm -rf /' })
+      expect(dangerous.decision).toBe('deny')
+      // Clean prefix still works
+      const safe = await gate.resolve('cli.run', { command: 'safe command' })
+      expect(safe.decision).toBe('allow')
+      expect(safe.reason).toBe('cli.run prefix-allowed')
+    })
   })
 })

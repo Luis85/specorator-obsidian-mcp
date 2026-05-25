@@ -4,6 +4,9 @@ import { matchGlob } from '@/domain/shared/matchGlob'
 import type { ToolCallAuditEntry } from '@/application/catalog/auditlog'
 import { redactParams } from '@/application/catalog/auditlog'
 
+/** Defense-in-depth: reject any cliRunAllowedPrefixes entry that slipped through the UI. */
+const SHELL_METACHAR_RE = /[;|&$`<>\\\n]/
+
 export interface GateDecision {
   decision: 'allow' | 'deny'
   reason: string
@@ -83,7 +86,8 @@ export class PermissionGate {
       s.cliRunAllowedPrefixes.length > 0
     ) {
       const command = params['command']
-      if (s.cliRunAllowedPrefixes.some((p) => command.startsWith(p))) {
+      const safePrefix = s.cliRunAllowedPrefixes.filter((p) => !SHELL_METACHAR_RE.test(p))
+      if (safePrefix.some((p) => command.startsWith(p))) {
         return { decision: 'allow', reason: 'cli.run prefix-allowed' }
       }
     }
