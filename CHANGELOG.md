@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-25
+
 ### Added
 
 - `audit.report` — one-shot vault health audit returning orphans, dead-end links, unresolved links, and tag stats in a single server-side call. Accepts `checks: string[]` to scope which checks run. Mode: `allow`. (ADR-003)
