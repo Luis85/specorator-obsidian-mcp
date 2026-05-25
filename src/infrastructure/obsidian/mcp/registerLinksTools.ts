@@ -32,20 +32,30 @@ function bfsTraverse(
 ): { nodes: string[]; edges: Array<[string, string]> } {
   const visited = new Set<string>([startPath])
   const edges: Array<[string, string]> = []
+  // Keyed by "from|to" — directed dedup: A→B and B→A are distinct edges.
+  const seenEdges = new Set<string>()
   let frontier: string[] = [startPath]
   for (let hop = 0; hop < cappedDepth; hop++) {
     const next: string[] = []
     for (const node of frontier) {
       const { outgoing, incoming } = neighborsOf(metadataCache, node, direction)
       for (const target of outgoing) {
-        edges.push([node, target])
+        const key = `${node}|${target}`
+        if (!seenEdges.has(key)) {
+          seenEdges.add(key)
+          edges.push([node, target])
+        }
         if (!visited.has(target)) {
           visited.add(target)
           next.push(target)
         }
       }
       for (const source of incoming) {
-        edges.push([source, node])
+        const key = `${source}|${node}`
+        if (!seenEdges.has(key)) {
+          seenEdges.add(key)
+          edges.push([source, node])
+        }
         if (!visited.has(source)) {
           visited.add(source)
           next.push(source)

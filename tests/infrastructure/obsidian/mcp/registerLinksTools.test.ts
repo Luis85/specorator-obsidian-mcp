@@ -106,6 +106,52 @@ describe('registerLinksTools', () => {
     })
   })
 
+  describe('links.bfs — directed edge deduplication', () => {
+    it('A→B and B→A both survive (directed edges are distinct)', async () => {
+      const { server, ports } = setup()
+      // A links to B, B links back to A
+      ports.bridge.seedResolvedLinks('a.md', { 'b.md': 1 })
+      ports.bridge.seedResolvedLinks('b.md', { 'a.md': 1 })
+      const result = (await getHandler(
+        server,
+        'links.bfs',
+      )({
+        startPath: 'a.md',
+        depth: 2,
+        direction: 'outgoing',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as {
+        edges: Array<[string, string]>
+      }
+      const ab = parsed.edges.filter(([f, t]) => f === 'a.md' && t === 'b.md')
+      const ba = parsed.edges.filter(([f, t]) => f === 'b.md' && t === 'a.md')
+      expect(ab).toHaveLength(1)
+      expect(ba).toHaveLength(1)
+    })
+
+    it('A→B edge appears exactly once even when reachable via multiple BFS paths', async () => {
+      const { server, ports } = setup()
+      // Two paths from A to C: A→B→C and A→C directly
+      ports.bridge.seedResolvedLinks('a.md', { 'b.md': 1, 'c.md': 1 })
+      ports.bridge.seedResolvedLinks('b.md', { 'c.md': 1 })
+      const result = (await getHandler(
+        server,
+        'links.bfs',
+      )({
+        startPath: 'a.md',
+        depth: 3,
+        direction: 'outgoing',
+      })) as { content: [{ text: string }] }
+      const parsed = JSON.parse(result.content[0].text) as {
+        edges: Array<[string, string]>
+      }
+      const bc = parsed.edges.filter(([f, t]) => f === 'b.md' && t === 'c.md')
+      const ac = parsed.edges.filter(([f, t]) => f === 'a.md' && t === 'c.md')
+      expect(bc).toHaveLength(1)
+      expect(ac).toHaveLength(1)
+    })
+  })
+
   it('links.bfs caps depth at 5', async () => {
     const { server, ports } = setup()
     const chain = ['a.md', 'b.md', 'c.md', 'd.md', 'e.md', 'f.md', 'g.md']
