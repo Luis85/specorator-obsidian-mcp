@@ -7,12 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-05-26
+
 ### Added
 
 - `audit.tail` — read the last N entries from the MCP audit log (`.specorator/audit-log.jsonl`) for diagnosing permission decisions and tool-call history.
 - `audit.diff` — compare current audit findings against a stored JSON baseline (from `audit.export`); returns added/resolved/unchanged per check category.
 - `vault.stats` — lightweight vault size statistics: total file count, total bytes, and per-extension count + bytes breakdown (uses `getFileStats`, no content reads).
 - `metadata.search` — new `contains` operator for substring match on string fields and element match on array fields.
+- "Show audit log" command palette command — opens the audit log in the default app for quick inspection.
+- ADR-005: catalog install lifecycle.
+- 5 new glossary entries: audit-log, auto-start, batching, scan-gate, tool-call-audit.
+
+### Security
+
+- `saveSettings` now invalidates session-allow cache when tool modes are tightened.
+- `cli.run` shell-metacharacter prefix validator — rejects commands that begin with shell operator characters.
+- `redactParams` strips `code` and `script` fields before logging.
+- Port range validation — settings tab rejects ports outside 1024–65535.
+- `ObsidianConfirmModalAdapter` deduplicates in-flight modals for the same tool call.
+
+### Changed
+
+- LoggerPort wired into `ObsidianMcpServerAdapter` server lifecycle and `AutoRegister` — structured log entries replace bare `console.*` calls; error objects preserved.
+- Audit log rotates at 5 MB.
+- `vault.move` partial-failure paths logged via LoggerPort.
+- Manual start command errors surfaced via LoggerPort.
+- Build-catalog script validates frontmatter before writing `catalog/index.json`.
+- Verify chain optimised — lint precedes typecheck to surface formatting errors first.
+
+### Fixed
+
+- README namespace count corrected (52 tools).
+- `pathDenyList` default behaviour documented in README.
+- `autoStart` added to Quick Start section of README.
+- Catalog `requires[]` corrections.
+- Clickable README link in Settings tab.
+- `ConsentModal` Cancel button wired correctly.
+- Search box repositioned in Settings tab.
+- Empty-platform warning shown when no MCP client is selected in AutoRegister settings.
+- Session-allow tooltip text updated.
+- Jump-to-catalog anchor in Settings tab.
 
 ## [0.2.2] — 2026-05-25
 
@@ -131,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Status bar item shows running port.
 - Auto-register MCP server URL with Claude CLI (default), Claude Desktop, Cursor on server start; deregister on stop. Opt-in toggles per client in settings.
 
-[Unreleased]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.2...HEAD
+[Unreleased]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.3...HEAD
+[0.2.3]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.2...0.2.3
 [0.2.2]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.1.0...0.2.0
