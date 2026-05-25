@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { FileSystemPort } from '@/domain/ports'
+import type { FileSystemPort, LoggerPort } from '@/domain/ports'
 
 export interface AutoRegisterTarget {
   id: 'claudeCli' | 'cursor' | 'claudeDesktop'
@@ -84,14 +84,16 @@ async function detectExternalMutation(
   fs: FileSystemPort,
   configPath: string,
   currentEntry: unknown,
-  warn: (msg: string) => void,
+  logger: LoggerPort | undefined,
 ): Promise<boolean> {
   const sidecar = await readSidecar(fs)
   const stored = sidecar[configPath]
   if (stored === undefined) return false // first time — nothing to compare
   const currentHash = await entryHash(currentEntry)
   if (currentHash === stored.sha256) return false
-  warn(`specorator: MCP auto-register entry in ${configPath} was modified externally — overwriting`)
+  logger?.warn(
+    `specorator: MCP auto-register entry in ${configPath} was modified externally — overwriting`,
+  )
   return true
 }
 
@@ -119,10 +121,14 @@ async function removeSidecarEntry(fs: FileSystemPort, configPath: string): Promi
 }
 
 export class AutoRegister {
+  private readonly logger: LoggerPort | undefined
+
   constructor(
     private readonly fs: FileSystemPort,
-    private readonly warn: (msg: string) => void = (m) => console.warn(m),
-  ) {}
+    logger?: LoggerPort,
+  ) {
+    this.logger = logger
+  }
 
   async register(url: string, targets: AutoRegisterTarget[]): Promise<RegisterResult[]> {
     const out: RegisterResult[] = []
@@ -160,7 +166,12 @@ export class AutoRegister {
         // WS-Z2 Fix 2: if our key already exists, compare against last-written hash.
         let externallyMutated = false
         if (prior !== undefined && prior !== null) {
-          externallyMutated = await detectExternalMutation(this.fs, t.configPath, prior, this.warn)
+          externallyMutated = await detectExternalMutation(
+            this.fs,
+            t.configPath,
+            prior,
+            this.logger,
+          )
         }
 
         const sameUrl =
@@ -222,7 +233,7 @@ export class AutoRegister {
 
         // WS-Z2 Fix 2: warn if our entry was mutated before we remove it.
         const currentEntry = (servers as Record<string, unknown>)[SERVER_KEY]
-        await detectExternalMutation(this.fs, t.configPath, currentEntry, this.warn)
+        await detectExternalMutation(this.fs, t.configPath, currentEntry, this.logger)
 
         delete (servers as Record<string, unknown>)[SERVER_KEY]
         // Back up existing content before mutating (single rotation — overwrites previous .bak).
