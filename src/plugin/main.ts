@@ -19,7 +19,9 @@ import {
   registerBasesTools,
   registerObsidianCliReadTools,
   registerObsidianCliTools,
+  registerCliScreenshotTools,
 } from '@/infrastructure/obsidian/mcp'
+import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
 import { SpecoratorMcpSettingsTab } from './settings'
 import { McpStatusBar } from './McpStatusBar'
 
@@ -42,10 +44,17 @@ export default class SpecoratorMcpPlugin extends Plugin {
    */
   private autoRegister?: AutoRegister
 
+  /**
+   * Obsidian CLI adapter constructed once on load and reused across server
+   * start/stop cycles. Reads obsidianBinPath from settings on each invocation.
+   */
+  private cli?: NodeObsidianCliAdapter
+
   async onload(): Promise<void> {
     await this.loadSettings()
 
     this.autoRegister = new AutoRegister(new NodeFileSystemAdapter())
+    this.cli = new NodeObsidianCliAdapter({ getSettings: () => this.settings })
 
     this.addSettingTab(new SpecoratorMcpSettingsTab(this.app, this))
 
@@ -136,6 +145,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
         app: this.app as unknown as Parameters<typeof registerObsidianCliTools>[1]['app'],
         gate: this.gate!,
       })
+      registerCliScreenshotTools(server, { cli: this.cli!, gate: this.gate! })
     })
     await this.mcp.start()
     const port = this.mcp.boundPort ?? this.settings.port
