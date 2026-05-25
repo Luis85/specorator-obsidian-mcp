@@ -132,6 +132,79 @@ describe('registerMetadataTools', () => {
     expect(parsed.resolved).toBeNull()
   })
 
+  describe('outputSchema — structuredContent present on all metadata tools', () => {
+    it('metadata.tags returns structuredContent with tags record', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedTags({ '#note': 2 })
+      const result = (await getHandler(server, 'metadata.tags')({})) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(result.structuredContent!['tags']).toEqual({ '#note': 2 })
+    })
+
+    it('metadata.frontmatter returns structuredContent with frontmatter record', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedMetadata('sc.md', {
+        path: 'sc.md',
+        tags: [],
+        frontmatter: { key: 'val' },
+        links: [],
+        embeds: [],
+      })
+      const result = (await getHandler(server, 'metadata.frontmatter')({ path: 'sc.md' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(result.structuredContent!['frontmatter']).toEqual({ key: 'val' })
+    })
+
+    it('metadata.headings returns structuredContent with headings array', async () => {
+      const { server } = setup()
+      const result = (await getHandler(server, 'metadata.headings')({ path: 'absent.md' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(Array.isArray(result.structuredContent!['headings'])).toBe(true)
+    })
+
+    it('metadata.linkpath returns structuredContent with resolved field', async () => {
+      const { server } = setup()
+      const result = (await getHandler(
+        server,
+        'metadata.linkpath',
+      )({
+        linktext: 'X',
+        sourcePath: 'src.md',
+      })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect('resolved' in result.structuredContent!).toBe(true)
+    })
+
+    it('metadata.search returns structuredContent with paths array', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedMetadata('t.md', {
+        path: 't.md',
+        tags: ['#x'],
+        frontmatter: {},
+        links: [],
+        embeds: [],
+      })
+      const result = (await getHandler(server, 'metadata.search')({ tag: '#x' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(Array.isArray(result.structuredContent!['paths'])).toBe(true)
+    })
+  })
+
   describe('metadata.search', () => {
     it('finds files by tag', async () => {
       const { server, ports } = setup()

@@ -2,8 +2,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
-import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { joinVaultPath, ok, deny, err, collectFiles } from './shared'
+import { normalizeVaultPath, isVaultRoot } from '@/domain/shared/VaultPath'
+import { joinVaultPath, ok, okStructured, deny, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -26,7 +26,7 @@ export function registerVaultTools(
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
-      return ok({ content: await vault.readFile(norm.value) })
+      return okStructured({ content: await vault.readFile(norm.value) })
     },
   )
 
@@ -46,7 +46,7 @@ export function registerVaultTools(
         vault.listFolders(safeFolder),
       ])
       const folders = subfolderNames.map((sub) => joinVaultPath(safeFolder, sub))
-      return ok({ files, folders })
+      return okStructured({ files, folders })
     },
   )
 
@@ -60,7 +60,7 @@ export function registerVaultTools(
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
-      return ok({ exists: await vault.fileExists(norm.value) })
+      return okStructured({ exists: await vault.fileExists(norm.value) })
     },
   )
 
@@ -170,14 +170,14 @@ export function registerVaultTools(
       },
     },
     async ({ query, folder }) => {
-      if (folder !== undefined && folder !== '' && folder !== '/') {
+      if (folder !== undefined && !isVaultRoot(folder)) {
         const norm = normalizeVaultPath(folder)
         if (!norm.ok) return unsafePath(norm.error.message)
         const matches = await vault.searchFiles(query, norm.value)
-        return ok({ matches })
+        return okStructured({ matches })
       }
       const matches = await vault.searchFiles(query)
-      return ok({ matches })
+      return okStructured({ matches })
     },
   )
 
@@ -192,15 +192,15 @@ export function registerVaultTools(
       outputSchema: { files: z.array(z.string()) },
     },
     async ({ folder }) => {
-      // Allow empty / root folder to mean vault root
-      if (folder === '' || folder === '/') {
+      // Allow empty / root-equivalent folder to mean vault root.
+      if (isVaultRoot(folder)) {
         const files = await collectFiles(vault, '')
-        return ok({ files })
+        return okStructured({ files })
       }
       const norm = normalizeVaultPath(folder)
       if (!norm.ok) return unsafePath(norm.error.message)
       const files = await collectFiles(vault, norm.value)
-      return ok({ files })
+      return okStructured({ files })
     },
   )
 }

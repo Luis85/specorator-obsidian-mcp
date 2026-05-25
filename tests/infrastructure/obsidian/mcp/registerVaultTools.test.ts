@@ -316,6 +316,96 @@ describe('registerVaultTools', () => {
     })
   })
 
+  describe('vault-root equivalents — vault.list accepts "." as folder', () => {
+    it.each(['', '.', '/', './'])(
+      'vault.list with folder=%j lists vault-root files',
+      async (folder) => {
+        const { server, ports } = setup()
+        await ports.vault.writeFile('root-file.md', '')
+        const result = (await getHandler(server, 'vault.list')({ folder })) as {
+          content: [{ text: string }]
+        }
+        expect((result as { isError?: boolean }).isError).toBeUndefined()
+        const parsed = JSON.parse(result.content[0].text) as { files: string[]; folders: string[] }
+        expect(parsed.files).toContain('root-file.md')
+      },
+    )
+
+    it.each(['', '.', '/', './'])(
+      'vault.list_recursive with folder=%j lists all vault files',
+      async (folder) => {
+        const { server, ports } = setup()
+        await ports.vault.writeFile('top.md', '')
+        await ports.vault.writeFile('sub/nested.md', '')
+        const result = (await getHandler(server, 'vault.list_recursive')({ folder })) as {
+          content: [{ text: string }]
+        }
+        expect((result as { isError?: boolean }).isError).toBeUndefined()
+        const parsed = JSON.parse(result.content[0].text) as { files: string[] }
+        expect(parsed.files).toContain('top.md')
+        expect(parsed.files).toContain('sub/nested.md')
+      },
+    )
+  })
+
+  describe('outputSchema — structuredContent present on schema-bearing tools', () => {
+    it('vault.read returns structuredContent matching outputSchema', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('r.md', 'hello')
+      const result = (await getHandler(server, 'vault.read')({ path: 'r.md' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(result.structuredContent!['content']).toBe('hello')
+    })
+
+    it('vault.exists returns structuredContent with exists field', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('e.md', '')
+      const result = (await getHandler(server, 'vault.exists')({ path: 'e.md' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(result.structuredContent!['exists']).toBe(true)
+    })
+
+    it('vault.list returns structuredContent with files and folders arrays', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('lsc/a.md', '')
+      const result = (await getHandler(server, 'vault.list')({ folder: 'lsc' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(Array.isArray(result.structuredContent!['files'])).toBe(true)
+      expect(Array.isArray(result.structuredContent!['folders'])).toBe(true)
+    })
+
+    it('vault.search returns structuredContent with matches array', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('srch.md', 'needle here')
+      const result = (await getHandler(server, 'vault.search')({ query: 'needle' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(Array.isArray(result.structuredContent!['matches'])).toBe(true)
+    })
+
+    it('vault.list_recursive returns structuredContent with files array', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('rec/x.md', '')
+      const result = (await getHandler(server, 'vault.list_recursive')({ folder: 'rec' })) as {
+        structuredContent?: Record<string, unknown>
+        content: [{ text: string }]
+      }
+      expect(result.structuredContent).toBeDefined()
+      expect(Array.isArray(result.structuredContent!['files'])).toBe(true)
+    })
+  })
+
   describe('vault.write size limit', () => {
     it('rejects content over 10 MB at schema layer', () => {
       const oversized = 'x'.repeat(10_000_001)

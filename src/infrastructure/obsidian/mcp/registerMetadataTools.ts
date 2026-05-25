@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
-import { ok, err, parseFrontmatter } from './shared'
+import { okStructured, err, parseFrontmatter } from './shared'
 
 export function registerMetadataTools(
   server: McpServer,
@@ -20,10 +20,10 @@ export function registerMetadataTools(
       // Prefer live metadata cache snapshot when available, fall back to parsing raw file.
       const snapshot = metadata.getFileMetadata(path)
       if (snapshot !== null) {
-        return ok({ frontmatter: snapshot.frontmatter })
+        return okStructured({ frontmatter: snapshot.frontmatter })
       }
       const content = await vault.readFile(path)
-      return ok({ frontmatter: parseFrontmatter(content) })
+      return okStructured({ frontmatter: parseFrontmatter(content) })
     },
   )
 
@@ -34,7 +34,7 @@ export function registerMetadataTools(
       inputSchema: {},
       outputSchema: { tags: z.record(z.string(), z.number()) },
     },
-    async () => ok({ tags: metadata.getAllTags() }),
+    async () => okStructured({ tags: metadata.getAllTags() }),
   )
 
   server.registerTool(
@@ -50,7 +50,7 @@ export function registerMetadataTools(
     async ({ path }) => {
       const snapshot = metadata.getFileMetadata(path)
       const headings = snapshot?.headings ?? []
-      return ok({ headings })
+      return okStructured({ headings })
     },
   )
 
@@ -66,7 +66,7 @@ export function registerMetadataTools(
       outputSchema: { resolved: z.string().nullable() },
     },
     async ({ linktext, sourcePath }) =>
-      ok({ resolved: metadata.getFirstLinkpathDest(linktext, sourcePath) }),
+      okStructured({ resolved: metadata.getFirstLinkpathDest(linktext, sourcePath) }),
   )
 
   server.registerTool(
@@ -96,11 +96,11 @@ export function registerMetadataTools(
       }
       if (hasTag) {
         const paths = await metadata.searchByTag(tag!)
-        return ok({ paths })
+        return okStructured({ paths })
       }
       // field+value search
       const paths = await metadata.searchByFrontmatter(field!, value !== undefined ? value : null)
-      return ok({ paths })
+      return okStructured({ paths })
     },
   )
 }

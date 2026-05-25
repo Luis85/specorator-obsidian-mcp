@@ -59,6 +59,27 @@ export function ok(data: unknown): { content: [{ type: 'text'; text: string }] }
   return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] }
 }
 
+/**
+ * Use instead of `ok()` for any tool that declares an `outputSchema`.
+ *
+ * The MCP SDK (≥1.10) validates that tools with an outputSchema return
+ * `structuredContent`; if the field is absent it throws:
+ *   "Output validation error: no structured content was provided"
+ *
+ * This helper returns both the required `structuredContent` (the plain object
+ * that the SDK validates against the schema) and a `content` text fallback
+ * (required for backwards-compatible clients).
+ */
+export function okStructured(data: Record<string, unknown>): {
+  content: [{ type: 'text'; text: string }]
+  structuredContent: Record<string, unknown>
+} {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(data) }],
+    structuredContent: data,
+  }
+}
+
 export function deny(reason: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return { isError: true, content: [{ type: 'text' as const, text: `denied: ${reason}` }] }
 }
