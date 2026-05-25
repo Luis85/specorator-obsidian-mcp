@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `note.patch` — surgical heading/block/frontmatter/eof edit. Anchors: `{ type: 'heading', value }`, `{ type: 'block', value }`, `{ type: 'frontmatter', value }` (dot-path), `{ type: 'eof' }`. Ops: `append`, `prepend`, `replace`. Returns `{ path, bytesChanged, newHash }`. Returns error when anchor is not found — never silently no-ops. Mode: `ask`.
+- `vault.hash` — returns SHA-256 hex hash and byte size of a vault file. Use before calling `vault.write` with `mode:'overwrite'` to obtain the required `expectedHash`. Mode: `allow`.
+- `tags.rename` — bulk rename a tag across all vault notes, replacing inline `#tag` occurrences and frontmatter `tags:` array entries. Default `dryRun:true` returns the plan without writing. Mode: `ask`.
+- `attachments.orphans` — find unreferenced media files (non-.md/.canvas/.base) by scanning all text files for wikilink and Markdown embeds. Returns orphan paths and byte sizes. Mode: `allow`.
+- `audit.export` — run a vault audit and write a Markdown report (and optional JSON baseline) to the vault. Mode: `ask`.
+
+### Changed
+
+- BREAKING: `vault.write` now requires an explicit `mode` parameter (default `'create'`). Mode `'create'` refuses to overwrite an existing file (returns `file_exists` error). Mode `'overwrite'` requires `expectedHash` (SHA-256 of current content) and returns `hash_mismatch` if it does not match or `expected_hash_required` if omitted. Mode `'patch'` returns `not_implemented` — use `note.patch` instead. **Migration:** call `vault.hash` to obtain the current hash, then pass `mode:'overwrite'` and `expectedHash` to overwrite. Callers that previously relied on silent overwrite must be updated.
+
 - `vault.search` — case-insensitive substring search over vault contents with excerpts, optionally scoped to a folder.
 - `vault.list_recursive` — recursively enumerate all files under a folder.
 - `metadata.search` — find files by tag or frontmatter field=value.
