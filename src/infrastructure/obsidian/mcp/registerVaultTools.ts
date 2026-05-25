@@ -4,6 +4,7 @@ import type { VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath, isVaultRoot } from '@/domain/shared/VaultPath'
 import { joinVaultPath, ok, okStructured, deny, err, collectFiles } from './shared'
+import { matchGlob } from '@/domain/shared/matchGlob'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -185,7 +186,7 @@ export function registerVaultTools(
     'vault.list_recursive',
     {
       description:
-        "Recursively list all files under a folder. Returns flat array of vault-relative paths. For whole-vault scans use folder='' or '/'.",
+        "Recursively list all files under a folder. Returns flat array of vault-relative paths. For whole-vault scans use folder='' or '/'. Convenience wrapper — equivalent to vault.walk with glob='**/*'.",
       inputSchema: {
         folder: z.string().describe("Vault-relative folder path. Use '' or '/' for vault root."),
       },
@@ -201,6 +202,57 @@ export function registerVaultTools(
       if (!norm.ok) return unsafePath(norm.error.message)
       const files = await collectFiles(vault, norm.value)
       return okStructured({ files })
+    },
+  )
+
+  server.registerTool(
+    'vault.walk',
+    {
+      description:
+        "Glob-filtered recursive file listing. Supports ** (multi-segment) and * (single-segment) wildcards. Examples: '**/*.md', 'notes/**/*.canvas', '*.json'. Supersedes vault.list_recursive for pattern-filtered walks. Returns up to `limit` paths (default 1000, max 10000); truncated=true when the limit is hit.",
+      inputSchema: {
+        glob: z
+          .string()
+          .describe(
+            "Glob pattern (e.g. '**/*.md', 'notes/**/*.canvas'). ** matches across path separators, * matches within a single segment.",
+          ),
+        folder: z.string().optional().describe('Vault-relative search root (default: vault root).'),
+        limit: z.number().int().min(1).max(10000).default(1000),
+      },
+      outputSchema: {
+        files: z.array(z.string()),
+        count: z.number().int(),
+        truncated: z.boolean(),
+      },
+    },
+    async ({ glob, folder = '', limit }) => {
+      const searchRoot = isVaultRoot(folder)
+        ? ''
+        : (() => {
+            const norm = normalizeVaultPath(folder)
+            if (!norm.ok) return null
+            return norm.value
+          })()
+
+      if (searchRoot === null) {
+        return unsafePath(folder)
+      }
+
+      const allFiles = await collectFiles(vault, searchRoot)
+      const matched: string[] = []
+      let truncated = false
+
+      for (const path of allFiles) {
+        if (matchGlob(glob, path)) {
+          if (matched.length >= limit) {
+            truncated = true
+            break
+          }
+          matched.push(path)
+        }
+      }
+
+      return okStructured({ files: matched, count: matched.length, truncated })
     },
   )
 }

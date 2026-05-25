@@ -516,4 +516,125 @@ describe('registerVaultTools', () => {
       expect(res.isError).toBe(true)
     })
   })
+
+  describe('vault.walk', () => {
+    it('registers the vault.walk tool', () => {
+      const { server } = setup()
+      const handler = getHandler(server, 'vault.walk')
+      expect(typeof handler).toBe('function')
+    })
+
+    it('returns all .md files matching **/*.md glob', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('a.md', '# A')
+      ports.vault.seedFile('sub/b.md', '# B')
+      ports.vault.seedFile('sub/c.canvas', '{}')
+
+      const result = (await getHandler(server, 'vault.walk')({ glob: '**/*.md' })) as {
+        structuredContent: { files: string[]; count: number; truncated: boolean }
+      }
+
+      expect(result.structuredContent.files).toContain('a.md')
+      expect(result.structuredContent.files).toContain('sub/b.md')
+      expect(result.structuredContent.files).not.toContain('sub/c.canvas')
+      expect(result.structuredContent.count).toBe(2)
+      expect(result.structuredContent.truncated).toBe(false)
+    })
+
+    it('returns canvas files matching *.canvas glob in subdirectory', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('board.canvas', '{}')
+      ports.vault.seedFile('note.md', '# Note')
+      ports.vault.seedFile('sub/deep.canvas', '{}')
+
+      const result = (await getHandler(server, 'vault.walk')({ glob: '*.canvas' })) as {
+        structuredContent: { files: string[]; count: number }
+      }
+
+      expect(result.structuredContent.files).toContain('board.canvas')
+      expect(result.structuredContent.files).not.toContain('sub/deep.canvas') // single-level *
+      expect(result.structuredContent.files).not.toContain('note.md')
+    })
+
+    it('returns no matches when glob matches nothing', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('a.md', '# A')
+
+      const result = (await getHandler(server, 'vault.walk')({ glob: '**/*.canvas' })) as {
+        structuredContent: { files: string[]; count: number; truncated: boolean }
+      }
+
+      expect(result.structuredContent.files).toEqual([])
+      expect(result.structuredContent.count).toBe(0)
+      expect(result.structuredContent.truncated).toBe(false)
+    })
+
+    it('respects limit and sets truncated=true when hit', async () => {
+      const { server, ports } = setup()
+      // Seed 5 md files
+      for (let i = 0; i < 5; i++) {
+        ports.vault.seedFile(`file${i}.md`, `# ${i}`)
+      }
+
+      const result = (await getHandler(
+        server,
+        'vault.walk',
+      )({
+        glob: '**/*.md',
+        limit: 3,
+      })) as {
+        structuredContent: { files: string[]; count: number; truncated: boolean }
+      }
+
+      expect(result.structuredContent.files).toHaveLength(3)
+      expect(result.structuredContent.count).toBe(3)
+      expect(result.structuredContent.truncated).toBe(true)
+    })
+
+    it('scopes search to a subfolder', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('sub/a.md', '# A')
+      ports.vault.seedFile('root.md', '# Root')
+
+      const result = (await getHandler(
+        server,
+        'vault.walk',
+      )({
+        glob: '**/*.md',
+        folder: 'sub',
+      })) as {
+        structuredContent: { files: string[]; count: number }
+      }
+
+      expect(result.structuredContent.files).toContain('sub/a.md')
+      expect(result.structuredContent.files).not.toContain('root.md')
+      expect(result.structuredContent.count).toBe(1)
+    })
+
+    it('returns error for unsafe folder path', async () => {
+      const { server } = setup()
+      const result = (await getHandler(
+        server,
+        'vault.walk',
+      )({
+        glob: '**/*.md',
+        folder: '../outside',
+      })) as { isError: boolean }
+
+      expect(result.isError).toBe(true)
+    })
+
+    it('vault.list_recursive still works as before (back-compat)', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('a.md', '# A')
+      ports.vault.seedFile('sub/b.md', '# B')
+
+      const result = (await getHandler(server, 'vault.list_recursive')({ folder: '' })) as {
+        structuredContent: { files: string[] }
+      }
+
+      expect(result.structuredContent.files).toContain('a.md')
+      expect(result.structuredContent.files).toContain('sub/b.md')
+    })
+  })
 })
