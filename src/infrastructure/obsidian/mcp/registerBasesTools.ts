@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { ObsidianCliPort, VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
-import { normalizeVaultPath } from '@/domain/shared/VaultPath'
+import { normalizeVaultPath, isVaultRoot } from '@/domain/shared/VaultPath'
 import { ok, deny, err } from './shared'
 
 export function registerBasesTools(
@@ -35,7 +35,7 @@ export function registerBasesTools(
         .split('\n')
         .map((l) => l.trim())
         .filter((l) => l.length > 0)
-      if (folder !== undefined && folder !== '') {
+      if (folder !== undefined && !isVaultRoot(folder)) {
         const prefix = folder.replace(/\/+$/, '') + '/'
         bases = bases.filter((p) => p.startsWith(prefix) || p === folder)
       }
