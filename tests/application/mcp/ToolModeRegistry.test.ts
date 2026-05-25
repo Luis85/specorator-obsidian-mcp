@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { CANONICAL_TOOL_NAMES, isKnownTool } from '@/application/mcp/ToolModeRegistry'
 
 describe('ToolModeRegistry', () => {
-  it('contains all 49 tools', () => {
-    expect(CANONICAL_TOOL_NAMES).toHaveLength(49)
+  it('contains all 52 tools', () => {
+    expect(CANONICAL_TOOL_NAMES).toHaveLength(52)
   })
 
   it('includes vault.write, cli.execute, cli.run and cli.eval', () => {
@@ -27,6 +27,12 @@ describe('ToolModeRegistry', () => {
     expect(CANONICAL_TOOL_NAMES).toContain('tags.rename')
     expect(CANONICAL_TOOL_NAMES).toContain('attachments.orphans')
     expect(CANONICAL_TOOL_NAMES).toContain('audit.export')
+  })
+
+  it('includes WS-A3 diagnostic tools', () => {
+    expect(CANONICAL_TOOL_NAMES).toContain('audit.tail')
+    expect(CANONICAL_TOOL_NAMES).toContain('audit.diff')
+    expect(CANONICAL_TOOL_NAMES).toContain('vault.stats')
   })
 
   it('isKnownTool true for known', () => {

@@ -27,6 +27,7 @@ import {
   registerGraphTools,
   registerPatchTools,
   registerRemediationTools,
+  registerVaultStatsTool,
 } from '@/infrastructure/obsidian/mcp'
 import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
 import { McpStatusBar } from './McpStatusBar'
@@ -66,17 +67,33 @@ export default class SpecoratorMcpPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings()
 
-    this.autoRegister = new AutoRegister(new NodeFileSystemAdapter())
+    this.autoRegister = new AutoRegister(new NodeFileSystemAdapter(), this.bridge)
     this.cli = new NodeObsidianCliAdapter({ getSettings: () => this.settings })
 
     // Single combined tab: MCP server config + Workflow Catalog (fixes double settings entry).
-    const catalogIndex = loadBundledCatalog(JSON.stringify(bundledIndex))
-    this.addSettingTab(new CombinedSettingsTab(this.app, this, obsidianFs(this.app), catalogIndex))
+    try {
+      const catalogIndex = loadBundledCatalog(JSON.stringify(bundledIndex))
+      this.addSettingTab(
+        new CombinedSettingsTab(this.app, this, obsidianFs(this.app), catalogIndex),
+      )
+    } catch (err: unknown) {
+      new Notice('Specorator catalog is corrupted; reinstall the plugin or report an issue.', 0)
+      this.bridge?.error('catalog/index.json failed to parse', err)
+    }
 
     this.addCommand({
       id: 'start-mcp-server',
       name: 'Start MCP server',
-      callback: async () => this.startServer(),
+      callback: async () => {
+        try {
+          await this.startServer()
+        } catch (err: unknown) {
+          new Notice(
+            `MCP server failed to start: ${err instanceof Error ? err.message : String(err)}`,
+            10000,
+          )
+        }
+      },
     })
 
     this.addCommand({
@@ -89,8 +106,24 @@ export default class SpecoratorMcpPlugin extends Plugin {
       id: 'restart-mcp-server',
       name: 'Restart MCP server',
       callback: async () => {
-        await this.stopServer()
-        await this.startServer()
+        try {
+          await this.stopServer()
+          await this.startServer()
+        } catch (err: unknown) {
+          new Notice(
+            `MCP server failed to restart: ${err instanceof Error ? err.message : String(err)}`,
+            10000,
+          )
+        }
+      },
+    })
+
+    // Fix 8: show-audit-log command
+    this.addCommand({
+      id: 'show-audit-log',
+      name: 'Show MCP audit log',
+      callback: () => {
+        this.app.workspace.openLinkText('.specorator/audit-log.jsonl', '', false)
       },
     })
 
@@ -116,12 +149,19 @@ export default class SpecoratorMcpPlugin extends Plugin {
     // onload must not block waiting for the server to bind. Failures surface
     // as a Notice so the user is not left wondering why the server is down.
     if (this.settings.autoStart) {
-      void this.startServer().catch((err: unknown) => {
+      if (this.settings.port < 1 || this.settings.port > 65535) {
         new Notice(
-          `MCP server auto-start failed: ${err instanceof Error ? err.message : String(err)}`,
+          `Invalid port configured: ${this.settings.port}. Set a valid port in Settings.`,
           10000,
         )
-      })
+      } else {
+        void this.startServer().catch((err: unknown) => {
+          new Notice(
+            `MCP server auto-start failed: ${err instanceof Error ? err.message : String(err)}`,
+            10000,
+          )
+        })
+      }
     }
   }
 
@@ -132,7 +172,11 @@ export default class SpecoratorMcpPlugin extends Plugin {
     // if it does not finish, the stale entry is harmlessly overwritten on the next start.
     const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
     if (enabledTargets.length > 0 && this.autoRegister) {
-      void this.autoRegister.deregister(enabledTargets)
+      void this.autoRegister
+        .deregister(enabledTargets)
+        .catch((err: unknown) =>
+          this.bridge?.warn('onunload deregister failed', { error: String(err) }),
+        )
     }
     this.mcp?.drainSync()
     void this.mcp?.stop() // fire-and-forget — Obsidian does not await onunload
@@ -156,6 +200,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings)
+    // Defensive: any toolMode change might tighten access — flush the session cache.
+    this.gate?.invalidateSessionAllow()
   }
 
   // ── Public helpers used by the settings UI ───────────────────────────────
@@ -221,9 +267,11 @@ export default class SpecoratorMcpPlugin extends Plugin {
       })
       registerPatchTools(server, { vault: bridge, gate: this.gate! })
       registerRemediationTools(server, { vault: bridge, metadata: bridge, gate: this.gate! })
+      registerVaultStatsTool(server, { vault: bridge })
     })
     await this.mcp.start()
     const port = this.mcp.boundPort ?? this.settings.port
+    this.bridge?.info('MCP server started', { port })
 
     const url = `http://127.0.0.1:${port}/mcp`
     const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
@@ -244,6 +292,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
   }
 
   private async stopServer(): Promise<void> {
+    this.bridge?.debug('MCP server stopping')
     if (this.mcp) {
       const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
       if (enabledTargets.length > 0 && this.autoRegister) {
@@ -264,6 +313,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
     await this.mcp?.stop()
     this.mcp = undefined
     this.gate = undefined
+    this.bridge?.info('MCP server stopped')
     this.bridge = undefined
     this.statusBar.setStopped()
   }

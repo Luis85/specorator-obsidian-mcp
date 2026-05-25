@@ -1,4 +1,4 @@
-import { type App, Modal } from 'obsidian'
+import { type App, Modal, Setting } from 'obsidian'
 import type { AssetMeta } from '@/domain/catalog/types'
 
 export interface ConsentSummary {
@@ -41,11 +41,17 @@ export class ConsentModal extends Modal {
     const pre = contentEl.createEl('pre', { text: this.summary.body })
     pre.style.maxHeight = '240px'
     pre.style.overflowY = 'auto'
-    const btn = contentEl.createEl('button', { text: 'Confirm install' })
-    btn.addEventListener('click', () => {
-      this.onConfirm()
-      this.close()
-    })
+    new Setting(contentEl)
+      .addButton((b) => b.setButtonText('Cancel').onClick(() => this.close()))
+      .addButton((b) =>
+        b
+          .setButtonText('Confirm install')
+          .setCta()
+          .onClick(() => {
+            this.onConfirm()
+            this.close()
+          }),
+      )
   }
   onClose() {
     this.contentEl.empty()

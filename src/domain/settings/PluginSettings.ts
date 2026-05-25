@@ -109,8 +109,13 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'cli.workspace_load': 'ask',
 
   // audit
+  'audit.diff': 'allow',
   'audit.export': 'ask',
   'audit.report': 'allow',
+  'audit.tail': 'allow',
+
+  // vault stats
+  'vault.stats': 'allow',
 })
 
 export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({

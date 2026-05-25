@@ -4,6 +4,9 @@ import { matchGlob } from '@/domain/shared/matchGlob'
 import type { ToolCallAuditEntry } from '@/application/catalog/auditlog'
 import { redactParams } from '@/application/catalog/auditlog'
 
+/** Defense-in-depth: reject any cliRunAllowedPrefixes entry that slipped through the UI. */
+const SHELL_METACHAR_RE = /[;|&$`<>\\\n]/
+
 export interface GateDecision {
   decision: 'allow' | 'deny'
   reason: string
@@ -19,6 +22,14 @@ export interface GateAuditor {
 
 export class PermissionGate {
   private readonly sessionAllowed = new Set<string>()
+
+  /**
+   * WS-A4 Fix 5: dedup concurrent ask() calls for the same tool.
+   * Two MCP requests racing for the same tool in "ask" mode would otherwise
+   * both open a confirmation modal. The map stores the in-flight promise so
+   * the second caller awaits the first's result — one modal, shared decision.
+   */
+  private readonly inflightAsks = new Map<string, Promise<GateDecision>>()
 
   /**
    * WS-Z2 Fix 3: invalidate the session-allow cache when a new catalog asset is
@@ -83,7 +94,8 @@ export class PermissionGate {
       s.cliRunAllowedPrefixes.length > 0
     ) {
       const command = params['command']
-      if (s.cliRunAllowedPrefixes.some((p) => command.startsWith(p))) {
+      const safePrefix = s.cliRunAllowedPrefixes.filter((p) => !SHELL_METACHAR_RE.test(p))
+      if (safePrefix.some((p) => command.startsWith(p))) {
         return { decision: 'allow', reason: 'cli.run prefix-allowed' }
       }
     }
@@ -99,8 +111,8 @@ export class PermissionGate {
     if (mode === 'allow') return { decision: 'allow', reason: 'toolMode allow' }
     if (mode === 'deny') return { decision: 'deny', reason: 'toolMode deny' }
 
-    // 5. ask
-    return await this.ask(toolName, params, s.askTimeoutMs)
+    // 5. ask — dedup concurrent calls for the same tool (single modal, shared decision)
+    return await this.askDeduped(toolName, params, s.askTimeoutMs)
   }
 
   private matchPathDeny(patterns: string[], params: Record<string, unknown>): string | null {
@@ -113,6 +125,25 @@ export class PermissionGate {
       }
     }
     return null
+  }
+
+  /**
+   * If an ask() for `toolName` is already in-flight, return the same promise
+   * so a second concurrent caller awaits the first's modal instead of opening
+   * a duplicate. The inflight entry is cleaned up in a `finally` block.
+   */
+  private askDeduped(
+    toolName: string,
+    params: Record<string, unknown>,
+    timeoutMs: number,
+  ): Promise<GateDecision> {
+    const existing = this.inflightAsks.get(toolName)
+    if (existing) return existing
+    const promise = this.ask(toolName, params, timeoutMs).finally(() => {
+      this.inflightAsks.delete(toolName)
+    })
+    this.inflightAsks.set(toolName, promise)
+    return promise
   }
 
   private async ask(

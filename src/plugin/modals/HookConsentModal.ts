@@ -65,12 +65,12 @@ export class HookConsentModal extends Modal {
     btnRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;'
 
     const cancelBtn = btnRow.createEl('button', { text: 'Cancel' })
-    cancelBtn.classList.add('mod-cta')
     cancelBtn.addEventListener('click', () => {
       this.close()
     })
 
     const enableBtn = btnRow.createEl('button', { text: 'Enable hook' })
+    enableBtn.classList.add('mod-warning')
     enableBtn.addEventListener('click', () => {
       this.onConfirm()
       this.close()

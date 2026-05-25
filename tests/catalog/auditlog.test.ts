@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { appendAudit, AUDIT_PATH } from '@/application/catalog/auditlog'
+import { appendAudit, rotateIfNeeded, AUDIT_PATH } from '@/application/catalog/auditlog'
 import { memFs } from './memfs'
 
 describe('auditlog', () => {
@@ -35,5 +35,72 @@ describe('auditlog', () => {
     for (let i = 0; i < N; i++) {
       expect(ids).toContain(`asset-${i}`)
     }
+  })
+})
+
+describe('rotateIfNeeded', () => {
+  it('no-ops when file is absent', async () => {
+    const fs = memFs()
+    await rotateIfNeeded(fs, AUDIT_PATH, 100)
+    expect(await fs.read(AUDIT_PATH)).toBeNull()
+  })
+
+  it('no-ops when file is below the threshold', async () => {
+    const fs = memFs()
+    const small = JSON.stringify({ kind: 'install', action: 'enable', id: 'x', hash: 'h' }) + '\n'
+    await fs.write(AUDIT_PATH, small)
+    await rotateIfNeeded(fs, AUDIT_PATH, 10_000)
+    expect(await fs.read(AUDIT_PATH)).toBe(small)
+  })
+
+  it('drops oldest 20% of lines and writes a rotation entry when over threshold', async () => {
+    const fs = memFs()
+    // Build content > threshold: 100 lines, each ~60 bytes = ~6000 bytes
+    const lines = Array.from({ length: 100 }, (_, i) =>
+      JSON.stringify({ kind: 'install', action: 'enable', id: `asset-${i}`, hash: 'h'.repeat(40) }),
+    )
+    await fs.write(AUDIT_PATH, lines.join('\n') + '\n')
+    const before = (await fs.read(AUDIT_PATH))!.length
+    expect(before).toBeGreaterThan(5000)
+    await rotateIfNeeded(fs, AUDIT_PATH, 5000)
+    const after = await fs.read(AUDIT_PATH)
+    expect(after).not.toBeNull()
+    // Should have dropped 20 lines (20%) and added a rotation entry
+    const remaining = after!.trim().split('\n').filter(Boolean)
+    // 80 kept + 1 rotation entry = 81
+    expect(remaining.length).toBe(81)
+    const rotEntry = JSON.parse(remaining[remaining.length - 1])
+    expect(rotEntry.kind).toBe('rotation')
+    expect(rotEntry.removed).toBe(20)
+    expect(typeof rotEntry.ts).toBe('string')
+    // Oldest 20 lines (asset-0..asset-19) should be gone
+    const ids = remaining.slice(0, -1).map((l) => JSON.parse(l).id as string)
+    expect(ids).not.toContain('asset-0')
+    expect(ids).toContain('asset-20')
+  })
+
+  it('appendAudit triggers rotation when content exceeds 5MB', async () => {
+    const fs = memFs()
+    // Seed the file with 6MB of data (6000 lines of ~1000 chars each)
+    const bigLine = 'x'.repeat(999) + '\n'
+    const content = bigLine.repeat(6000)
+    await fs.write(AUDIT_PATH, content)
+    await fs.mkdirp('.specorator')
+
+    await appendAudit(fs, { kind: 'install', action: 'enable', id: 'trigger', hash: 'h' })
+
+    const after = await fs.read(AUDIT_PATH)
+    expect(after).not.toBeNull()
+    expect(after!.length).toBeLessThan(content.length)
+    // The rotation entry must be present
+    const allLines = after!.trim().split('\n').filter(Boolean)
+    const rotationLines = allLines.filter((l) => {
+      try {
+        return JSON.parse(l).kind === 'rotation'
+      } catch {
+        return false
+      }
+    })
+    expect(rotationLines.length).toBeGreaterThan(0)
   })
 })

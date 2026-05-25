@@ -353,9 +353,16 @@ export async function renderCatalogSettings(
 ): Promise<void> {
   const pw = plugin as PluginWithSettings
 
+  let emptyPlatformWarningEl: HTMLElement | null = null
+
   const getPlatforms = (): Platform[] => {
     const p = pw.settings.platforms
-    return p !== undefined && p.length > 0 ? p : DEFAULT_PLATFORMS
+    if (p !== undefined && p.length > 0) {
+      emptyPlatformWarningEl?.remove()
+      emptyPlatformWarningEl = null
+      return p
+    }
+    return DEFAULT_PLATFORMS
   }
 
   // Desktop-only guard (Medium): installer writes outside-vault config dirs
@@ -388,8 +395,37 @@ export async function renderCatalogSettings(
       desc: 'Install to .gemini/extensions/specorator/{skills,commands} with extension manifest',
     },
   }
+  // Search-first: most-used affordance sits at top. Platform toggles drop below
+  // (users typically configure platforms once).
+  // Fix 3 (PR #444 P2): search filter is stored on the instance so it
+  // survives the display() rerender triggered by toggle/update actions.
+  new Setting(containerEl).addSearch((s) => {
+    s.setPlaceholder('Search assets...')
+      .setValue(searchTerm)
+      .onChange((v) => {
+        onSearchChange(v.toLowerCase())
+        onRefresh()
+      })
+  })
+
   new Setting(containerEl).setName('Target platforms').setHeading()
   const selected = new Set<Platform>(getPlatforms())
+
+  // Render (or update) the empty-platform warning paragraph.
+  const renderEmptyPlatformWarning = (): void => {
+    if (selected.size === 0) {
+      if (emptyPlatformWarningEl === null) {
+        emptyPlatformWarningEl = containerEl.createEl('p', {
+          text: 'No platforms selected — Claude Code is used as fallback. Toggle at least one platform above to choose explicitly.',
+          cls: 'mod-warning',
+        })
+      }
+    } else {
+      emptyPlatformWarningEl?.remove()
+      emptyPlatformWarningEl = null
+    }
+  }
+
   for (const p of ALL_PLATFORMS) {
     const labels = PLATFORM_LABELS[p]
     new Setting(containerEl)
@@ -401,20 +437,13 @@ export async function renderCatalogSettings(
           else selected.delete(p)
           pw.settings.platforms = [...selected]
           await pw.saveSettings()
+          renderEmptyPlatformWarning()
         }),
       )
   }
 
-  // Fix 3 (PR #444 P2): search filter is stored on the instance so it
-  // survives the display() rerender triggered by toggle/update actions.
-  new Setting(containerEl).addSearch((s) => {
-    s.setPlaceholder('Search assets...')
-      .setValue(searchTerm)
-      .onChange((v) => {
-        onSearchChange(v.toLowerCase())
-        onRefresh()
-      })
-  })
+  // Show warning immediately if already empty on first render.
+  renderEmptyPlatformWarning()
 
   const state = await loadState(fs)
   const currentPlatforms = getPlatforms()
@@ -454,7 +483,12 @@ export class CatalogSettingsTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this
     containerEl.empty()
-    new Setting(containerEl).setName('Workflow catalog').setHeading()
+    new Setting(containerEl)
+      .setName('Workflow catalog')
+      .setHeading()
+      .then((s) => {
+        s.settingEl.dataset['section'] = 'catalog'
+      })
     void renderCatalogSettings(
       this.app,
       this._plugin,

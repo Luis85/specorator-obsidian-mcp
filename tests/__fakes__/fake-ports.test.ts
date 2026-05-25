@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { fakeModulePorts } from './fake-ports'
 
 describe('fakeModulePorts', () => {
-  it('returns all eight ports + bridge reference', () => {
+  it('returns all eight ports + bridge', () => {
     const p = fakeModulePorts()
     expect(p.vault).toBeDefined()
     expect(p.metadataCache).toBeDefined()

@@ -28,20 +28,33 @@ async function dirExists(p: string): Promise<boolean> {
 
 export async function buildIndexFromDir(root: string): Promise<CatalogIndex> {
   const assets = []
+  const errors: string[] = []
   for (const { subdir, file } of SOURCES) {
     const dir = join(root, subdir)
     if (!(await dirExists(dir))) continue // tolerate not-yet-created dirs
     for (const id of await readdir(dir)) {
       const raw = await readFile(join(dir, id, file), 'utf8')
-      assets.push(parseAsset(id, raw)) // validates name/description/gerund/etc.
+      try {
+        assets.push(parseAsset(id, raw)) // validates name/description/gerund/etc.
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
+  }
+  if (errors.length > 0) {
+    for (const msg of errors) process.stderr.write(`build-catalog error: ${msg}\n`)
+    process.exit(1)
   }
   return { version: '0.1.0', assets }
 }
 
-// CLI entry: `tsx scripts/build-catalog.ts`
+// CLI entry: `tsx scripts/build-catalog.ts [catalogRoot]`
+// catalogRoot defaults to 'catalog'. Passing an alternate root is used by tests
+// to point at a fixture directory without touching the real catalog.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const idx = await buildIndexFromDir('catalog')
-  await writeFile('catalog/index.json', JSON.stringify(idx, null, 2))
-  console.log(`built catalog/index.json (${idx.assets.length} assets)`)
+  const root = process.argv[2] ?? 'catalog'
+  const idx = await buildIndexFromDir(root)
+  const outPath = join(root, 'index.json')
+  await writeFile(outPath, JSON.stringify(idx, null, 2))
+  console.log(`built ${outPath} (${idx.assets.length} assets)`)
 }

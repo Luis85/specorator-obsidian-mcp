@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { PermissionGate, type GateDecision } from '@/application/mcp/PermissionGate'
 import { DEFAULT_SETTINGS, type PluginSettings } from '@/domain/settings/PluginSettings'
 import { MockConfirmModalPort } from '@/infrastructure/mock/MockConfirmModalPort'
@@ -225,5 +225,111 @@ describe('PermissionGate.resolve', () => {
       const execDecision = await gate.resolve('cli.execute', { commandId: 'version:x' })
       expect(execDecision.decision).toBe('deny')
     })
+
+    it('cliRunAllowedPrefixes with shell metacharacter is silently ignored at runtime', async () => {
+      // A malicious prefix containing ;rm should not bypass the gate
+      const { gate } = makeGate({
+        defaultMode: 'deny',
+        toolModes: { 'cli.run': 'deny' },
+        cliRunAllowedPrefixes: [';rm', 'safe'],
+      })
+      // The metachar prefix ;rm is stripped at consumption time → only "safe" remains
+      const dangerous = await gate.resolve('cli.run', { command: ';rm -rf /' })
+      expect(dangerous.decision).toBe('deny')
+      // Clean prefix still works
+      const safe = await gate.resolve('cli.run', { command: 'safe command' })
+      expect(safe.decision).toBe('allow')
+      expect(safe.reason).toBe('cli.run prefix-allowed')
+    })
+  })
+})
+
+describe('PermissionGate — invalidateSessionAllow (Fix 1)', () => {
+  it('invalidateSessionAllow() clears all session grants, next call goes through gate', async () => {
+    const { gate, modal } = makeGate({ defaultMode: 'ask' }, 'allow-session')
+    // First call: modal answers allow-session → cached
+    await gate.resolve('vault.write', { path: 'a.md' })
+    expect(modal.callCount).toBe(1)
+
+    // Second call uses cache — modal not called again
+    modal.answerWith('deny') // would deny if asked
+    const cached = await gate.resolve('vault.write', { path: 'b.md' })
+    expect(cached.decision).toBe('allow')
+    expect(modal.callCount).toBe(1)
+
+    // Flush the session cache (simulates saveSettings())
+    gate.invalidateSessionAllow()
+
+    // Third call must go through the gate again
+    modal.answerWith('deny')
+    const after = await gate.resolve('vault.write', { path: 'c.md' })
+    expect(after.decision).toBe('deny')
+    expect(modal.callCount).toBe(2)
+  })
+})
+
+describe('PermissionGate — concurrent ask dedup (Fix 5)', () => {
+  it('two concurrent resolve() calls open only one modal, both get the same decision', async () => {
+    // Controllable modal: resolves on demand
+    const confirmSpy = vi.fn()
+    let resolveModal!: (choice: 'allow' | 'allow-session' | 'deny') => void
+    const modal: ConfirmModalPort = {
+      confirm: (req) => {
+        confirmSpy(req)
+        return new Promise((res) => {
+          resolveModal = res
+        })
+      },
+    } as ConfirmModalPort
+
+    const settings: PluginSettings = { ...DEFAULT_SETTINGS, defaultMode: 'ask' }
+    const gate = new PermissionGate({ getSettings: () => settings }, modal)
+
+    // Fire two concurrent resolve() calls for the same tool before the modal resolves
+    const p1 = gate.resolve('vault.write', { path: 'a.md' })
+    const p2 = gate.resolve('vault.write', { path: 'b.md' })
+
+    // Allow a tick for both to reach the ask path
+    await new Promise((r) => setTimeout(r, 0))
+
+    // Modal should have been called exactly once
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+
+    // Resolve the modal — both callers should get the same decision
+    resolveModal('allow')
+    const [d1, d2] = await Promise.all([p1, p2])
+    expect(d1.decision).toBe('allow')
+    expect(d2.decision).toBe('allow')
+    // Still only one modal interaction
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('after dedup resolves, a new resolve() for the same tool opens a fresh modal', async () => {
+    const confirmSpy = vi.fn()
+    let resolveModal!: (choice: 'allow' | 'allow-session' | 'deny') => void
+    const modal: ConfirmModalPort = {
+      confirm: (req) => {
+        confirmSpy(req)
+        return new Promise((res) => {
+          resolveModal = res
+        })
+      },
+    } as ConfirmModalPort
+
+    const settings: PluginSettings = { ...DEFAULT_SETTINGS, defaultMode: 'ask' }
+    const gate = new PermissionGate({ getSettings: () => settings }, modal)
+
+    const p1 = gate.resolve('vault.write', { path: 'a.md' })
+    await new Promise((r) => setTimeout(r, 0))
+    resolveModal('deny')
+    await p1
+
+    // After first completes, a second independent call should open a new modal
+    const p2 = gate.resolve('vault.write', { path: 'c.md' })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(confirmSpy).toHaveBeenCalledTimes(2)
+    resolveModal('allow')
+    const d2 = await p2
+    expect(d2.decision).toBe('allow')
   })
 })

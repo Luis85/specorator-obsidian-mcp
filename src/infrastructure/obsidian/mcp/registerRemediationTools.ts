@@ -165,7 +165,7 @@ export function registerRemediationTools(
     {
       description:
         'Run a vault audit and write the results as a Markdown report to the vault. ' +
-        'Optionally also writes a JSON baseline file for future diffing. ' +
+        'Optionally also writes a JSON baseline file for comparison via audit.diff. ' +
         'Requires permission because it writes files to the vault.',
       inputSchema: {
         folder: z
@@ -256,4 +256,100 @@ export function registerRemediationTools(
       })
     },
   )
+
+  // -------------------------------------------------------------------------
+  // audit.diff
+  // -------------------------------------------------------------------------
+  server.registerTool(
+    'audit.diff',
+    {
+      description:
+        'Compare current audit findings against a previously saved JSON baseline (from audit.export). Returns added/resolved/unchanged for each check category.',
+      inputSchema: {
+        baselinePath: z
+          .string()
+          .describe('Vault-relative path to a JSON baseline previously written by audit.export'),
+        folder: z.string().optional(),
+        checks: z.array(CHECKS_ENUM).optional(),
+        sizeThresholdBytes: z.number().int().min(1024).optional().default(1_000_000),
+      },
+      outputSchema: {
+        baselinePath: z.string(),
+        generatedAt: z.string(),
+        checks: z.record(
+          z.string(),
+          z.object({
+            added: z.array(z.string()),
+            resolved: z.array(z.string()),
+            unchanged: z.number().int(),
+          }),
+        ),
+      },
+    },
+    async ({ baselinePath, folder, checks, sizeThresholdBytes = 1_000_000 }) => {
+      const norm = normalizeVaultPath(baselinePath)
+      if (!norm.ok) return err(`unsafe path: ${norm.error.message}`)
+
+      const baselineRaw = await vault.readFile(norm.value).catch(() => null)
+      if (baselineRaw === null) return err(`baseline not found: ${norm.value}`)
+
+      let baseline: { findings?: Record<string, unknown[]> }
+      try {
+        baseline = JSON.parse(baselineRaw) as { findings?: Record<string, unknown[]> }
+      } catch (e) {
+        return err(`baseline JSON parse error: ${(e as Error).message}`)
+      }
+
+      let auditRoot = ''
+      if (folder !== undefined && !isVaultRoot(folder)) {
+        const normFolder = normalizeVaultPath(folder)
+        if (!normFolder.ok) return err(`unsafe path (folder): ${normFolder.error.message}`)
+        auditRoot = normFolder.value
+      }
+
+      const checksToRun = checks !== undefined && checks.length > 0 ? checks : [...ALL_CHECKS]
+
+      const current = await auditVault(
+        { vault, metadata },
+        auditRoot,
+        checksToRun,
+        sizeThresholdBytes,
+      )
+
+      const diff: Record<string, { added: string[]; resolved: string[]; unchanged: number }> = {}
+      for (const check of current.checksRun) {
+        const baselineList = normaliseFindingPaths(
+          (baseline.findings?.[check] as unknown[] | undefined) ?? [],
+        )
+        const currentList = normaliseFindingPaths(
+          ((current.findings as Record<string, unknown>)[check] as unknown[] | undefined) ?? [],
+        )
+        const baselineSet = new Set(baselineList)
+        const currentSet = new Set(currentList)
+        const added = currentList.filter((p) => !baselineSet.has(p))
+        const resolved = baselineList.filter((p) => !currentSet.has(p))
+        const unchanged = currentList.filter((p) => baselineSet.has(p)).length
+        diff[check] = { added, resolved, unchanged }
+      }
+
+      return okStructured({
+        baselinePath: norm.value,
+        generatedAt: new Date().toISOString(),
+        checks: diff,
+      })
+    },
+  )
+}
+
+function normaliseFindingPaths(items: unknown[]): string[] {
+  return items.map((item) => {
+    if (typeof item === 'string') return item
+    if (typeof item === 'object' && item !== null) {
+      const obj = item as Record<string, unknown>
+      if (typeof obj.path === 'string') return obj.path
+      if (typeof obj.source === 'string' && typeof obj.target === 'string')
+        return `${obj.source} → ${obj.target}`
+    }
+    return JSON.stringify(item)
+  })
 }

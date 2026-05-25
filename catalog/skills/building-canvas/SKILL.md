@@ -4,7 +4,7 @@ description: Builds or expands an Obsidian canvas by reading vault structure and
 type: skill
 version: 0.1.0
 bundle: Canvas Builder
-requires: [canvas_read, canvas_list, links_bfs, metadata_frontmatter]
+requires: [canvas_read, canvas_list, canvas_write, links_bfs, metadata_frontmatter]
 dependsOn: []
 ---
 

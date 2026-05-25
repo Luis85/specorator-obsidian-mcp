@@ -5,6 +5,42 @@ import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { auditVault, ALL_CHECKS, DEFAULT_MAX_FILES } from '@/application/mcp/audit'
 import { okStructured, err } from './shared'
 
+export function registerAuditTailTool(server: McpServer, deps: { vault: VaultPort }): void {
+  server.registerTool(
+    'audit.tail',
+    {
+      description:
+        'Return the last N entries from the MCP audit log (.specorator/audit-log.jsonl). Useful for diagnosing permission decisions and tool-call history.',
+      inputSchema: {
+        n: z
+          .number()
+          .int()
+          .min(1)
+          .max(500)
+          .default(50)
+          .describe('Number of entries to return from the end of the log'),
+      },
+      outputSchema: {
+        entries: z.array(z.record(z.string(), z.unknown())),
+        count: z.number().int(),
+      },
+    },
+    async ({ n }) => {
+      const raw = await deps.vault.readFile('.specorator/audit-log.jsonl').catch(() => '')
+      const lines = raw.split('\n').filter((l) => l.trim().length > 0)
+      const tail = lines.slice(-n)
+      const entries = tail.map((line) => {
+        try {
+          return JSON.parse(line) as Record<string, unknown>
+        } catch {
+          return { invalid: line }
+        }
+      })
+      return okStructured({ entries, count: entries.length })
+    },
+  )
+}
+
 const CHECKS_ENUM = z.enum([
   'orphans',
   'deadends',
@@ -19,6 +55,7 @@ export function registerAuditTool(
   deps: { vault: VaultPort; metadata: MetadataCachePort },
 ): void {
   const { vault, metadata } = deps
+  registerAuditTailTool(server, { vault })
 
   server.registerTool(
     'audit.report',

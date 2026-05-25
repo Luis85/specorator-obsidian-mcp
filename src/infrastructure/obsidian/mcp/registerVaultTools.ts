@@ -17,9 +17,9 @@ function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; tex
 
 export function registerVaultTools(
   server: McpServer,
-  deps: { vault: VaultPort; gate: PermissionGate },
+  deps: { vault: VaultPort; gate: PermissionGate; logger?: import('@/domain/ports').LoggerPort },
 ): void {
-  const { vault, gate } = deps
+  const { vault, gate, logger } = deps
 
   server.registerTool(
     'vault.read',
@@ -187,7 +187,14 @@ export function registerVaultTools(
       }
       const content = await vault.readFile(safeFrom)
       await vault.writeFile(safeTo, content)
-      await vault.deleteFile(safeFrom)
+      try {
+        await vault.deleteFile(safeFrom)
+      } catch (deleteErr: unknown) {
+        logger?.error('vault.move delete-source failed — file at both paths', deleteErr)
+        return err(
+          `move_partial: file written to ${safeTo} but source ${safeFrom} was not deleted — manual cleanup required`,
+        )
+      }
       return ok({ moved: true, from: safeFrom, to: safeTo })
     },
   )

@@ -27,14 +27,15 @@ Coming soon — pending marketplace review.
 - **Bulk + safety** (`tags.rename`, `vault.hash`, `vault.walk`) — rename a tag vault-wide with a dry-run preview; `vault.write` now requires `mode: 'overwrite'` + `expectedHash` to overwrite existing files, preventing accidental data loss. See [ADR-004](./docs/adr/ADR-004-write-safety-hash-guard.md).
 - **Obsidian CLI integration** (`cli.screenshot`, `cli.run`, `cli.daily_note`, `cli.workspace_load`, `cli.template_insert`, `cli.open_file`, `cli.reload`) — curated high-value CLI subcommands exposed as individual typed tools, plus `cli.run` for arbitrary CLI dispatch.
 - **Auto-discovery** to Claude CLI (default on), Claude Desktop, and Cursor — plugin writes and removes the server URL automatically; no manual config editing needed.
-- **49 tools total** (up from 21 at first release) across 10 namespaces. See the capability matrix below.
+- **49 tools total** (up from 21 at first release) across 12 namespaces. See the capability matrix below.
 
 ## Quick start
 
 1. Open the command palette and run **Start MCP server**.
 2. The status bar shows `MCP: 127.0.0.1:7842` — the server is running.
-3. The plugin auto-registers the URL with Claude CLI by default (`~/.claude.json`). Verify with `claude mcp list`.
-4. Open Claude Code and ask it to list your vault files.
+3. To start automatically on Obsidian launch, enable **Settings → Server → Auto-start on Obsidian startup**.
+4. The plugin auto-registers the URL with Claude CLI by default (`~/.claude.json`). Verify with `claude mcp list`.
+5. Open Claude Code and ask it to list your vault files.
 
 ## How it works
 
@@ -85,26 +86,26 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 
 ## Settings
 
-| Setting                      | Type                                     | Default                              |
-| ---------------------------- | ---------------------------------------- | ------------------------------------ |
-| `port`                       | number                                   | `7842`                               |
-| `defaultMode`                | `'allow' \| 'ask' \| 'deny'`             | `'ask'`                              |
-| `toolModes`                  | per-tool overrides                       | sensible defaults (see settings tab) |
-| `pathDenyList`               | glob patterns                            | `[]`                                 |
-| `askTimeoutMs`               | number (ms)                              | `30000`                              |
-| `logLevel`                   | `'debug' \| 'info' \| 'warn' \| 'error'` | `'warn'`                             |
-| `autoRegister.claudeCli`     | boolean                                  | `true`                               |
-| `autoRegister.cursor`        | boolean                                  | `false`                              |
-| `autoRegister.claudeDesktop` | boolean                                  | `false`                              |
-| `cliExecuteAllowedPrefixes`  | command-id prefix list (one per line)    | `[]`                                 |
-| `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                 |
-| `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                   |
-| `developerMode`              | boolean                                  | `false`                              |
-| `autoStart`                  | boolean                                  | `false`                              |
+| Setting                      | Type                                     | Default                                                                                                                                                                             |
+| ---------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `port`                       | number                                   | `7842`                                                                                                                                                                              |
+| `defaultMode`                | `'allow' \| 'ask' \| 'deny'`             | `'ask'`                                                                                                                                                                             |
+| `toolModes`                  | per-tool overrides                       | sensible defaults (see settings tab)                                                                                                                                                |
+| `pathDenyList`               | glob patterns                            | `[".specorator/**", ".claude/hooks/**", ".claude/hooks/hooks.json"]` (Existing installs without a customised value inherit the new defaults on the next plugin load (since 0.2.2).) |
+| `askTimeoutMs`               | number (ms)                              | `30000`                                                                                                                                                                             |
+| `logLevel`                   | `'debug' \| 'info' \| 'warn' \| 'error'` | `'warn'`                                                                                                                                                                            |
+| `autoRegister.claudeCli`     | boolean                                  | `true`                                                                                                                                                                              |
+| `autoRegister.cursor`        | boolean                                  | `false`                                                                                                                                                                             |
+| `autoRegister.claudeDesktop` | boolean                                  | `false`                                                                                                                                                                             |
+| `cliExecuteAllowedPrefixes`  | command-id prefix list (one per line)    | `[]`                                                                                                                                                                                |
+| `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                                                                                                                                                                |
+| `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                                                                                                                                                                  |
+| `developerMode`              | boolean                                  | `false`                                                                                                                                                                             |
+| `autoStart`                  | boolean                                  | `false`                                                                                                                                                                             |
 
 ## Tool groups
 
-49 tools across 10 namespaces. Default modes: `allow` = runs immediately; `ask` = modal confirmation; `deny` = disabled until explicitly opted in.
+49 tools across 12 namespaces. Default modes: `allow` = runs immediately; `ask` = modal confirmation; `deny` = disabled until explicitly opted in.
 
 ### vault — Core file operations
 
@@ -233,7 +234,7 @@ Requires the **Bases** core plugin to be enabled in Obsidian settings.
 
 **`vault.write` refuses to overwrite:** The default `mode: 'create'` intentionally returns a `file_exists` error rather than silently replacing content. To overwrite: first call `vault.hash` to obtain the current file hash, then call `vault.write` with `mode: 'overwrite'` and `expectedHash` set to that hash. If another process modified the file between the two calls, `vault.write` returns `hash_mismatch` — read the file again and retry.
 
-**"Output validation error: no structured content":** This was a schema-drift bug fixed in the current `develop` build. Update the plugin via BRAT or pull the latest commit.
+**"Output validation error: no structured content":** Fixed in 0.2.2. If you still see this on the current version, please open an issue.
 
 **Running integration tests against the real Obsidian CLI:** The CLI adapter integration tests (`NodeObsidianCliAdapter.integration.test.ts`) are skipped by default so CI stays green without Obsidian installed. To run them locally, set the `OBSIDIAN_BIN` environment variable to the path of your Obsidian CLI binary:
 
@@ -261,7 +262,7 @@ An Obsidian plugin that serves both a REST API and an MCP endpoint. It exposes *
 
 | Feature                                                                | Specorator Obsidian MCP                                                        | obsidian-cli-mcp-server        | obsidian-local-rest-api |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------ | ----------------------- |
-| **Tool count**                                                         | **49** across 10 namespaces                                                    | 2 (one catch-all)              | ~19                     |
+| **Tool count**                                                         | **49** across 12 namespaces                                                    | 2 (one catch-all)              | ~19                     |
 | **Per-tool permission gate** (allow / ask / deny)                      | Yes — configurable per tool with modal confirmation                            | No                             | No                      |
 | **Path deny-list**                                                     | Yes — glob patterns; takes precedence over tool modes                          | No                             | No                      |
 | **Auto-register to `~/.claude.json`**                                  | Yes — atomic write on server start, removes on stop                            | No (stdio; no HTTP URL)        | No                      |

@@ -87,7 +87,7 @@ export class ObsidianMcpServerAdapter {
       }
       if (req.url === '/mcp') {
         void this._handleMcpRequest(req, res).catch((_err) => {
-          this.logger?.error('mcp request failed', { error: String(_err) })
+          this.logger?.error('mcp request failed', _err)
           if (!res.headersSent) res.writeHead(500).end()
         })
       } else {

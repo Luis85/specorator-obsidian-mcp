@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `audit.tail` — read the last N entries from the MCP audit log (`.specorator/audit-log.jsonl`) for diagnosing permission decisions and tool-call history.
+- `audit.diff` — compare current audit findings against a stored JSON baseline (from `audit.export`); returns added/resolved/unchanged per check category.
+- `vault.stats` — lightweight vault size statistics: total file count, total bytes, and per-extension count + bytes breakdown (uses `getFileStats`, no content reads).
+- `metadata.search` — new `contains` operator for substring match on string fields and element match on array fields.
+
 ## [0.2.2] — 2026-05-25
 
 ### Added

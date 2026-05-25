@@ -178,7 +178,13 @@ describe('AutoRegister supply-chain detection', () => {
 
   it('warns and overwrites when external actor mutates our entry', async () => {
     const warnings: string[] = []
-    const ar = new AutoRegister(mockFs, (m) => warnings.push(m))
+    const mockLogger = {
+      debug: () => {},
+      info: () => {},
+      warn: (m: string) => warnings.push(m),
+      error: () => {},
+    }
+    const ar = new AutoRegister(mockFs, mockLogger)
 
     // First registration — establish baseline
     await ar.register(URL, [target])
@@ -212,7 +218,13 @@ describe('AutoRegister supply-chain detection', () => {
 
   it('warns on deregister when entry was externally mutated', async () => {
     const warnings: string[] = []
-    const ar = new AutoRegister(mockFs, (m) => warnings.push(m))
+    const mockLogger = {
+      debug: () => {},
+      info: () => {},
+      warn: (m: string) => warnings.push(m),
+      error: () => {},
+    }
+    const ar = new AutoRegister(mockFs, mockLogger)
 
     await ar.register(URL, [target])
 
@@ -228,7 +240,13 @@ describe('AutoRegister supply-chain detection', () => {
 
   it('does not warn when entry is unchanged between registrations', async () => {
     const warnings: string[] = []
-    const ar = new AutoRegister(mockFs, (m) => warnings.push(m))
+    const mockLogger = {
+      debug: () => {},
+      info: () => {},
+      warn: (m: string) => warnings.push(m),
+      error: () => {},
+    }
+    const ar = new AutoRegister(mockFs, mockLogger)
     await ar.register(URL, [target])
     // Re-register without any tampering — prior entry has same URL so returns unchanged
     const results = await ar.register(URL, [target])

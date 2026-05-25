@@ -12,6 +12,9 @@ import { applyPreset } from '@/application/settings/presets'
 const MODES: ToolMode[] = ['allow', 'ask', 'deny']
 const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
 
+/** Shell metacharacters that must not appear in cliRunAllowedPrefixes entries. */
+const CLI_RUN_METACHAR_RE = /[;|&$`<>\\\n]/
+
 /** One-line descriptions shown under each namespace header. */
 const NS_DESCRIPTIONS: Record<string, string> = {
   vault: 'Read and write notes in your vault.',
@@ -64,9 +67,15 @@ function renderStatusBanner(
     }
     // First-run nudge: brief orientation for new users below the status row.
     const nudge = containerEl.createEl('p', {
-      text: 'MCP server is not running. Start it to allow AI tools to access this vault. See README for setup.',
+      text: 'MCP server is not running. Start it to allow AI tools to access this vault. ',
     })
     nudge.style.cssText = 'margin:4px 0 12px;font-size:0.9em;color:var(--text-muted);'
+    const link = nudge.createEl('a', {
+      text: 'Open the README on GitHub →',
+      href: 'https://github.com/Luis85/specorator-obsidian-mcp#quick-start',
+    })
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
   } else {
     const restartBtn = banner.createEl('button', { text: 'Restart server' })
     restartBtn.style.marginRight = '4px'
@@ -78,6 +87,16 @@ function renderStatusBanner(
     stopBtn.onclick = () => {
       void plugin.stopServerPublic().then(() => onRefresh())
     }
+
+    // Jump-to-catalog anchor: lets users navigate directly to the Workflow
+    // catalog section from the status banner without manual scrolling.
+    const jumpLink = containerEl.createEl('a', { text: 'Jump to Workflow catalog →' })
+    jumpLink.style.cssText = 'display:block;margin:4px 0 12px;font-size:0.9em;cursor:pointer;'
+    jumpLink.addEventListener('click', (e) => {
+      e.preventDefault()
+      const target = containerEl.querySelector<HTMLElement>('[data-section="catalog"]')
+      target?.scrollIntoView({ behavior: 'smooth' })
+    })
   }
 }
 
@@ -201,7 +220,10 @@ export function renderMcpServerSettings(
 
   new Setting(containerEl)
     .setName('Auto-start on Obsidian startup')
-    .setDesc('Start the MCP server automatically when Obsidian loads this plugin. Default off.')
+    .setDesc(
+      'Start the MCP server automatically when Obsidian loads this plugin. Default off. ' +
+        'If the port is already in use at startup, a Notice will appear and the server will not start — change the port below.',
+    )
     .addToggle((t) =>
       t.setValue(plugin.settings.autoStart ?? false).onChange(async (v) => {
         plugin.settings.autoStart = v
@@ -328,12 +350,27 @@ export function renderMcpServerSettings(
     text: 'Commands whose name starts with any prefix here bypass the ask flow for cli.run (external Obsidian CLI binary). Leave empty to require explicit confirmation for every CLI command. One prefix per line (e.g. "version", "help", "search", "base:"). This list is separate from the cli.execute allow-list — the two tools have different risk profiles.',
   })
 
+  const cliRunErrorEl = containerEl.createEl('div', {
+    cls: 'setting-item-description mod-warning',
+    text: '',
+  })
+  cliRunErrorEl.style.display = 'none'
   new Setting(containerEl).setName('Allowed prefixes (one per line)').addTextArea((t) =>
     t.setValue((plugin.settings.cliRunAllowedPrefixes ?? []).join('\n')).onChange(async (v) => {
-      plugin.settings.cliRunAllowedPrefixes = v
+      const parsed = v
         .split(/\r?\n/)
         .map((s) => s.trim())
         .filter(Boolean)
+      const invalid = parsed.filter((p) => CLI_RUN_METACHAR_RE.test(p))
+      if (invalid.length > 0) {
+        cliRunErrorEl.setText(
+          `Rejected prefix(es) contain shell metacharacters (;|&$\`<>\\): ${invalid.map((p) => `"${p}"`).join(', ')}`,
+        )
+        cliRunErrorEl.style.display = 'block'
+        return
+      }
+      cliRunErrorEl.style.display = 'none'
+      plugin.settings.cliRunAllowedPrefixes = parsed
       await plugin.saveSettings()
     }),
   )
