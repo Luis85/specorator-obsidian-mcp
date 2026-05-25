@@ -115,8 +115,11 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 | `canvas.read`          | `allow`      | Read a JSON Canvas file                                                                                                    |
 | `canvas.write`         | `ask`        | Write (overwrite) a JSON Canvas file                                                                                       |
 | `canvas.list`          | `allow`      | List all `.canvas` files in the vault or under a folder                                                                    |
-| `bases.list`           | `allow`      | Scan a folder recursively for all frontmatter records                                                                      |
-| `bases.filter`         | `allow`      | Filter records by one or more field/op/value criteria (AND semantics)                                                      |
+| `bases.list`           | `allow`      | List all `.base` files in the vault via the official `obsidian bases` CLI command. Requires the Bases core plugin.         |
+| `bases.views`          | `allow`      | List views defined in a `.base` file via `obsidian base:views`. Requires the Bases core plugin.                            |
+| `bases.query`          | `allow`      | Execute a view in a `.base` file via `obsidian base:query`; format=json/md/paths/csv. Requires the Bases core plugin.      |
+| `bases.read`           | `allow`      | Read the raw YAML content of a `.base` file directly from the vault (no CLI).                                              |
+| `bases.create`         | `ask`        | Create a new note through a base view via `obsidian base:create`. Requires the Bases core plugin.                          |
 | `cli.read.list`        | `allow`      | List all Obsidian command palette commands                                                                                 |
 | `cli.read.find`        | `allow`      | Find commands by id/name substring                                                                                         |
 | `cli.execute`          | `deny`       | Execute a command palette command by id; opt in per-prefix via the allowlist setting                                       |

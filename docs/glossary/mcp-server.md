@@ -26,7 +26,7 @@ Running the MCP server inside the plugin (not as a separate process or REST inte
 - **Metadata tools** — `metadata.frontmatter`, `metadata.tags`, `metadata.headings`, `metadata.linkpath`
 - **Links tools** — `links.backlinks`, `links.outgoing`, `links.bfs`
 - **Canvas tools** — `canvas.read`, `canvas.write`
-- **Bases tools** — `bases.list`, `bases.filter`
+- **Bases tools** — `bases.list`, `bases.views`, `bases.query`, `bases.read`, `bases.create` (delegates to official `obsidian base:*` CLI commands; requires Bases core plugin)
 - **CLI read tools** — `cli.read.list`, `cli.read.find`
 - **CLI execute tool** — `cli.execute` (default: deny; opt-in via settings)
 

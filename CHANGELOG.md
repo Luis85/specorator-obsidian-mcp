@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `vault.list_recursive` — recursively enumerate all files under a folder.
 - `metadata.search` — find files by tag or frontmatter field=value.
 - `canvas.list` — list all `.canvas` files in the vault or under a folder.
-- `bases.filter` — filter frontmatter records by field/op/value criteria with AND semantics.
 - `cli.execute` prefix allowlist — opt in to command palette execution per command-id prefix.
 - Modal countdown timer — shows time remaining until auto-deny.
 - Modal friendly summary — human-readable description of the tool call with collapsed JSON params and optional `currentContent` field.
@@ -22,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- BREAKING: `bases.*` tools rewritten to delegate to official Obsidian CLI `base:*` commands. `bases.filter` removed (use `bases.query` with a properly configured view instead). `bases.list` now returns `.base` file paths (previously returned arbitrary frontmatter records). New tools: `bases.views`, `bases.query`, `bases.read`, `bases.create`. Requires the Bases core plugin to be enabled.
 - Tool descriptions updated for clarity across all tool groups.
 - Modal button hierarchy: trust-granting actions (Allow Once, Allow for Session) are primary; Deny is secondary.
 - Settings UI groups tool-mode dropdowns by namespace (vault, metadata, links, canvas, bases, cli).

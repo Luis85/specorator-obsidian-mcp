@@ -1,103 +1,235 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import type { VaultPort } from '@/domain/ports'
+import type { ObsidianCliPort, VaultPort } from '@/domain/ports'
+import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { collectFiles, ok, err, parseFrontmatter } from './shared'
+import { ok, deny, err } from './shared'
 
-function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
-  return err(`unsafe path: ${msg}`)
-}
+export function registerBasesTools(
+  server: McpServer,
+  deps: { cli: ObsidianCliPort; vault: VaultPort; gate: PermissionGate },
+): void {
+  const { cli, vault, gate } = deps
 
-type FilterOp = 'eq' | 'neq' | 'contains' | 'in'
-
-function matchesFilter(value: unknown, op: FilterOp, target: unknown): boolean {
-  switch (op) {
-    case 'eq':
-      return value === target
-    case 'neq':
-      return value !== target
-    case 'contains':
-      if (typeof value === 'string' && typeof target === 'string') return value.includes(target)
-      if (Array.isArray(value)) return value.includes(target)
-      return false
-    case 'in':
-      return Array.isArray(target) && target.includes(value)
-  }
-}
-
-interface BaseRecord {
-  path: string
-  frontmatter: Record<string, unknown>
-}
-
-async function loadBaseRecords(vault: VaultPort, folder: string): Promise<BaseRecord[]> {
-  const files = (await collectFiles(vault, folder)).filter((p) => p.endsWith('.md'))
-  const records = await Promise.all(
-    files.map(async (path) => {
-      try {
-        const content = await vault.readFile(path)
-        return { path, frontmatter: parseFrontmatter(content) }
-      } catch {
-        return null
-      }
-    }),
-  )
-  return records.filter((r): r is BaseRecord => r !== null)
-}
-
-const FilterSchema = z.object({
-  field: z.string(),
-  op: z.enum(['eq', 'neq', 'contains', 'in']),
-  value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]),
-})
-
-export function registerBasesTools(server: McpServer, deps: { vault: VaultPort }): void {
-  const { vault } = deps
-
+  // ── bases.list ────────────────────────────────────────────────────────────
   server.registerTool(
     'bases.list',
     {
       description:
-        'Scans recursively for Obsidian Bases. Returns { records: [{ path, frontmatter }] }. On large vaults (>1000 notes) prefer bases.filter to narrow the scan.',
+        'List all .base files in the vault by delegating to the official Obsidian CLI ' +
+        '(`obsidian bases`). Returns { bases: string[] } — one vault-relative path per entry. ' +
+        'Requires the Bases core plugin to be enabled.',
       inputSchema: {
-        folder: z.string().describe('Vault-relative folder to scan recursively'),
+        folder: z
+          .string()
+          .optional()
+          .describe('Optional vault-relative folder to filter results client-side.'),
       },
     },
     async ({ folder }) => {
-      const norm = normalizeVaultPath(folder)
-      if (!norm.ok) return unsafePath(norm.error.message)
-      const records = await loadBaseRecords(vault, norm.value)
-      return ok({ records })
+      const result = await cli.run({ command: 'bases', timeoutMs: 30_000 })
+      if (result.exitCode !== 0) {
+        return err(`bases.list failed (exit ${result.exitCode}): ${result.stderr || result.stdout}`)
+      }
+      let bases = result.stdout
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+      if (folder !== undefined && folder !== '') {
+        const prefix = folder.replace(/\/+$/, '') + '/'
+        bases = bases.filter((p) => p.startsWith(prefix) || p === folder)
+      }
+      return ok({ bases })
     },
   )
 
-  const FiltersInput = z.union([
-    FilterSchema, // single (back-compat)
-    z.array(FilterSchema).min(1), // multiple, AND
-  ])
-
+  // ── bases.views ───────────────────────────────────────────────────────────
   server.registerTool(
-    'bases.filter',
+    'bases.views',
     {
       description:
-        'Filter Obsidian Bases records by one or more field/op/value criteria. Multiple filters combine with AND semantics.',
+        'List the views defined in a .base file by delegating to the official Obsidian CLI ' +
+        '(`obsidian base:views`). Provide exactly one of "file" (name-resolved) or "path" ' +
+        '(exact vault-relative path). Returns { views: string } — raw text output from the CLI.',
       inputSchema: {
-        folder: z.string().describe('Vault-relative folder to scan recursively'),
-        filters: FiltersInput.describe(
-          'One filter object OR an array of filter objects (AND semantics)',
-        ),
+        file: z
+          .string()
+          .optional()
+          .describe('Base file name (wikilink-resolved). Mutually exclusive with path.'),
+        path: z
+          .string()
+          .optional()
+          .describe('Exact vault-relative path to the .base file. Mutually exclusive with file.'),
       },
     },
-    async ({ folder, filters }) => {
-      const norm = normalizeVaultPath(folder)
-      if (!norm.ok) return unsafePath(norm.error.message)
-      const records = await loadBaseRecords(vault, norm.value)
-      // Normalise to array
-      const filterArray = Array.isArray(filters) ? filters : [filters]
-      const matched = records.filter((r) =>
-        filterArray.every((f) => matchesFilter(r.frontmatter[f.field], f.op, f.value)),
-      )
-      return ok({ records: matched })
+    async ({ file, path }) => {
+      const hasFile = file !== undefined && file !== ''
+      const hasPath = path !== undefined && path !== ''
+      if (!hasFile && !hasPath) {
+        return err('exactly one of "file" or "path" must be provided')
+      }
+      if (hasFile && hasPath) {
+        return err('provide either "file" or "path", not both')
+      }
+
+      const args: Record<string, string> = {}
+      if (hasFile) args.file = file!
+      else args.path = path!
+
+      const result = await cli.run({ command: 'base:views', args, timeoutMs: 30_000 })
+      if (result.exitCode !== 0) {
+        return err(
+          `bases.views failed (exit ${result.exitCode}): ${result.stderr || result.stdout}`,
+        )
+      }
+      return ok({ views: result.stdout })
+    },
+  )
+
+  // ── bases.query ───────────────────────────────────────────────────────────
+  server.registerTool(
+    'bases.query',
+    {
+      description:
+        'Execute a view in a .base file by delegating to the official Obsidian CLI ' +
+        '(`obsidian base:query`). Provide exactly one of "file" or "path". ' +
+        'format=json (default) tries to parse the output as JSON; ' +
+        'format=paths splits lines into a string array; ' +
+        'format=md and format=csv return raw stdout. ' +
+        'Returns { result: unknown, format: string }. ' +
+        'Requires the Bases core plugin to be enabled.',
+      inputSchema: {
+        file: z
+          .string()
+          .optional()
+          .describe('Base file name (wikilink-resolved). Mutually exclusive with path.'),
+        path: z
+          .string()
+          .optional()
+          .describe('Exact vault-relative path to the .base file. Mutually exclusive with file.'),
+        view: z.string().optional().describe('View name within the base file.'),
+        format: z
+          .enum(['json', 'md', 'paths', 'csv'])
+          .default('json')
+          .describe('Output format. Default: json.'),
+      },
+    },
+    async ({ file, path, view, format }) => {
+      const hasFile = file !== undefined && file !== ''
+      const hasPath = path !== undefined && path !== ''
+      if (!hasFile && !hasPath) {
+        return err('exactly one of "file" or "path" must be provided')
+      }
+      if (hasFile && hasPath) {
+        return err('provide either "file" or "path", not both')
+      }
+
+      const args: Record<string, string> = { format }
+      if (hasFile) args.file = file!
+      else args.path = path!
+      if (view !== undefined && view !== '') args.view = view
+
+      const result = await cli.run({ command: 'base:query', args, timeoutMs: 30_000 })
+      if (result.exitCode !== 0) {
+        return err(
+          `bases.query failed (exit ${result.exitCode}): ${result.stderr || result.stdout}`,
+        )
+      }
+
+      const stdout = result.stdout
+
+      if (format === 'json') {
+        try {
+          const parsed: unknown = JSON.parse(stdout)
+          return ok({ result: parsed, format })
+        } catch {
+          return ok({
+            result: stdout,
+            format,
+            warning: 'CLI output was not valid JSON — returning raw stdout',
+          })
+        }
+      }
+
+      if (format === 'paths') {
+        const paths = stdout
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0)
+        return ok({ result: paths, format })
+      }
+
+      // md / csv — raw
+      return ok({ result: stdout, format })
+    },
+  )
+
+  // ── bases.read ────────────────────────────────────────────────────────────
+  server.registerTool(
+    'bases.read',
+    {
+      description:
+        'Read the raw YAML content of a .base file directly from the vault. ' +
+        'Returns { content: string }. No CLI required — reads via the vault port.',
+      inputSchema: {
+        path: z
+          .string()
+          .describe('Vault-relative path to the .base file (e.g. "views/tasks.base").'),
+      },
+    },
+    async ({ path }) => {
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return err(`unsafe path: ${norm.error.message}`)
+      try {
+        const content = await vault.readFile(norm.value)
+        return ok({ content })
+      } catch (e) {
+        return err(`bases.read failed: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    },
+  )
+
+  // ── bases.create ──────────────────────────────────────────────────────────
+  server.registerTool(
+    'bases.create',
+    {
+      description:
+        'Create a new note through a base view by delegating to the official Obsidian CLI ' +
+        '(`obsidian base:create`). Requires the Bases core plugin to be enabled. ' +
+        'Returns { created: true, stdout: string }.',
+      inputSchema: {
+        name: z.string().min(1).describe('Name for the new note.'),
+        file: z
+          .string()
+          .optional()
+          .describe('Base file name (wikilink-resolved). Mutually exclusive with path.'),
+        path: z
+          .string()
+          .optional()
+          .describe('Exact vault-relative path to the .base file. Mutually exclusive with file.'),
+        view: z.string().optional().describe('View within the base file to use for creation.'),
+        content: z.string().optional().describe('Initial content for the new note.'),
+      },
+    },
+    async ({ name, file, path, view, content }) => {
+      const d = await gate.resolve('bases.create', { name, file, path })
+      if (d.decision === 'deny') return deny(d.reason)
+
+      const args: Record<string, string> = { name }
+      const hasFile = file !== undefined && file !== ''
+      const hasPath = path !== undefined && path !== ''
+      if (hasFile) args.file = file!
+      if (hasPath) args.path = path!
+      if (view !== undefined && view !== '') args.view = view
+      if (content !== undefined) args.content = content
+
+      const result = await cli.run({ command: 'base:create', args, timeoutMs: 30_000 })
+      if (result.exitCode !== 0) {
+        return err(
+          `bases.create failed (exit ${result.exitCode}): ${result.stderr || result.stdout}`,
+        )
+      }
+      return ok({ created: true, stdout: result.stdout })
     },
   )
 }
