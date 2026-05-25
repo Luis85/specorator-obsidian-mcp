@@ -77,7 +77,7 @@ describe('PermissionGate — audit logging', () => {
     await gate.resolve('vault.write', { path: 'notes/a.md', content: bigContent })
 
     const recorded = entries[0]?.params ?? {}
-    expect(recorded).not.toHaveProperty('content')
+    expect(recorded['content']).toBe('<redacted>')
     expect(recorded['path']).toBe('notes/a.md')
   })
 
@@ -89,12 +89,29 @@ describe('PermissionGate — audit logging', () => {
 })
 
 describe('redactParams', () => {
-  it('strips content, body, data fields', () => {
+  it('replaces content, body, data fields with <redacted>', () => {
     const result = redactParams({ path: 'a.md', content: 'big blob', body: 'x', data: 'y' })
-    expect(result).not.toHaveProperty('content')
-    expect(result).not.toHaveProperty('body')
-    expect(result).not.toHaveProperty('data')
+    expect(result['content']).toBe('<redacted>')
+    expect(result['body']).toBe('<redacted>')
+    expect(result['data']).toBe('<redacted>')
     expect(result['path']).toBe('a.md')
+  })
+
+  it('replaces code and script fields with <redacted> (cli.eval / cli.run)', () => {
+    const js = 'x'.repeat(200)
+    const result = redactParams({ code: js, script: 'echo hi', path: 'a.md' })
+    expect(result['code']).toBe('<redacted>')
+    expect(result['script']).toBe('<redacted>')
+    expect(result['path']).toBe('a.md')
+  })
+
+  it('cli.eval call: code field is redacted in audit entry', async () => {
+    const { auditor, entries } = makeAuditor()
+    const { gate } = makeGate({ toolModes: { 'cli.eval': 'allow' } }, 'allow', auditor)
+
+    await gate.resolve('cli.eval', { code: 'x'.repeat(200) })
+    const recorded = entries[0]?.params ?? {}
+    expect(recorded['code']).toBe('<redacted>')
   })
 
   it('truncates string values longer than 200 chars', () => {

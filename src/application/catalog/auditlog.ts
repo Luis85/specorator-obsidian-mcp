@@ -26,14 +26,21 @@ export type AuditEntry = InstallAuditEntry | ToolCallAuditEntry
 
 /**
  * Redact large or sensitive param fields before writing to the audit log.
- * Drops fields named content/body/data and truncates any string value > 200 chars.
+ *
+ * - Drops fields named `content`, `body`, `data` (large blobs — WS-Z2).
+ * - Drops fields named `code` and `script` (arbitrary code — cli.eval / cli.run).
+ * - Truncates any remaining string value > 200 chars.
  */
 export function redactParams(params: Record<string, unknown>): Record<string, unknown> {
-  const LARGE_FIELD_RE = /^(content|body|data)$/
+  /** Fields to drop entirely — large blobs or sensitive executable content. */
+  const SENSITIVE_FIELD_RE = /^(content|body|data|code|script)$/
   const MAX_LEN = 200
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(params)) {
-    if (LARGE_FIELD_RE.test(k)) continue
+    if (SENSITIVE_FIELD_RE.test(k)) {
+      out[k] = '<redacted>'
+      continue
+    }
     if (typeof v === 'string' && v.length > MAX_LEN) {
       out[k] = v.slice(0, MAX_LEN) + '…'
     } else {
