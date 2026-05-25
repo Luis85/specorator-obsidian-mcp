@@ -167,21 +167,21 @@ After creating the asset file, run `npm run build:catalog` to regenerate `catalo
 
 ## Where things live
 
-| Concept                      | File path                                                          |
-| ---------------------------- | ------------------------------------------------------------------ |
-| Tool mode defaults           | `src/domain/settings/PluginSettings.ts` — `DEFAULT_TOOL_MODES`     |
-| Canonical tool name list     | `src/application/mcp/ToolModeRegistry.ts` — `CANONICAL_TOOL_NAMES` |
-| MCP tool registrars (vault)  | `src/infrastructure/obsidian/mcp/registerVaultTools.ts`            |
-| MCP tool registrars (cli.read.*) | `src/infrastructure/obsidian/mcp/registerObsidianCliReadTools.ts` — covers `cli.read.find`, `cli.read.list`, etc. |
-| MCP tool registrars (cli.execute + curated cli.*) | `src/infrastructure/obsidian/mcp/registerObsidianCliTools.ts` — covers `cli.execute`, `cli.screenshot`, `cli.daily_note`, etc. |
-| MCP tool registrars (barrel) | `src/infrastructure/obsidian/mcp/index.ts`                         |
-| MCP server wiring            | `src/infrastructure/obsidian/ObsidianMcpServerAdapter.ts`          |
-| Shared response helpers      | `src/infrastructure/obsidian/mcp/shared.ts`                        |
-| Application-layer aggregates | `src/application/mcp/` (audit, graph, frontmatter query, etc.)     |
-| Permission gate              | `src/application/mcp/PermissionGate.ts`                            |
-| Catalog assets               | `catalog/<type>/<id>/`                                             |
-| Catalog index (generated)    | `catalog/index.json`                                               |
-| ADRs                         | `docs/adr/`                                                        |
+| Concept                                            | File path                                                                                                                      |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Tool mode defaults                                 | `src/domain/settings/PluginSettings.ts` — `DEFAULT_TOOL_MODES`                                                                 |
+| Canonical tool name list                           | `src/application/mcp/ToolModeRegistry.ts` — `CANONICAL_TOOL_NAMES`                                                             |
+| MCP tool registrars (vault)                        | `src/infrastructure/obsidian/mcp/registerVaultTools.ts`                                                                        |
+| MCP tool registrars (cli.read.\*)                  | `src/infrastructure/obsidian/mcp/registerObsidianCliReadTools.ts` — covers `cli.read.find`, `cli.read.list`, etc.              |
+| MCP tool registrars (cli.execute + curated cli.\*) | `src/infrastructure/obsidian/mcp/registerObsidianCliTools.ts` — covers `cli.execute`, `cli.screenshot`, `cli.daily_note`, etc. |
+| MCP tool registrars (barrel)                       | `src/infrastructure/obsidian/mcp/index.ts`                                                                                     |
+| MCP server wiring                                  | `src/infrastructure/obsidian/ObsidianMcpServerAdapter.ts`                                                                      |
+| Shared response helpers                            | `src/infrastructure/obsidian/mcp/shared.ts`                                                                                    |
+| Application-layer aggregates                       | `src/application/mcp/` (audit, graph, frontmatter query, etc.)                                                                 |
+| Permission gate                                    | `src/application/mcp/PermissionGate.ts`                                                                                        |
+| Catalog assets                                     | `catalog/<type>/<id>/`                                                                                                         |
+| Catalog index (generated)                          | `catalog/index.json`                                                                                                           |
+| ADRs                                               | `docs/adr/`                                                                                                                    |
 
 ## Reporting bugs / security issues
 
