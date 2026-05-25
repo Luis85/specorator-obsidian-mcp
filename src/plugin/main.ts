@@ -38,6 +38,7 @@ import bundledIndex from '../../catalog/index.json'
 export default class SpecoratorMcpPlugin extends Plugin {
   settings!: PluginSettings
   private mcp?: ObsidianMcpServerAdapter
+  private bridge?: ObsidianBridge
   private statusBar!: McpStatusBar
   /**
    * Permission gate constructed when the MCP server starts. Undefined when the server is stopped.
@@ -161,7 +162,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
   private async startServer(): Promise<void> {
     if (this.mcp) return
     const modal = new ObsidianConfirmModalAdapter(this.app)
-    const bridge = new ObsidianBridge(this.app, this)
+    this.bridge = new ObsidianBridge(this.app, this)
+    const bridge = this.bridge
     // gate is assigned BEFORE setToolRegistrar — the `this.gate!` assertion below is safe.
     this.gate = new PermissionGate({ getSettings: () => this.settings }, modal)
     this.mcp = new ObsidianMcpServerAdapter({ getSettings: () => this.settings }, bridge)
@@ -207,7 +209,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
       }
       const failed = results.filter((r) => r.status === 'failed')
       for (const f of failed) {
-        console.warn(`[specorator-mcp] Auto-register ${f.target.name} failed: ${f.reason}`)
+        this.bridge?.warn(`Auto-register ${f.target.name} failed: ${f.reason}`)
         new Notice(`MCP auto-register failed for ${f.target.name}: ${f.reason}`, 10000)
       }
     }
@@ -226,7 +228,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
         }
         const deregFailed = results.filter((r) => r.status === 'failed')
         for (const f of deregFailed) {
-          console.warn(`[specorator-mcp] Auto-deregister ${f.target.name} failed: ${f.reason}`)
+          this.bridge?.warn(`Auto-deregister ${f.target.name} failed: ${f.reason}`)
           new Notice(`MCP deregister failed for ${f.target.name}: ${f.reason}`, 10000)
         }
       }
@@ -234,6 +236,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
     await this.mcp?.stop()
     this.mcp = undefined
     this.gate = undefined
+    this.bridge = undefined
     this.statusBar.setStopped()
   }
 }
