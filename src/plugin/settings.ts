@@ -62,6 +62,11 @@ function renderStatusBanner(
     startBtn.onclick = () => {
       void plugin.startServerPublic().then(() => onRefresh())
     }
+    // First-run nudge: brief orientation for new users below the status row.
+    const nudge = containerEl.createEl('p', {
+      text: 'MCP server is not running. Start it to allow AI tools to access this vault. See README for setup.',
+    })
+    nudge.style.cssText = 'margin:4px 0 12px;font-size:0.9em;color:var(--text-muted);'
   } else {
     const restartBtn = banner.createEl('button', { text: 'Restart server' })
     restartBtn.style.marginRight = '4px'
@@ -171,9 +176,7 @@ export function renderMcpServerSettings(
   timeoutErrorEl.style.display = 'none'
   new Setting(containerEl)
     .setName('Ask timeout (seconds)')
-    .setDesc(
-      'Modal auto-denies if you do not respond within this many seconds. Current: 30s = 30000ms internally.',
-    )
+    .setDesc('Modal auto-denies after this many seconds with no response.')
     .addText((t) =>
       t.setValue(String(Math.round(plugin.settings.askTimeoutMs / 1000))).onChange(async (v) => {
         const seconds = Number(v)
