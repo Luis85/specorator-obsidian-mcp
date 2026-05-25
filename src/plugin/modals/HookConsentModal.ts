@@ -61,7 +61,17 @@ export class HookConsentModal extends Modal {
     if (s.syncWarning !== undefined) {
       contentEl.createEl('p', { text: s.syncWarning, cls: 'mod-warning' })
     }
-    contentEl.createEl('button', { text: 'Enable hook' }).addEventListener('click', () => {
+    const btnRow = contentEl.createEl('div')
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;'
+
+    const cancelBtn = btnRow.createEl('button', { text: 'Cancel' })
+    cancelBtn.classList.add('mod-cta')
+    cancelBtn.addEventListener('click', () => {
+      this.close()
+    })
+
+    const enableBtn = btnRow.createEl('button', { text: 'Enable hook' })
+    enableBtn.addEventListener('click', () => {
       this.onConfirm()
       this.close()
     })
