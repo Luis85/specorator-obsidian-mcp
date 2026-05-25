@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { auditVault, ALL_CHECKS } from '@/application/mcp/audit'
-import { ok, err } from './shared'
+import { ok, okStructured, err } from './shared'
 
 const CHECKS_ENUM = z.enum([
   'orphans',
@@ -39,6 +39,26 @@ export function registerAuditTool(
           .default(1_000_000)
           .describe('Byte threshold for large_files check (default: 1 MB).'),
       },
+      outputSchema: {
+        folder: z.string(),
+        totalFiles: z.number().int(),
+        checksRun: z.array(z.string()),
+        findings: z.object({
+          orphans: z.array(z.string()).optional(),
+          deadends: z.array(z.string()).optional(),
+          unresolved_links: z
+            .array(z.object({ source: z.string(), target: z.string() }))
+            .optional(),
+          empty_notes: z.array(z.string()).optional(),
+          large_files: z
+            .array(z.object({ path: z.string(), bytes: z.number() }))
+            .optional(),
+          tag_dupes: z
+            .array(z.object({ canonical: z.string(), variants: z.array(z.string()) }))
+            .optional(),
+        }),
+        counts: z.record(z.string(), z.number().int()),
+      },
     },
     async ({ folder = '', checks, sizeThresholdBytes = 1_000_000 }) => {
       const norm = normalizeVaultPath(folder)
@@ -53,7 +73,7 @@ export function registerAuditTool(
         sizeThresholdBytes,
       )
 
-      return ok(result)
+      return okStructured(result as unknown as Record<string, unknown>)
     },
   )
 }
