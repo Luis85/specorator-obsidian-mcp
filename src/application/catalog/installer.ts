@@ -43,6 +43,12 @@ export interface EnableOptions {
   enableHooks?: boolean
   /** Phase 3: sink for non-fatal warnings (synced-vault notice, backup paths). */
   warn?: (msg: string) => void
+  /**
+   * WS-Z2 Fix 3: optional gate reference; when provided, enableAsset calls
+   * `invalidateSessionAllow(tool)` for every destructive tool in a.requires so
+   * a newly installed asset cannot silently inherit a prior session grant.
+   */
+  gate?: { invalidateSessionAllow(name: string): void }
 }
 
 /** What enableAsset reports back so the consent UI can surface destructive grants (B4). */
@@ -145,6 +151,17 @@ async function installHookAsset(fs: FileSystem, a: AssetMeta, opts: EnableOption
   // Hooks are opt-in — never merge without explicit consent.
   if (opts.enableHooks !== true) return
 
+  // WS-Z2 Fix 1: hooks are the highest-risk asset type (shell execution on next
+  // session). Scan BEFORE any merge or sidecar write — same hard-block gate as
+  // installAsset so a malicious hook body cannot slip through the hook path.
+  const hookScan = scanForInjection(a.body)
+  const hookBlocking = hookScan.findings.filter((f) => HARD_BLOCK_KINDS.includes(f.kind))
+  if (hookBlocking.length > 0)
+    throw new ScanBlockedError(
+      a.id,
+      hookBlocking.map((f) => f.kind),
+    )
+
   const bodyHash = await sha256(a.body)
 
   // Synced-vault warning before any merge.
@@ -203,6 +220,13 @@ async function installAsset(
   // B4: partition requires; destructive tools are surfaced, never auto-granted.
   const { destructive } = partitionTools(a.requires)
   for (const t of destructive) destructiveAll.push(`${a.id} → ${t}`)
+
+  // WS-Z2 Fix 3: invalidate any existing session-allow cache entries for
+  // destructive tools so the new asset is not silently granted a prior session
+  // approval that was made for a different asset.
+  if (opts.gate !== undefined) {
+    for (const t of destructive) opts.gate.invalidateSessionAllow(t)
+  }
 
   // R5: least-privilege allowed-tools value.
   const allowedTools = allowedToolsLine(a.requires)
