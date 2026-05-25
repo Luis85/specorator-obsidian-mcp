@@ -66,6 +66,9 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'cli.open_file': 'ask',
   'cli.reload': 'ask',
   'cli.eval': 'deny',
+  'audit.report': 'allow',
+  'links.unresolved': 'allow',
+  'frontmatter.set': 'ask',
 })
 
 export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({

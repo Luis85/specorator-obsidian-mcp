@@ -1,23 +1,25 @@
 import { describe, it, expect } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerMetadataTools } from '@/infrastructure/obsidian/mcp/registerMetadataTools'
+import { PermissionGate } from '@/application/mcp/PermissionGate'
+import { DEFAULT_SETTINGS, DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 import { fakeModulePorts } from '@@/__fakes__/fake-ports'
-import { DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
-import { getHandler, getRegisteredTools } from '@@/__fakes__/gate-helpers'
+import { getHandler, getRegisteredTools, makeAllowGate } from '@@/__fakes__/gate-helpers'
 
 function setup() {
   const ports = fakeModulePorts()
+  const gate = makeAllowGate(ports.confirmModal)
   const server = new McpServer({ name: 'test', version: '0.0.0' })
-  registerMetadataTools(server, { metadata: ports.metadataCache, vault: ports.vault })
-  return { server, ports }
+  registerMetadataTools(server, { metadata: ports.metadataCache, vault: ports.vault, gate })
+  return { server, ports, gate }
 }
 
 describe('registerMetadataTools', () => {
-  it('registers exactly the canonical metadata tools (per DEFAULT_TOOL_MODES)', () => {
+  it('registers exactly the canonical metadata + frontmatter tools (per DEFAULT_TOOL_MODES)', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_TOOL_MODES)
-      .filter((k) => k.startsWith('metadata.'))
+      .filter((k) => k.startsWith('metadata.') || k === 'frontmatter.set')
       .sort()
     expect(Object.keys(tools).sort()).toEqual(expected)
   })
@@ -275,6 +277,135 @@ describe('registerMetadataTools', () => {
       const { server } = setup()
       const res = (await getHandler(server, 'metadata.search')({})) as { isError: boolean }
       expect(res.isError).toBe(true)
+    })
+  })
+
+  describe('frontmatter.set', () => {
+    it('adds a new field that did not previously exist', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('note.md', '---\ntitle: Test\n---\nbody text')
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.set',
+      )({
+        path: 'note.md',
+        field: 'status',
+        value: 'active',
+      })) as { structuredContent?: Record<string, unknown>; content: [{ text: string }] }
+
+      const parsed = JSON.parse(result.content[0].text) as {
+        path: string
+        field: string
+        previousValue: unknown
+        newValue: unknown
+      }
+      expect(parsed.field).toBe('status')
+      expect(parsed.previousValue).toBeUndefined()
+      expect(parsed.newValue).toBe('active')
+
+      // Verify the file was actually updated
+      const updated = await ports.vault.readFile('note.md')
+      expect(updated).toContain('status:')
+    })
+
+    it('updates an existing field and captures the previous value', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('note.md', '---\nstatus: draft\n---\nbody')
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.set',
+      )({
+        path: 'note.md',
+        field: 'status',
+        value: 'published',
+      })) as { content: [{ text: string }] }
+
+      const parsed = JSON.parse(result.content[0].text) as {
+        previousValue: unknown
+        newValue: unknown
+      }
+      expect(parsed.previousValue).toBe('draft')
+      expect(parsed.newValue).toBe('published')
+
+      const updated = await ports.vault.readFile('note.md')
+      expect(updated).toContain('published')
+      expect(updated).not.toContain('draft')
+    })
+
+    it('deletes a field when value is null', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('note.md', '---\ntitle: Hello\ndelete_me: yes\n---\nbody')
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.set',
+      )({
+        path: 'note.md',
+        field: 'delete_me',
+        value: null,
+      })) as { content: [{ text: string }] }
+
+      const parsed = JSON.parse(result.content[0].text) as {
+        previousValue: unknown
+        newValue: unknown
+      }
+      expect(parsed.previousValue).toBe('yes')
+      expect(parsed.newValue).toBeUndefined()
+
+      const updated = await ports.vault.readFile('note.md')
+      expect(updated).not.toContain('delete_me')
+      expect(updated).toContain('title:')
+    })
+
+    it('returns error for unsafe path (path traversal rejected)', async () => {
+      const { server } = setup()
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.set',
+      )({
+        path: '../outside.md',
+        field: 'status',
+        value: 'bad',
+      })) as { isError: boolean; content: [{ text: string }] }
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('unsafe path')
+    })
+
+    it('gate deny returns deny envelope without modifying file', async () => {
+      const ports = fakeModulePorts()
+      ports.confirmModal.answerWith('deny')
+      const denyGate = new PermissionGate(
+        { getSettings: () => ({ ...DEFAULT_SETTINGS, defaultMode: 'ask' as const }) },
+        ports.confirmModal,
+      )
+      const s = new McpServer({ name: 'test', version: '0.0.0' })
+      registerMetadataTools(s, {
+        metadata: ports.metadataCache,
+        vault: ports.vault,
+        gate: denyGate,
+      })
+
+      await ports.vault.writeFile('secret.md', '---\ntitle: Secret\n---\nbody')
+
+      const result = (await getHandler(
+        s,
+        'frontmatter.set',
+      )({
+        path: 'secret.md',
+        field: 'status',
+        value: 'leaked',
+      })) as { isError: boolean; content: [{ text: string }] }
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('denied')
+
+      // File must be unmodified
+      const content = await ports.vault.readFile('secret.md')
+      expect(content).not.toContain('leaked')
     })
   })
 })

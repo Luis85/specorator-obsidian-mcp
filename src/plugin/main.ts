@@ -23,6 +23,7 @@ import {
   registerCliRunTool,
   registerCliCuratedTools,
   registerCliEvalTool,
+  registerAuditTool,
 } from '@/infrastructure/obsidian/mcp'
 import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
 import { SpecoratorMcpSettingsTab } from './settings'
@@ -135,8 +136,9 @@ export default class SpecoratorMcpPlugin extends Plugin {
     this.mcp = new ObsidianMcpServerAdapter({ getSettings: () => this.settings }, bridge)
     this.mcp.setToolRegistrar((server) => {
       registerVaultTools(server, { vault: bridge, gate: this.gate! })
-      registerMetadataTools(server, { metadata: bridge, vault: bridge })
-      registerLinksTools(server, { metadata: bridge })
+      registerMetadataTools(server, { metadata: bridge, vault: bridge, gate: this.gate! })
+      registerLinksTools(server, { metadata: bridge, vault: bridge })
+      registerAuditTool(server, { vault: bridge, metadata: bridge })
       registerCanvasTools(server, { canvas: bridge, gate: this.gate!, vault: bridge })
       registerBasesTools(server, { cli: this.cli!, vault: bridge, gate: this.gate! })
       // `app.commands` is a stable runtime property not exposed in Obsidian's public TS types.

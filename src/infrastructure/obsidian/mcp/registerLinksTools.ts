@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import type { MetadataCachePort } from '@/domain/ports'
+import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok, err } from './shared'
+import { ok, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -68,8 +68,11 @@ function bfsTraverse(
   return { nodes: Array.from(visited), edges }
 }
 
-export function registerLinksTools(server: McpServer, deps: { metadata: MetadataCachePort }): void {
-  const { metadata } = deps
+export function registerLinksTools(
+  server: McpServer,
+  deps: { metadata: MetadataCachePort; vault: VaultPort },
+): void {
+  const { metadata, vault } = deps
 
   server.registerTool(
     'links.backlinks',
@@ -114,6 +117,41 @@ export function registerLinksTools(server: McpServer, deps: { metadata: Metadata
       if (!norm.ok) return unsafePath(norm.error.message)
       const result = bfsTraverse(metadata, norm.value, Math.min(depth, 5), direction)
       return ok(result)
+    },
+  )
+
+  server.registerTool(
+    'links.unresolved',
+    {
+      description:
+        'Find all dangling wikilinks across the vault (or a folder). A dangling link is a [[Target]] whose target note does not exist. Returns { unresolved: Array<{ source, target }>, count }.',
+      inputSchema: {
+        folder: z
+          .string()
+          .optional()
+          .describe('Vault-relative folder to scan (default: vault root).'),
+      },
+    },
+    async ({ folder = '' }) => {
+      const norm = normalizeVaultPath(folder)
+      if (!norm.ok) return unsafePath(norm.error.message)
+
+      const allFiles = await collectFiles(vault, norm.value)
+      const mdFiles = allFiles.filter((f) => f.endsWith('.md'))
+
+      const unresolved: Array<{ source: string; target: string }> = []
+      for (const path of mdFiles) {
+        const snap = metadata.getFileMetadata(path)
+        if (!snap) continue
+        for (const link of snap.links) {
+          const dest = metadata.getFirstLinkpathDest(link, path)
+          if (dest === null) {
+            unresolved.push({ source: path, target: link })
+          }
+        }
+      }
+
+      return ok({ unresolved, count: unresolved.length })
     },
   )
 }

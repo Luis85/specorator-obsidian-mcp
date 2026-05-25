@@ -11,12 +11,12 @@ const bfsDepthSchema = z.number().int().min(1).max(5)
 function setup() {
   const ports = fakeModulePorts()
   const server = new McpServer({ name: 'test', version: '0.0.0' })
-  registerLinksTools(server, { metadata: ports.metadataCache })
+  registerLinksTools(server, { metadata: ports.metadataCache, vault: ports.vault })
   return { server, ports }
 }
 
 describe('registerLinksTools', () => {
-  it('registers exactly the three canonical links tools', () => {
+  it('registers exactly the four canonical links tools', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_TOOL_MODES)
@@ -168,5 +168,119 @@ describe('registerLinksTools', () => {
     })) as { content: [{ text: string }] }
     const parsed = JSON.parse(result.content[0].text) as { nodes: string[] }
     expect(parsed.nodes).not.toContain('g.md')
+  })
+
+  describe('links.unresolved', () => {
+    it('returns dangling wikilinks across the vault', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('note.md', '# Note')
+      ports.bridge.seedMetadata('note.md', {
+        path: 'note.md',
+        tags: [],
+        frontmatter: {},
+        links: ['Existing', 'Missing'],
+        embeds: [],
+      })
+      ports.bridge.seedLinkpathDest('Existing', 'note.md', 'existing.md')
+      // 'Missing' has no seedLinkpathDest → null → unresolved
+
+      const result = (await getHandler(server, 'links.unresolved')({})) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as {
+        unresolved: Array<{ source: string; target: string }>
+        count: number
+      }
+
+      expect(parsed.count).toBe(1)
+      expect(parsed.unresolved[0]).toEqual({ source: 'note.md', target: 'Missing' })
+    })
+
+    it('returns empty result when all links resolve', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('clean.md', '# Clean')
+      ports.bridge.seedMetadata('clean.md', {
+        path: 'clean.md',
+        tags: [],
+        frontmatter: {},
+        links: ['Target'],
+        embeds: [],
+      })
+      ports.bridge.seedLinkpathDest('Target', 'clean.md', 'target.md')
+
+      const result = (await getHandler(server, 'links.unresolved')({})) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as {
+        unresolved: unknown[]
+        count: number
+      }
+
+      expect(parsed.count).toBe(0)
+      expect(parsed.unresolved).toEqual([])
+    })
+
+    it('returns empty result when notes have no outgoing links', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('isolated.md', '# Isolated')
+      ports.bridge.seedMetadata('isolated.md', {
+        path: 'isolated.md',
+        tags: [],
+        frontmatter: {},
+        links: [],
+        embeds: [],
+      })
+
+      const result = (await getHandler(server, 'links.unresolved')({})) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as { count: number }
+
+      expect(parsed.count).toBe(0)
+    })
+
+    it('scopes scan to a subfolder', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('sub/in.md', '# In scope')
+      ports.vault.seedFile('out.md', '# Out of scope')
+      ports.bridge.seedMetadata('sub/in.md', {
+        path: 'sub/in.md',
+        tags: [],
+        frontmatter: {},
+        links: ['Ghost'],
+        embeds: [],
+      })
+      ports.bridge.seedMetadata('out.md', {
+        path: 'out.md',
+        tags: [],
+        frontmatter: {},
+        links: ['AlsoGhost'],
+        embeds: [],
+      })
+
+      const result = (await getHandler(server, 'links.unresolved')({ folder: 'sub' })) as {
+        content: [{ text: string }]
+      }
+      const parsed = JSON.parse(result.content[0].text) as {
+        unresolved: Array<{ source: string; target: string }>
+        count: number
+      }
+
+      // Only the sub/ note is scanned
+      expect(parsed.count).toBe(1)
+      expect(parsed.unresolved[0]!.source).toBe('sub/in.md')
+    })
+
+    it('returns error for unsafe folder path', async () => {
+      const { server } = setup()
+
+      const result = (await getHandler(server, 'links.unresolved')({ folder: '../evil' })) as {
+        isError: boolean
+        content: [{ text: string }]
+      }
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('unsafe path')
+    })
   })
 })

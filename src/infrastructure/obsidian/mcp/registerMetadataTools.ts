@@ -1,13 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
-import { okStructured, err, parseFrontmatter } from './shared'
+import type { PermissionGate } from '@/application/mcp/PermissionGate'
+import { normalizeVaultPath } from '@/domain/shared/VaultPath'
+import { okStructured, err, deny, parseFrontmatter, applyFrontmatterUpdate } from './shared'
 
 export function registerMetadataTools(
   server: McpServer,
-  deps: { metadata: MetadataCachePort; vault: VaultPort },
+  deps: { metadata: MetadataCachePort; vault: VaultPort; gate: PermissionGate },
 ): void {
-  const { metadata, vault } = deps
+  const { metadata, vault, gate } = deps
 
   server.registerTool(
     'metadata.frontmatter',
@@ -101,6 +103,53 @@ export function registerMetadataTools(
       // field+value search
       const paths = await metadata.searchByFrontmatter(field!, value !== undefined ? value : null)
       return okStructured({ paths })
+    },
+  )
+
+  server.registerTool(
+    'frontmatter.set',
+    {
+      description:
+        'Atomically set or delete a single frontmatter field in a vault note. Pass value=null to delete the field. Returns the previous and new values. Gated: mode=ask.',
+      inputSchema: {
+        path: z.string().describe('Vault-relative path to the note'),
+        field: z.string().min(1).describe('Frontmatter key name'),
+        value: z.unknown().describe('Any JSON-serializable value; null deletes the field'),
+      },
+    },
+    async ({ path, field, value }) => {
+      const norm = normalizeVaultPath(path)
+      if (!norm.ok) return err(`unsafe path: ${norm.error.message}`)
+      const safePath = norm.value
+
+      const d = await gate.resolve('frontmatter.set', { path: safePath })
+      if (d.decision === 'deny') return deny(d.reason)
+
+      const content = await vault.readFile(safePath)
+      const existing = parseFrontmatter(content)
+      const previousValue = Object.prototype.hasOwnProperty.call(existing, field)
+        ? existing[field]
+        : undefined
+
+      if (value === null) {
+        // Delete the field
+        const updates: Record<string, unknown> = { ...existing }
+        delete updates[field]
+        // Re-serialize from scratch: applyFrontmatterUpdate merges, so we need
+        // to write the full frontmatter without the field directly.
+        const { stringify: stringifyYaml } = await import('yaml')
+        const fmMatch = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content)
+        const bodyStart = fmMatch ? fmMatch[0].length : 0
+        await vault.writeFile(
+          safePath,
+          `---\n${stringifyYaml(updates)}---\n${content.slice(bodyStart)}`,
+        )
+        return okStructured({ path: safePath, field, previousValue, newValue: undefined })
+      }
+
+      // Set/update the field
+      await applyFrontmatterUpdate(vault, safePath, { [field]: value })
+      return okStructured({ path: safePath, field, previousValue, newValue: value })
     },
   )
 }
