@@ -34,6 +34,12 @@ export type InstalledState = Record<string, InstalledRecord>
 export interface FileSystem {
   read(path: string): Promise<string | null>
   write(path: string, content: string): Promise<void>
+  /**
+   * WS-Z2 Fix 5: append content to a file without a read-modify-write cycle.
+   * Implementations should use OS-level append semantics to avoid races under
+   * concurrent writes (e.g. Node fs.appendFile, Obsidian read+write fallback).
+   */
+  append(path: string, content: string): Promise<void>
   exists(path: string): Promise<boolean>
   remove(path: string): Promise<void>
   mkdirp(path: string): Promise<void> // ensure parent dirs

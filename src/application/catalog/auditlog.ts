@@ -12,6 +12,7 @@ export interface AuditEntry {
 export async function appendAudit(fs: FileSystem, entry: AuditEntry): Promise<void> {
   await fs.mkdirp('.specorator')
   const line = JSON.stringify({ ...entry, ts: new Date().toISOString() }) + '\n'
-  const prev = (await fs.read(AUDIT_PATH)) ?? ''
-  await fs.write(AUDIT_PATH, prev + line)
+  // WS-Z2 Fix 5: use fs.append (OS-level append) instead of read-modify-write
+  // so concurrent calls cannot lose entries.
+  await fs.append(AUDIT_PATH, line)
 }

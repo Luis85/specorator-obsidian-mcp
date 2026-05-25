@@ -32,4 +32,10 @@ export class NodeFileSystemAdapter implements FileSystemPort {
     await fs.writeFile(tmp, content, 'utf8')
     await fs.rename(tmp, path)
   }
+
+  // WS-Z2 Fix 5: Note — NodeFileSystemAdapter implements FileSystemPort (used by
+  // AutoRegister), not the catalog FileSystem port.  The catalog FileSystem port
+  // (with append) is implemented by memfs (tests) and obsidianFs (plugin).
+  // This method is therefore not required here, but kept for completeness in case
+  // a future consumer merges the two ports.
 }
