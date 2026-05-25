@@ -278,6 +278,81 @@ describe('registerMetadataTools', () => {
       const res = (await getHandler(server, 'metadata.search')({})) as { isError: boolean }
       expect(res.isError).toBe(true)
     })
+
+    it('returns error when both value and contains are provided', async () => {
+      const { server } = setup()
+      const res = (await getHandler(
+        server,
+        'metadata.search',
+      )({
+        field: 'status',
+        value: 'active',
+        contains: 'act',
+      })) as { isError: boolean }
+      expect(res.isError).toBe(true)
+    })
+
+    it('contains: matches files where string field contains substring', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedMetadata('match.md', {
+        path: 'match.md',
+        tags: [],
+        frontmatter: { title: 'Hello World' },
+        links: [],
+        embeds: [],
+      })
+      ports.bridge.seedMetadata('no-match.md', {
+        path: 'no-match.md',
+        tags: [],
+        frontmatter: { title: 'Goodbye' },
+        links: [],
+        embeds: [],
+      })
+      ports.vault.seedFile('match.md', '')
+      ports.vault.seedFile('no-match.md', '')
+
+      const res = (await getHandler(
+        server,
+        'metadata.search',
+      )({
+        field: 'title',
+        contains: 'Hello',
+      })) as { structuredContent: { paths: string[] } }
+
+      expect(res.structuredContent.paths).toContain('match.md')
+      expect(res.structuredContent.paths).not.toContain('no-match.md')
+    })
+
+    it('contains: matches files where array field contains element', async () => {
+      const { server, ports } = setup()
+      ports.bridge.seedMetadata('has-tag.md', {
+        path: 'has-tag.md',
+        tags: [],
+        frontmatter: { categories: ['alpha', 'beta'] },
+        links: [],
+        embeds: [],
+      })
+      ports.bridge.seedMetadata('no-tag.md', {
+        path: 'no-tag.md',
+        tags: [],
+        frontmatter: { categories: ['gamma'] },
+        links: [],
+        embeds: [],
+      })
+      ports.vault.seedFile('has-tag.md', '')
+      ports.vault.seedFile('no-tag.md', '')
+
+      const res = (await getHandler(
+        server,
+        'metadata.search',
+      )({
+        field: 'categories',
+        contains: 'alpha',
+      })) as { structuredContent: { paths: string[] } }
+
+      expect(res.structuredContent.paths).toContain('has-tag.md')
+      expect(res.structuredContent.paths).not.toContain('no-tag.md')
+    })
   })
 
   describe('frontmatter.set', () => {

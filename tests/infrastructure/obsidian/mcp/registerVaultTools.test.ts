@@ -18,13 +18,14 @@ function setup() {
 }
 
 describe('registerVaultTools', () => {
-  it('registers the core vault tools (vault.hash is in registerPatchTools)', () => {
+  it('registers the core vault tools (vault.hash is in registerPatchTools, vault.stats is in registerVaultStatsTool)', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const registered = Object.keys(tools).sort()
-    // vault.hash is registered by registerPatchTools, not registerVaultTools
+    // vault.hash is registered by registerPatchTools
+    // vault.stats is registered by registerVaultStatsTool
     const expected = Object.keys(DEFAULT_SETTINGS.toolModes)
-      .filter((k) => k.startsWith('vault.') && k !== 'vault.hash')
+      .filter((k) => k.startsWith('vault.') && k !== 'vault.hash' && k !== 'vault.stats')
       .sort()
     expect(registered).toEqual(expected)
   })

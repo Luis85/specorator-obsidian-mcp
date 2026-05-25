@@ -3,7 +3,14 @@ import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath, isVaultRoot } from '@/domain/shared/VaultPath'
-import { okStructured, err, deny, parseFrontmatter, applyFrontmatterUpdate } from './shared'
+import {
+  okStructured,
+  err,
+  deny,
+  parseFrontmatter,
+  applyFrontmatterUpdate,
+  collectFiles,
+} from './shared'
 import { queryFrontmatter } from '@/application/mcp/frontmatterQuery'
 import type { Condition, ConditionOp } from '@/application/mcp/frontmatterQuery'
 
@@ -77,32 +84,61 @@ export function registerMetadataTools(
     'metadata.search',
     {
       description:
-        'Find files by tag or by frontmatter field=value. Specify either { tag } OR { field, value }. Returns flat array of matching vault paths.',
+        'Find files by tag, by frontmatter field=value (exact match), or by frontmatter field contains substring/array-element. ' +
+        'Specify exactly one of: { tag } | { field, value } | { field, contains }. ' +
+        'Returns flat array of matching vault paths.',
       inputSchema: {
         tag: z.string().optional().describe('Tag to search for (e.g. "#todo" or "todo")'),
         field: z.string().optional().describe('Frontmatter field name'),
         value: z
           .union([z.string(), z.number(), z.boolean(), z.null()])
           .optional()
-          .describe('Frontmatter field value'),
+          .describe('Frontmatter field value for exact match'),
+        contains: z
+          .string()
+          .optional()
+          .describe(
+            'Substring match: if "field" is set, check string field contains this substring or array field contains this value as an element',
+          ),
       },
       outputSchema: { paths: z.array(z.string()) },
     },
-    async ({ tag, field, value }) => {
+    async ({ tag, field, value, contains }) => {
       const hasTag = tag !== undefined
       const hasField = field !== undefined
-      // Exactly one of tag or field+value must be present
-      if (hasTag && hasField) {
-        return err('Specify either tag or field+value, not both')
+      const hasContains = contains !== undefined
+      const hasValue = value !== undefined
+
+      if (hasTag && (hasField || hasContains)) {
+        return err('Specify either tag or field+value/contains, not both')
       }
       if (!hasTag && !hasField) {
-        return err('Specify either tag or field+value')
+        return err('Specify either tag or field+value or field+contains')
+      }
+      if (hasField && hasValue && hasContains) {
+        return err('Specify either value (exact match) or contains (substring/array), not both')
       }
       if (hasTag) {
         const paths = await metadata.searchByTag(tag!)
         return okStructured({ paths })
       }
-      // field+value search
+      if (hasContains) {
+        // substring / array-element search via metadata cache (recursive vault walk)
+        const allFiles = await collectFiles(vault, '')
+        const results: string[] = []
+        for (const path of allFiles) {
+          const snapshot = metadata.getFileMetadata(path)
+          if (!snapshot) continue
+          const fieldValue = snapshot.frontmatter[field!]
+          if (typeof fieldValue === 'string') {
+            if (fieldValue.includes(contains)) results.push(path)
+          } else if (Array.isArray(fieldValue)) {
+            if ((fieldValue as unknown[]).includes(contains)) results.push(path)
+          }
+        }
+        return okStructured({ paths: results })
+      }
+      // field+value exact search
       const paths = await metadata.searchByFrontmatter(field!, value !== undefined ? value : null)
       return okStructured({ paths })
     },
