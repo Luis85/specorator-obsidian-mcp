@@ -483,7 +483,12 @@ export class CatalogSettingsTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this
     containerEl.empty()
-    new Setting(containerEl).setName('Workflow catalog').setHeading()
+    new Setting(containerEl)
+      .setName('Workflow catalog')
+      .setHeading()
+      .then((s) => {
+        s.settingEl.dataset['section'] = 'catalog'
+      })
     void renderCatalogSettings(
       this.app,
       this._plugin,

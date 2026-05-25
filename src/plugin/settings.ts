@@ -87,6 +87,16 @@ function renderStatusBanner(
     stopBtn.onclick = () => {
       void plugin.stopServerPublic().then(() => onRefresh())
     }
+
+    // Jump-to-catalog anchor: lets users navigate directly to the Workflow
+    // catalog section from the status banner without manual scrolling.
+    const jumpLink = containerEl.createEl('a', { text: 'Jump to Workflow catalog →' })
+    jumpLink.style.cssText = 'display:block;margin:4px 0 12px;font-size:0.9em;cursor:pointer;'
+    jumpLink.addEventListener('click', (e) => {
+      e.preventDefault()
+      const target = containerEl.querySelector<HTMLElement>('[data-section="catalog"]')
+      target?.scrollIntoView({ behavior: 'smooth' })
+    })
   }
 }
 
