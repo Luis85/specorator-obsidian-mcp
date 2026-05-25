@@ -148,12 +148,19 @@ export default class SpecoratorMcpPlugin extends Plugin {
     // onload must not block waiting for the server to bind. Failures surface
     // as a Notice so the user is not left wondering why the server is down.
     if (this.settings.autoStart) {
-      void this.startServer().catch((err: unknown) => {
+      if (this.settings.port < 1 || this.settings.port > 65535) {
         new Notice(
-          `MCP server auto-start failed: ${err instanceof Error ? err.message : String(err)}`,
+          `Invalid port configured: ${this.settings.port}. Set a valid port in Settings.`,
           10000,
         )
-      })
+      } else {
+        void this.startServer().catch((err: unknown) => {
+          new Notice(
+            `MCP server auto-start failed: ${err instanceof Error ? err.message : String(err)}`,
+            10000,
+          )
+        })
+      }
     }
   }
 
@@ -192,6 +199,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings)
+    // Defensive: any toolMode change might tighten access — flush the session cache.
+    this.gate?.invalidateSessionAllow()
   }
 
   // ── Public helpers used by the settings UI ───────────────────────────────
