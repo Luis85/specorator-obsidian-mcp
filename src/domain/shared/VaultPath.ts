@@ -1,3 +1,3 @@
 export { joinVaultPath } from './joinVaultPath'
-export { normalizeVaultPath } from './normalizeVaultPath'
+export { normalizeVaultPath, isVaultRoot } from './normalizeVaultPath'
 export { UnsafeVaultPathError } from './UnsafeVaultPathError'
