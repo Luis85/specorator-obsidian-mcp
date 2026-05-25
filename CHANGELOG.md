@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Default `pathDenyList` now blocks `.specorator/**`, `.claude/hooks/**`, and `.claude/hooks/hooks.json`.**
+  Previously the default deny-list was empty, leaving the audit-log sidecar and auto-executed hook files accessible via MCP tools.
+  Existing installs that have never customised `pathDenyList` will inherit the new defaults on the next plugin load (0.2.2).
+
 ## [0.2.0] — 2026-05-25
 
 ### Added
