@@ -368,23 +368,41 @@ export async function renderCatalogSettings(
     return
   }
 
-  // B7: platform-selection multi-select
+  // B7: platform-selection multi-select. One Setting row per platform so each
+  // label is visible (not behind an on-hover tooltip).
+  const PLATFORM_LABELS: Record<Platform, { name: string; desc: string }> = {
+    claude: {
+      name: 'Claude Code',
+      desc: 'Install to .claude/skills, .claude/commands, .claude/agents, .claude/hooks',
+    },
+    cursor: {
+      name: 'Cursor',
+      desc: 'Install to .cursor/skills, .cursor/commands, .cursor/agents',
+    },
+    codex: {
+      name: 'Codex CLI',
+      desc: 'Install skills to .agents/skills (Codex commands are global; not emitted)',
+    },
+    gemini: {
+      name: 'Gemini CLI',
+      desc: 'Install to .gemini/extensions/specorator/{skills,commands} with extension manifest',
+    },
+  }
+  new Setting(containerEl).setName('Target platforms').setHeading()
   const selected = new Set<Platform>(getPlatforms())
-  const psetting = new Setting(containerEl)
-    .setName('Target platforms')
-    .setDesc('Which agent platforms to install assets for.')
   for (const p of ALL_PLATFORMS) {
-    psetting.addToggle((t) =>
-      t
-        .setTooltip(p)
-        .setValue(selected.has(p))
-        .onChange(async (on) => {
+    const labels = PLATFORM_LABELS[p]
+    new Setting(containerEl)
+      .setName(labels.name)
+      .setDesc(labels.desc)
+      .addToggle((t) =>
+        t.setValue(selected.has(p)).onChange(async (on) => {
           if (on) selected.add(p)
           else selected.delete(p)
           pw.settings.platforms = [...selected]
           await pw.saveSettings()
         }),
-    )
+      )
   }
 
   // Fix 3 (PR #444 P2): search filter is stored on the instance so it
