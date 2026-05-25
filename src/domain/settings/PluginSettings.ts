@@ -21,6 +21,12 @@ export interface PluginSettings {
   cliRunAllowedPrefixes: string[]
   /** Path to the `obsidian` CLI binary. Empty string = auto-resolve (PATH > platform defaults). */
   obsidianBinPath: string
+  /**
+   * When true, the MCP server registers the `cli.eval` tool which executes
+   * arbitrary JavaScript in Obsidian's renderer context. Default false.
+   * Requires a server restart after toggling.
+   */
+  developerMode: boolean
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
@@ -56,6 +62,7 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'cli.template_insert': 'ask',
   'cli.open_file': 'ask',
   'cli.reload': 'ask',
+  'cli.eval': 'deny',
 })
 
 export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({
@@ -75,4 +82,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   cliExecuteAllowedPrefixes: [],
   cliRunAllowedPrefixes: [],
   obsidianBinPath: '',
+  developerMode: false,
 }

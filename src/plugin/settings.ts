@@ -190,6 +190,24 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         }),
     )
 
+    containerEl.createEl('h3', { text: 'Developer mode' })
+    const developerWarning = containerEl.createEl('p', {
+      text: 'Enabling developer mode registers the cli.eval tool, which lets MCP clients execute arbitrary JavaScript in Obsidian. Only enable if you understand the risk and trust the connected client.',
+    })
+    developerWarning.style.color = 'var(--text-warning, #ff6b6b)'
+
+    new Setting(containerEl)
+      .setName('Enable developer mode')
+      .setDesc(
+        'Restart the MCP server after toggling (Settings → command palette → Restart MCP server).',
+      )
+      .addToggle((t) =>
+        t.setValue(this.plugin.settings.developerMode).onChange(async (v) => {
+          this.plugin.settings.developerMode = v
+          await this.plugin.saveSettings()
+        }),
+      )
+
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
 

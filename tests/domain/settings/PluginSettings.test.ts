@@ -50,4 +50,12 @@ describe('PluginSettings defaults', () => {
   it('obsidianBinPath defaults to empty string', () => {
     expect(DEFAULT_SETTINGS.obsidianBinPath).toBe('')
   })
+
+  it('developerMode defaults to false', () => {
+    expect(DEFAULT_SETTINGS.developerMode).toBe(false)
+  })
+
+  it('cli.eval defaults to deny in DEFAULT_TOOL_MODES', () => {
+    expect(DEFAULT_SETTINGS.toolModes['cli.eval']).toBe('deny')
+  })
 })
