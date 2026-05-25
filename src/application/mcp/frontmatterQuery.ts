@@ -6,6 +6,7 @@
  */
 import type { MetadataCachePort } from '@/domain/ports/MetadataCachePort'
 import type { VaultPort } from '@/domain/ports/VaultPort'
+import { pool, yieldEveryN } from '@/application/mcp/batching'
 
 // ── types ────────────────────────────────────────────────────────────────────
 
@@ -34,9 +35,8 @@ async function collectAllFiles(vault: VaultPort, folder: string): Promise<string
     vault.listFiles(folder),
     vault.listFolders(folder),
   ])
-  const nested = await Promise.all(
-    subfolders.map((sub) => collectAllFiles(vault, joinPath(folder, sub))),
-  )
+  // Cap concurrency at 8 to prevent unbounded recursive fan-out on large vaults.
+  const nested = await pool(subfolders, 8, (sub) => collectAllFiles(vault, joinPath(folder, sub)))
   return [...files, ...nested.flat()]
 }
 
@@ -101,7 +101,8 @@ export async function queryFrontmatter(
 
   const matches: Array<{ path: string; frontmatter: Record<string, unknown> }> = []
 
-  for (const path of mdFiles) {
+  // Pure metadata-cache reads — yield every 200 items (CPU-bound)
+  await yieldEveryN(mdFiles, 200, (path) => {
     // Prefer metadata cache; fall back to null (no frontmatter)
     const snap = metadata.getFileMetadata(path)
     const fm: Record<string, unknown> = snap?.frontmatter ?? {}
@@ -112,7 +113,7 @@ export async function queryFrontmatter(
     if (pass) {
       matches.push({ path, frontmatter: fm })
     }
-  }
+  })
 
   return { matches, count: matches.length }
 }
