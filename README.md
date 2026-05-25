@@ -86,22 +86,22 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 
 ## Settings
 
-| Setting                      | Type                                     | Default                              |
-| ---------------------------- | ---------------------------------------- | ------------------------------------ |
-| `port`                       | number                                   | `7842`                               |
-| `defaultMode`                | `'allow' \| 'ask' \| 'deny'`             | `'ask'`                              |
-| `toolModes`                  | per-tool overrides                       | sensible defaults (see settings tab) |
+| Setting                      | Type                                     | Default                                                                                                                                                                             |
+| ---------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `port`                       | number                                   | `7842`                                                                                                                                                                              |
+| `defaultMode`                | `'allow' \| 'ask' \| 'deny'`             | `'ask'`                                                                                                                                                                             |
+| `toolModes`                  | per-tool overrides                       | sensible defaults (see settings tab)                                                                                                                                                |
 | `pathDenyList`               | glob patterns                            | `[".specorator/**", ".claude/hooks/**", ".claude/hooks/hooks.json"]` (Existing installs without a customised value inherit the new defaults on the next plugin load (since 0.2.2).) |
-| `askTimeoutMs`               | number (ms)                              | `30000`                              |
-| `logLevel`                   | `'debug' \| 'info' \| 'warn' \| 'error'` | `'warn'`                             |
-| `autoRegister.claudeCli`     | boolean                                  | `true`                               |
-| `autoRegister.cursor`        | boolean                                  | `false`                              |
-| `autoRegister.claudeDesktop` | boolean                                  | `false`                              |
-| `cliExecuteAllowedPrefixes`  | command-id prefix list (one per line)    | `[]`                                 |
-| `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                 |
-| `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                   |
-| `developerMode`              | boolean                                  | `false`                              |
-| `autoStart`                  | boolean                                  | `false`                              |
+| `askTimeoutMs`               | number (ms)                              | `30000`                                                                                                                                                                             |
+| `logLevel`                   | `'debug' \| 'info' \| 'warn' \| 'error'` | `'warn'`                                                                                                                                                                            |
+| `autoRegister.claudeCli`     | boolean                                  | `true`                                                                                                                                                                              |
+| `autoRegister.cursor`        | boolean                                  | `false`                                                                                                                                                                             |
+| `autoRegister.claudeDesktop` | boolean                                  | `false`                                                                                                                                                                             |
+| `cliExecuteAllowedPrefixes`  | command-id prefix list (one per line)    | `[]`                                                                                                                                                                                |
+| `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                                                                                                                                                                |
+| `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                                                                                                                                                                  |
+| `developerMode`              | boolean                                  | `false`                                                                                                                                                                             |
+| `autoStart`                  | boolean                                  | `false`                                                                                                                                                                             |
 
 ## Tool groups
 
