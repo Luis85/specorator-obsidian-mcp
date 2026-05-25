@@ -1,6 +1,6 @@
 {
   "name": "specorator-obsidian-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "In-process MCP server exposing the Obsidian vault as a typed agent tool surface.",

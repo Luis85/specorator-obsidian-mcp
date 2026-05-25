@@ -1,7 +1,7 @@
 {
   "id": "specorator-obsidian-mcp",
   "name": "Specorator Obsidian MCP",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "minAppVersion": "1.12.7",
   "description": "Lets AI tools (Claude, Cursor, Claude Desktop) read and write your Obsidian vault over a secure local connection. Exposes notes, links, canvas, bases, and Obsidian commands as MCP tools.",
   "author": "Luis Mendez",
