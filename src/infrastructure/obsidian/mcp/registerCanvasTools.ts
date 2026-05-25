@@ -39,11 +39,17 @@ export function registerCanvasTools(
     {
       description: 'Read a JSON Canvas file (.canvas) — returns { nodes, edges }',
       inputSchema: { path: z.string().describe('Vault-relative .canvas path') },
+      outputSchema: {
+        canvas: z.object({
+          nodes: z.array(CanvasNodeSchema),
+          edges: z.array(CanvasEdgeSchema),
+        }),
+      },
     },
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
-      return ok({ canvas: await canvas.readCanvas(norm.value) })
+      return okStructured({ canvas: await canvas.readCanvas(norm.value) })
     },
   )
 

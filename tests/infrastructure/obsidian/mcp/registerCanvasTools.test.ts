@@ -55,11 +55,15 @@ describe('registerCanvasTools', () => {
     }
     ports.bridge.seedCanvas('board.canvas', data)
     const result = (await getHandler(server, 'canvas.read')({ path: 'board.canvas' })) as {
+      structuredContent: { canvas: typeof data }
       content: [{ text: string }]
     }
+    expect(result).toHaveProperty('structuredContent')
+    expect(result.structuredContent.canvas.nodes).toHaveLength(1)
+    expect(result.structuredContent.canvas.edges).toHaveLength(0)
+    // text fallback must also be present
     const parsed = JSON.parse(result.content[0].text) as { canvas: typeof data }
     expect(parsed.canvas.nodes).toHaveLength(1)
-    expect(parsed.canvas.edges).toHaveLength(0)
   })
 
   it('canvas.write mutates canvas directly (no proposal queue)', async () => {
