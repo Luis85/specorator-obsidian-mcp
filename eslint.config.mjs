@@ -76,7 +76,8 @@ export default tseslint.config(
     files: ['tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      'no-restricted-globals': 'off',
+      // no-restricted-globals intentionally kept at 'error' for tests —
+      // tests must not call confirm/alert/prompt either.
     },
   },
   {
