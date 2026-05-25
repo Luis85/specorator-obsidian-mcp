@@ -67,9 +67,15 @@ function renderStatusBanner(
     }
     // First-run nudge: brief orientation for new users below the status row.
     const nudge = containerEl.createEl('p', {
-      text: 'MCP server is not running. Start it to allow AI tools to access this vault. See README for setup.',
+      text: 'MCP server is not running. Start it to allow AI tools to access this vault. ',
     })
     nudge.style.cssText = 'margin:4px 0 12px;font-size:0.9em;color:var(--text-muted);'
+    const link = nudge.createEl('a', {
+      text: 'Open the README on GitHub →',
+      href: 'https://github.com/Luis85/specorator-obsidian-mcp#quick-start',
+    })
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
   } else {
     const restartBtn = banner.createEl('button', { text: 'Restart server' })
     restartBtn.style.marginRight = '4px'
