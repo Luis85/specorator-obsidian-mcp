@@ -91,6 +91,21 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
       })
     })
 
+    new Setting(containerEl)
+      .setName('Obsidian CLI binary path')
+      .setDesc(
+        'Path to the `obsidian` CLI binary. Leave empty to auto-resolve (PATH > platform defaults).',
+      )
+      .addText((t) =>
+        t
+          .setPlaceholder('e.g. /usr/local/bin/obsidian')
+          .setValue(this.plugin.settings.obsidianBinPath ?? '')
+          .onChange(async (v) => {
+            this.plugin.settings.obsidianBinPath = v.trim()
+            await this.plugin.saveSettings()
+          }),
+      )
+
     containerEl.createEl('h2', { text: 'Path deny-list' })
     containerEl.createEl('p', {
       text: 'Glob patterns. Tool calls whose "path" param matches any pattern are denied regardless of mode.',

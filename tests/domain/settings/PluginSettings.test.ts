@@ -46,4 +46,8 @@ describe('PluginSettings defaults', () => {
   it('DEFAULT_AUTO_REGISTER matches DEFAULT_SETTINGS.autoRegister', () => {
     expect(DEFAULT_SETTINGS.autoRegister).toEqual(DEFAULT_AUTO_REGISTER)
   })
+
+  it('obsidianBinPath defaults to empty string', () => {
+    expect(DEFAULT_SETTINGS.obsidianBinPath).toBe('')
+  })
 })

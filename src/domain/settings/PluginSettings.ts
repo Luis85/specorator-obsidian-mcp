@@ -17,6 +17,8 @@ export interface PluginSettings {
   autoRegister: AutoRegisterSettings
   /** Command-id prefixes (e.g. "editor:") that bypass the ask-gate for cli.execute. */
   cliExecuteAllowedPrefixes: string[]
+  /** Path to the `obsidian` CLI binary. Empty string = auto-resolve (PATH > platform defaults). */
+  obsidianBinPath: string
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
@@ -62,4 +64,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   logLevel: 'warn',
   autoRegister: { ...DEFAULT_AUTO_REGISTER },
   cliExecuteAllowedPrefixes: [],
+  obsidianBinPath: '',
 }
