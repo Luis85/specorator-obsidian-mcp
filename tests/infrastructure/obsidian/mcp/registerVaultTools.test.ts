@@ -18,18 +18,20 @@ function setup() {
 }
 
 describe('registerVaultTools', () => {
-  it('registers exactly the canonical vault tools (per DEFAULT_TOOL_MODES)', () => {
+  it('registers the core vault tools (vault.hash is in registerPatchTools)', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
+    const registered = Object.keys(tools).sort()
+    // vault.hash is registered by registerPatchTools, not registerVaultTools
     const expected = Object.keys(DEFAULT_SETTINGS.toolModes)
-      .filter((k) => k.startsWith('vault.'))
+      .filter((k) => k.startsWith('vault.') && k !== 'vault.hash')
       .sort()
-    expect(Object.keys(tools).sort()).toEqual(expected)
+    expect(registered).toEqual(expected)
   })
 
-  it('vault.write mutates vault directly (no proposal queue)', async () => {
+  it('vault.write mode:create writes new file', async () => {
     const { server, ports } = setup()
-    await getHandler(server, 'vault.write')({ path: 'a.md', content: 'hi' })
+    await getHandler(server, 'vault.write')({ path: 'a.md', content: 'hi', mode: 'create' })
     expect(await ports.vault.readFile('a.md')).toBe('hi')
   })
 
@@ -106,7 +108,10 @@ describe('registerVaultTools', () => {
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerVaultTools(server, { vault: ports.vault, gate })
-    const res = (await getHandler(server, 'vault.write')({ path: 'a.md', content: 'hi' })) as {
+    const res = (await getHandler(
+      server,
+      'vault.write',
+    )({ path: 'a.md', content: 'hi', mode: 'create' })) as {
       isError: boolean
     }
     expect(res.isError).toBe(true)
@@ -156,7 +161,7 @@ describe('registerVaultTools', () => {
     )
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerVaultTools(server, { vault: ports.vault, gate })
-    await getHandler(server, 'vault.write')({ path: 'a.md', content: 'hi' })
+    await getHandler(server, 'vault.write')({ path: 'a.md', content: 'hi', mode: 'create' })
     expect(await ports.vault.readFile('a.md')).toBe('hi')
   })
 
@@ -174,10 +179,129 @@ describe('registerVaultTools', () => {
     } as unknown as PermissionGate
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerVaultTools(server, { vault: ports.vault, gate: spyGate })
-    await getHandler(server, 'vault.write')({ path: 'a.md', content: 'large content here' })
+    await getHandler(
+      server,
+      'vault.write',
+    )({ path: 'a.md', content: 'large content here', mode: 'create' })
     expect(capturedParams).toBeDefined()
     expect('content' in capturedParams!).toBe(false)
     expect(capturedParams!['path']).toBe('a.md')
+  })
+
+  // ---------------------------------------------------------------------------
+  // vault.write mode/expectedHash semantics (breaking-change tests)
+  // ---------------------------------------------------------------------------
+
+  describe('vault.write mode and expectedHash', () => {
+    it("mode:'create' on new file → succeeds", async () => {
+      const { server, ports } = setup()
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'new.md',
+        content: 'hello',
+        mode: 'create',
+      })) as { isError?: boolean }
+      expect(res.isError).toBeUndefined()
+      expect(await ports.vault.readFile('new.md')).toBe('hello')
+    })
+
+    it("mode:'create' on existing file → err 'file_exists'", async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('existing.md', 'original')
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'existing.md',
+        content: 'new',
+        mode: 'create',
+      })) as { isError: boolean; content: [{ text: string }] }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/file_exists/)
+      // Original content unchanged
+      expect(await ports.vault.readFile('existing.md')).toBe('original')
+    })
+
+    it("mode:'overwrite' without expectedHash → err 'expected_hash_required'", async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('target.md', 'content')
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'target.md',
+        content: 'new',
+        mode: 'overwrite',
+      })) as { isError: boolean; content: [{ text: string }] }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/expected_hash_required/)
+    })
+
+    it("mode:'overwrite' with wrong hash → err 'hash_mismatch'", async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('target.md', 'content')
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'target.md',
+        content: 'new',
+        mode: 'overwrite',
+        expectedHash: 'deadbeef0000000000000000000000000000000000000000000000000000dead',
+      })) as { isError: boolean; content: [{ text: string }] }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/hash_mismatch/)
+    })
+
+    it("mode:'overwrite' with correct hash → succeeds", async () => {
+      const { server, ports } = setup()
+      const originalContent = 'original content'
+      await ports.vault.writeFile('target.md', originalContent)
+      // Compute the SHA-256 of the original content
+      const { createHash } = await import('node:crypto')
+      const hash = createHash('sha256').update(originalContent, 'utf8').digest('hex')
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'target.md',
+        content: 'new content',
+        mode: 'overwrite',
+        expectedHash: hash,
+      })) as { isError?: boolean }
+      expect(res.isError).toBeUndefined()
+      expect(await ports.vault.readFile('target.md')).toBe('new content')
+    })
+
+    it("mode:'overwrite' on non-existent file → succeeds (no hash needed)", async () => {
+      const { server, ports } = setup()
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'brand-new.md',
+        content: 'created',
+        mode: 'overwrite',
+      })) as { isError?: boolean }
+      expect(res.isError).toBeUndefined()
+      expect(await ports.vault.readFile('brand-new.md')).toBe('created')
+    })
+
+    it("mode:'patch' → err 'not_implemented'", async () => {
+      const { server } = setup()
+      const res = (await getHandler(
+        server,
+        'vault.write',
+      )({
+        path: 'any.md',
+        content: 'x',
+        mode: 'patch',
+      })) as { isError: boolean; content: [{ text: string }] }
+      expect(res.isError).toBe(true)
+      expect(res.content[0].text).toMatch(/not_implemented/)
+    })
   })
 
   describe('vault.search', () => {
@@ -464,6 +588,7 @@ describe('registerVaultTools', () => {
       )({
         path: '../../evil.md',
         content: 'x',
+        mode: 'create',
       })) as { isError: boolean }
       expect(res.isError).toBe(true)
     })

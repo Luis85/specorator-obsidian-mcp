@@ -1,10 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+import { createHash } from 'node:crypto'
 import type { VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath, isVaultRoot } from '@/domain/shared/VaultPath'
 import { joinVaultPath, ok, okStructured, deny, err, collectFiles } from './shared'
 import { matchGlob } from '@/domain/shared/matchGlob'
+
+function sha256hex(content: string): string {
+  return createHash('sha256').update(content, 'utf8').digest('hex')
+}
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -69,19 +74,68 @@ export function registerVaultTools(
     'vault.write',
     {
       description:
-        'Write (overwrite or create) a vault file. Content is capped at 10 MB. Returns { written: true, path }.',
+        "Write to a vault file. Default mode 'create' refuses to clobber existing files. " +
+        "To overwrite an existing file, pass mode:'overwrite' AND expectedHash (SHA-256 of current content). " +
+        'Use vault.hash to obtain the current hash. Maximum content size: 10 MB.',
       inputSchema: {
         path: z.string().describe('Vault-relative path'),
         content: z.string().max(10_000_000).describe('Full file content to write (max 10 MB)'),
+        mode: z
+          .enum(['create', 'overwrite', 'patch'])
+          .default('create')
+          .describe(
+            "'create': refuse if file exists. " +
+              "'overwrite': require expectedHash matching current content. " +
+              "'patch': not implemented — use note.patch instead.",
+          ),
+        expectedHash: z
+          .string()
+          .optional()
+          .describe(
+            "SHA-256 hex of current file content. Required for mode:'overwrite' when file exists.",
+          ),
       },
     },
-    async ({ path, content }) => {
+    async ({ path, content, mode, expectedHash }) => {
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
       const safePath = norm.value
+
       const d = await gate.resolve('vault.write', { path: safePath, contentSize: content.length })
       if (d.decision === 'deny') {
         return deny(d.reason)
+      }
+
+      if (mode === 'patch') {
+        return err('not_implemented: mode "patch" is reserved — call note.patch instead')
+      }
+
+      const exists = await vault.fileExists(safePath)
+
+      if (mode === 'create') {
+        if (exists) {
+          return err(
+            `file_exists: "${safePath}" already exists. Use mode:"overwrite" with expectedHash to overwrite.`,
+          )
+        }
+        await vault.writeFile(safePath, content)
+        return ok({ written: true, path: safePath })
+      }
+
+      // mode === 'overwrite'
+      if (exists) {
+        if (expectedHash === undefined || expectedHash === '') {
+          return err(
+            'expected_hash_required: provide expectedHash (SHA-256 of current content) to overwrite an existing file. Use vault.hash to obtain it.',
+          )
+        }
+        const currentContent = await vault.readFile(safePath)
+        const currentHash = sha256hex(currentContent)
+        if (currentHash !== expectedHash) {
+          return err(
+            `hash_mismatch: provided hash does not match current file content. Use vault.hash to refresh.`,
+          )
+        }
       }
       await vault.writeFile(safePath, content)
       return ok({ written: true, path: safePath })
