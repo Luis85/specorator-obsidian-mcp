@@ -94,6 +94,15 @@ Tool names follow the pattern `<namespace>.<verb>` (e.g. `vault.read`, `canvas.w
 
 **`cli.execute` is a known exception.** It was named before the sub-namespace convention solidified and is kept as-is because renaming a published tool name breaks any client that has already registered it in their MCP config. Future tools in the `cli` namespace that perform reads should use `cli.read.<verb>`; new action tools should use `cli.<verb>` only if the name is unambiguous and has no sub-namespace siblings.
 
+**`cli.execute` vs `cli.run` — naming gap.** These two tools look superficially similar but do different things:
+
+| Tool          | What it does                                                                                                                            | Surface          |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `cli.execute` | Calls `app.commands.executeCommandById` — runs an in-process Obsidian command palette command, sandboxed by Obsidian's command surface. | In-process       |
+| `cli.run`     | Spawns the official `obsidian` CLI binary as a subprocess with an arbitrary command and arguments.                                      | External process |
+
+They have separate allow-lists (`cliExecuteAllowedPrefixes` vs `cliRunAllowedPrefixes`) because the risk profiles differ. In particular, `cli.run` can invoke commands such as `eval` that have no equivalent in the command palette, so conflating the two lists would silently widen the attack surface of `cli.execute` allow-list entries.
+
 ## Reporting bugs / security issues
 
 Security vulnerabilities: see `SECURITY.md` (coming soon). For now e-mail the maintainer directly rather than opening a public issue.
