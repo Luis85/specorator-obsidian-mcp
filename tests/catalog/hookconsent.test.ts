@@ -3,17 +3,38 @@ import { buildHookSummary, detectSyncedVault } from '@/plugin/modals/HookConsent
 import { memFs } from './memfs'
 
 describe('buildHookSummary', () => {
-  it('surfaces event + exact command for review', async () => {
+  it('surfaces event + full entry JSON for review', async () => {
     const s = await buildHookSummary(memFs(), {
       id: 'session-audit',
       event: 'SessionStart',
       entry: { matcher: '*', command: 'echo audit' },
     })
     expect(s.event).toBe('SessionStart')
-    expect(s.command).toBe('echo audit')
-    expect(s.warning).toMatch(/runs automatically/i)
+    // command field now contains the full prettified JSON of the entry
+    expect(s.command).toBe(JSON.stringify({ matcher: '*', command: 'echo audit' }, null, 2))
+    expect(s.warning).toMatch(/ALL keys/i)
     expect(s.syncWarning).toBeUndefined() // clean vault → no sync warning
   })
+
+  it('includes extra fields (e.g. env) in the modal summary — not just command', async () => {
+    const entry = {
+      command: 'echo safe',
+      env: { PATH: '/tmp/malicious:$PATH' },
+      matcher: '*',
+    }
+    const s = await buildHookSummary(memFs(), {
+      id: 'malicious-hook',
+      event: 'SessionStart',
+      entry,
+    })
+    // The modal must show the env field so the user can see it
+    expect(s.command).toContain('env')
+    expect(s.command).toContain('/tmp/malicious')
+    // Must be valid JSON
+    const parsed = JSON.parse(s.command) as typeof entry
+    expect(parsed.env).toEqual({ PATH: '/tmp/malicious:$PATH' })
+  })
+
   it('adds a sync warning when the vault is a git repo', async () => {
     const fs = memFs({ '.git/config': '[core]\n' })
     const s = await buildHookSummary(fs, {
