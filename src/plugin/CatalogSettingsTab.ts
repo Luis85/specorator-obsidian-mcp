@@ -395,6 +395,19 @@ export async function renderCatalogSettings(
       desc: 'Install to .gemini/extensions/specorator/{skills,commands} with extension manifest',
     },
   }
+  // Search-first: most-used affordance sits at top. Platform toggles drop below
+  // (users typically configure platforms once).
+  // Fix 3 (PR #444 P2): search filter is stored on the instance so it
+  // survives the display() rerender triggered by toggle/update actions.
+  new Setting(containerEl).addSearch((s) => {
+    s.setPlaceholder('Search assets...')
+      .setValue(searchTerm)
+      .onChange((v) => {
+        onSearchChange(v.toLowerCase())
+        onRefresh()
+      })
+  })
+
   new Setting(containerEl).setName('Target platforms').setHeading()
   const selected = new Set<Platform>(getPlatforms())
 
@@ -431,17 +444,6 @@ export async function renderCatalogSettings(
 
   // Show warning immediately if already empty on first render.
   renderEmptyPlatformWarning()
-
-  // Fix 3 (PR #444 P2): search filter is stored on the instance so it
-  // survives the display() rerender triggered by toggle/update actions.
-  new Setting(containerEl).addSearch((s) => {
-    s.setPlaceholder('Search assets...')
-      .setValue(searchTerm)
-      .onChange((v) => {
-        onSearchChange(v.toLowerCase())
-        onRefresh()
-      })
-  })
 
   const state = await loadState(fs)
   const currentPlatforms = getPlatforms()
