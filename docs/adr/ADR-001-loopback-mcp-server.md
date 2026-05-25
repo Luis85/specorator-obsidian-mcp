@@ -18,7 +18,7 @@ Three commitments shape the implementation in `ObsidianMcpServerAdapter`:
 
 1. **Loopback HTTP transport on a fixed configurable port.** A Node `http.Server` binds to `127.0.0.1:<settings.port>` (default `7842`); the adapter rejects requests whose `Host` header is not `127.0.0.1` or `localhost` (HTTP 421). Each request is handled by a fresh `McpServer` from `@modelcontextprotocol/sdk` connected to a `StreamableHTTPServerTransport` with no session ID. `getConnectionConfig()` returns `{ transport: 'http', url: 'http://127.0.0.1:<port>/mcp' }`.
 
-2. **Tool registration is grouped, not scattered.** Seven register-functions split tools into vault, metadata, links, canvas, bases, cli.read, and cli groups. Every write tool goes through `PermissionGate.resolve(toolName, params)` before touching the vault. Read tools call port methods directly.
+2. **Tool registration is grouped, not scattered.** Register-functions are grouped by namespace under `src/infrastructure/obsidian/mcp/`. The current set: see the barrel re-exports for an authoritative list. Every write tool goes through `PermissionGate.resolve(toolName, params)` before touching the vault. Read tools call port methods directly.
 
 3. **Server is disabled by default; lifecycle is demand-driven.** `main.ts` exposes two command-palette commands ("Start MCP server" / "Stop MCP server"). The adapter is constructed and started only when the user runs the start command. The server does not open a localhost listener on every Obsidian startup.
 
