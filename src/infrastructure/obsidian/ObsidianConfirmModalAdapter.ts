@@ -70,7 +70,12 @@ class ToolConfirmModal extends Modal {
           .onClick(() => this.decide('allow')),
       )
       .addButton((b) =>
-        b.setButtonText('Allow for session').onClick(() => this.decide('allow-session')),
+        b
+          .setButtonText('Allow for session')
+          .setTooltip(
+            'Resets when MCP server restarts. Cleared on plugin reload, settings change, or catalog install.',
+          )
+          .onClick(() => this.decide('allow-session')),
       )
       .addButton((b) => b.setButtonText('Deny').onClick(() => this.decide('deny')))
   }
