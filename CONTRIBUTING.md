@@ -99,6 +99,8 @@ Tool names follow the pattern `<namespace>.<verb>` (e.g. `vault.read`, `canvas.w
 
 **`cli.execute` is a known exception.** It was named before the sub-namespace convention solidified and is kept as-is because renaming a published tool name breaks any client that has already registered it in their MCP config. Future tools in the `cli` namespace that perform reads should use `cli.read.<verb>`; new action tools should use `cli.<verb>` only if the name is unambiguous and has no sub-namespace siblings.
 
+**`cli.*` snake_case exception.** `cli.daily_note`, `cli.workspace_load`, `cli.template_insert`, and `cli.open_file` use snake_case for historical reasons (added before the naming convention was written down). New tools should follow the dominant pattern: lowercase dot-separated single-word verbs where possible (e.g. `cli.reload`, `cli.screenshot`). Do not rename the existing snake_case tools — renaming a published tool name breaks client configs.
+
 **`cli.execute` vs `cli.run` — naming gap.** These two tools look superficially similar but do different things:
 
 | Tool          | What it does                                                                                                                            | Surface          |
