@@ -1,5 +1,6 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import type { VaultPort } from '@/domain/ports'
+import { pool } from '@/application/mcp/batching'
 
 export function parseFrontmatter(content: string): Record<string, unknown> {
   const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)
@@ -49,9 +50,9 @@ export async function collectFiles(vault: VaultPort, folder: string): Promise<st
     vault.listFiles(folder),
     vault.listFolders(folder),
   ])
-  const nested = await Promise.all(
-    subfolders.map((sub) => collectFiles(vault, joinVaultPath(folder, sub))),
-  )
+  // Cap concurrency at 8 to avoid unbounded recursive fan-out on large vaults
+  // (previously Promise.all over all subfolders caused hundreds of simultaneous reads).
+  const nested = await pool(subfolders, 8, (sub) => collectFiles(vault, joinVaultPath(folder, sub)))
   return [...files, ...nested.flat()]
 }
 
