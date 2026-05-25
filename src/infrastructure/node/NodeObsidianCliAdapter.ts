@@ -41,9 +41,10 @@ export class NodeObsidianCliAdapter implements ObsidianCliPort {
         stderr?: string
         code?: number | string
       }
+      const stderrText = err.stderr || String(err.message ?? '')
       return {
         stdout: err.stdout ?? '',
-        stderr: err.stderr ?? String(err.message ?? ''),
+        stderr: stderrText,
         exitCode: typeof err.code === 'number' ? err.code : 1,
       }
     }
