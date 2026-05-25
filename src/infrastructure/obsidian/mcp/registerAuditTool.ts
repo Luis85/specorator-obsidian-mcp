@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { auditVault, ALL_CHECKS } from '@/application/mcp/audit'
+import { auditVault, ALL_CHECKS, DEFAULT_MAX_FILES } from '@/application/mcp/audit'
 import { okStructured, err } from './shared'
 
 const CHECKS_ENUM = z.enum([
@@ -24,7 +24,9 @@ export function registerAuditTool(
     'audit.report',
     {
       description:
-        'One-shot vault health snapshot. Runs server-side — O(1) call regardless of vault size. Returns orphans, dead-ends, unresolved wikilinks, empty notes, large files, and tag duplicates.',
+        'One-shot vault health snapshot. Returns orphans, dead-ends, unresolved wikilinks, empty notes, large files, and tag duplicates. ' +
+        `On very large vaults (>${DEFAULT_MAX_FILES} notes), the scan is capped at maxFiles (default ${DEFAULT_MAX_FILES}) and truncated:true is set in the response. ` +
+        'Use checks:[...] to scope to a single check type for faster results (e.g. checks:["orphans"]).',
       inputSchema: {
         folder: z
           .string()
@@ -38,6 +40,16 @@ export function registerAuditTool(
           .optional()
           .default(1_000_000)
           .describe('Byte threshold for large_files check (default: 1 MB).'),
+        maxFiles: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .default(DEFAULT_MAX_FILES)
+          .describe(
+            `Maximum number of markdown files to audit (default: ${DEFAULT_MAX_FILES}). ` +
+              'When the vault exceeds this limit, results are partial and truncated:true is returned.',
+          ),
       },
       outputSchema: {
         folder: z.string(),
@@ -56,9 +68,15 @@ export function registerAuditTool(
             .optional(),
         }),
         counts: z.record(z.string(), z.number().int()),
+        truncated: z.boolean().optional(),
       },
     },
-    async ({ folder = '', checks, sizeThresholdBytes = 1_000_000 }) => {
+    async ({
+      folder = '',
+      checks,
+      sizeThresholdBytes = 1_000_000,
+      maxFiles = DEFAULT_MAX_FILES,
+    }) => {
       const norm = normalizeVaultPath(folder)
       if (!norm.ok) return err(`unsafe path: ${norm.error.message}`)
 
@@ -69,6 +87,7 @@ export function registerAuditTool(
         norm.value,
         checksToRun,
         sizeThresholdBytes,
+        maxFiles,
       )
 
       return okStructured(result as unknown as Record<string, unknown>)
