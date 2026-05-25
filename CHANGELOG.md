@@ -7,16 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-05-25
+
 ### Added
 
 - `autoStart` setting — when enabled, the MCP server starts automatically on plugin load (default off). Available in Settings → Server.
 - **Tool-call audit log** — every MCP tool invocation appends to `.specorator/audit-log.jsonl` with tool name, decision, reason, and redacted params for forensic visibility.
+- `fundingUrl` in `manifest.json` pointing at GitHub Sponsors.
 
 ### Security
 
 - **Default `pathDenyList` now blocks `.specorator/**`, `.claude/hooks/**`, and `.claude/hooks/hooks.json`.**
   Previously the default deny-list was empty, leaving the audit-log sidecar and auto-executed hook files accessible via MCP tools.
   Existing installs that have never customised `pathDenyList` will inherit the new defaults on the next plugin load (0.2.2).
+- Hook scan gate: installer validates hook entries before registration.
+- AutoRegister hash-record prevents replay of stale config entries.
+- Session-allow invalidation on server restart.
+- Scanner additions: HTML embeds, IDN homograph, dilution, allowed-tools wildcard patterns.
+- Audit-log race condition fixed (atomic append).
+
+### Fixed
+
+- canvas.list SDK breakage.
+- HookConsentModal now displays full hook entry.
+- Residual `console.log` calls removed.
+- `outputSchema` + `okStructured` wired for `audit.report`, `canvas.read`, `links.*`, `frontmatter.set`.
+- Catalog `requires[]` corrections.
+
+### Changed
+
+- Status bar lists registered MCP clients.
+- Scrollable modals with Cancel buttons on all ask flows.
+- First-run nudge for unconfigured installs.
+- Deregister MCP clients on plugin unload.
+- `DEFAULT_TOOL_MODES` grouped by namespace for readability.
+- Verify chain reordered; lint rules tightened.
+- CONTRIBUTING.md expanded with catalog authoring guide and common failure modes.
+- Batching + pool helpers for audit/graph tools; event-loop yield prevents Obsidian UI jank; `maxFiles` budget.
+
+## [0.2.1] — 2026-05-25
+
+### Fixed
+
+- Build pipeline: prettier ignores generated `catalog/index.json` so `verify` gate stays green on develop.
 
 ## [0.2.0] — 2026-05-25
 
@@ -91,5 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Status bar item shows running port.
 - Auto-register MCP server URL with Claude CLI (default), Claude Desktop, Cursor on server start; deregister on stop. Opt-in toggles per client in settings.
 
-[Unreleased]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.1.0...HEAD
+[Unreleased]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.2...HEAD
+[0.2.2]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.1...0.2.2
+[0.2.1]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.0...0.2.1
+[0.2.0]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/Luis85/specorator-obsidian-mcp/releases/tag/0.1.0
