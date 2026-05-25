@@ -66,6 +66,8 @@ Key decisions are recorded as ADRs under `docs/adr/`:
 
 - [`ADR-001-loopback-mcp-server.md`](docs/adr/ADR-001-loopback-mcp-server.md) — in-process loopback MCP server design
 - [`ADR-002-permission-modes.md`](docs/adr/ADR-002-permission-modes.md) — allow/ask/deny permission model
+- [`ADR-003-server-side-aggregation.md`](docs/adr/ADR-003-server-side-aggregation.md) — audit/aggregate tools compute server-side
+- [`ADR-004-write-safety-hash-guard.md`](docs/adr/ADR-004-write-safety-hash-guard.md) — vault.write requires expectedHash to overwrite
 
 ## Adding a new MCP tool
 
@@ -73,20 +75,23 @@ Key decisions are recorded as ADRs under `docs/adr/`:
 
 2. **Add the tool name to `DEFAULT_TOOL_MODES`** in `src/domain/settings/PluginSettings.ts`. This map is the source-of-truth registry; tests assert against it with exact equality. Pick a default mode that matches the tool's risk profile (`allow` for reads, `ask` for writes, `deny` for dangerous tools).
 
-3. **If it is a write tool:** thread `gate: PermissionGate` through the deps object and call `await gate.resolve(toolName, params)` before any vault mutation. Check `decision === 'deny'` and return `deny()` early. Strip large or secret fields (e.g. `content`) from the `params` passed to the gate — keep only what the confirmation modal needs to show.
+3. **If it declares `outputSchema`:** use `okStructured(payload)` (not `ok(payload)`) to return the structured response. Using `ok()` when `outputSchema` is declared produces an "Output validation error: no structured content" failure on the client side.
 
-4. **Apply `normalizeVaultPath`** (from `shared.ts`) on every path-shaped parameter before use. Return `err(...)` immediately if normalisation throws.
+4. **Apply `normalizeVaultPath`** (from `shared.ts`) on every path-shaped parameter before use. Treat `.` and `''` as vault root via `isVaultRoot` — do not reject them. Return `err(...)` immediately if normalisation throws for any other reason.
 
-5. **Use the shared response helpers** from `shared.ts`:
-   - `ok(payload)` — success with a JSON text block
+5. **If it is a write tool:** thread `gate: PermissionGate` through the deps object and call `await gate.resolve(toolName, params)` before any vault mutation. Check `decision === 'deny'` and return `deny()` early. Pass **minimal params** to `gate.resolve` — strip large or sensitive fields (e.g. `content`) that are not needed to describe the action in the confirmation modal.
+
+6. **Use the shared response helpers** from `shared.ts`:
+   - `ok(payload)` — success with a JSON text block (use only when no `outputSchema` is declared)
+   - `okStructured(payload)` — success with a structured JSON block (required when `outputSchema` is declared)
    - `deny(toolName)` — permission-denied envelope
    - `err(message)` — error envelope
 
-6. **Write tests** in the matching file under `tests/infrastructure/obsidian/mcp/`. Include:
-   - An exact-equality assertion on the full set of registered tool names (registration test).
+7. **Write tests** in the matching file under `tests/infrastructure/obsidian/mcp/`. Include:
+   - An exact-equality assertion on the full set of registered tool names (registration test) — use the exact name as it appears in `DEFAULT_TOOL_MODES`.
    - At least one behavioural test per tool (happy path + gate-denied path for write tools).
 
-7. **Update the README capability matrix** to document the new tool, its default mode, and what it does.
+8. **Update the README capability matrix** to document the new tool, its default mode, and what it does.
 
 ## Tool naming convention
 
@@ -103,8 +108,24 @@ Tool names follow the pattern `<namespace>.<verb>` (e.g. `vault.read`, `canvas.w
 
 They have separate allow-lists (`cliExecuteAllowedPrefixes` vs `cliRunAllowedPrefixes`) because the risk profiles differ. In particular, `cli.run` can invoke commands such as `eval` that have no equivalent in the command palette, so conflating the two lists would silently widen the attack surface of `cli.execute` allow-list entries.
 
+## Adding a graph/audit/aggregate tool
+
+Aggregate tools compute a summary server-side and return one payload rather than exposing raw per-note data that the agent would have to enumerate. This keeps MCP call counts low and avoids leaking note content the agent did not ask for. See [ADR-003](docs/adr/ADR-003-server-side-aggregation.md) for rationale.
+
+Pattern to follow:
+
+1. **Pure logic in `src/application/mcp/<name>.ts`.** The function receives port interfaces only (no Obsidian imports) and returns a plain serialisable object. Write unit tests against this function directly — no MCP wiring needed.
+
+2. **Thin MCP registrar in `src/infrastructure/obsidian/mcp/register<Name>Tool(s).ts`.** The registrar imports the application function, calls it with port instances from deps, and wraps the result in `okStructured()`.
+
+3. **Use existing helpers** — `audit.ts`, `graph.ts`, and `matchGlob.ts` in `src/application/mcp/` provide shared utilities. Prefer extending them over duplicating.
+
+4. **Default mode `allow`** if the tool is read-only and bounded (does not return full note content). If the output could expose sensitive bulk data, use `ask`.
+
+5. **Declare `outputSchema`** and use `okStructured` — aggregate tools always return structured JSON so clients can process results programmatically.
+
 ## Reporting bugs / security issues
 
-Security vulnerabilities: see `SECURITY.md` (coming soon). For now e-mail the maintainer directly rather than opening a public issue.
+Security vulnerabilities: see [SECURITY.md](./SECURITY.md). For critical issues, use GitHub's private vulnerability reporting.
 
 Non-security bugs: open a GitHub issue using the bug-report template.
