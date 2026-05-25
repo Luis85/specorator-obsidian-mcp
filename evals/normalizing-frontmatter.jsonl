@@ -1,0 +1,3 @@
+{"id": "normalize-fm-schema", "prompt": "normalize the frontmatter across all my project notes to a consistent schema", "expectTrigger": "normalizing-frontmatter", "expect": ["calls mcp__specorator-obsidian-mcp__metadata_frontmatter", "dry-run preview before writing"]}
+{"id": "standardize-tags", "prompt": "standardize the tags and metadata in my vault notes", "expectTrigger": "normalizing-frontmatter", "expect": ["calls mcp__specorator-obsidian-mcp__vault_list", "asks for confirmation"]}
+{"id": "fix-inconsistent-fm", "prompt": "fix the inconsistent frontmatter fields in my notes", "expectTrigger": "normalizing-frontmatter", "expect": ["calls mcp__specorator-obsidian-mcp__metadata_frontmatter", "re-checks after writing"]}

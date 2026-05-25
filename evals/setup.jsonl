@@ -1,0 +1,3 @@
+{"id": "setup-init", "prompt": "/setup", "expectTrigger": "setup", "expect": ["asks for reportFolder", "writes .specorator/catalog-config.md"]}
+{"id": "setup-configure", "prompt": "/setup — configure my catalog folders", "expectTrigger": "setup", "expect": ["asks for mocFolder", "checks if config already exists"]}
+{"id": "setup-update", "prompt": "run /setup to update my report folder to Outputs/", "expectTrigger": "setup", "expect": ["reads existing .specorator/catalog-config.md", "confirms before overwriting"]}

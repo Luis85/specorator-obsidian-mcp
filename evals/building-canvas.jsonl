@@ -1,0 +1,3 @@
+{"id": "canvas-create", "prompt": "create a canvas showing how my project notes connect", "expectTrigger": "building-canvas", "expect": ["calls mcp__specorator-obsidian-mcp__links_bfs", "places notes as nodes"]}
+{"id": "canvas-visual-map", "prompt": "build a visual map of the AI research cluster", "expectTrigger": "building-canvas", "expect": ["calls mcp__specorator-obsidian-mcp__canvas_list", "dry-run preview"]}
+{"id": "canvas-diagram", "prompt": "I want a diagram of how these notes are connected", "expectTrigger": "building-canvas", "expect": ["calls mcp__specorator-obsidian-mcp__links_bfs", "asks for confirmation before writing"]}

@@ -261,25 +261,25 @@ An Obsidian plugin that serves both a REST API and an MCP endpoint. It exposes *
 
 ### Feature comparison
 
-| Feature | Specorator Obsidian MCP | obsidian-cli-mcp-server | obsidian-local-rest-api |
-|---|---|---|---|
-| **Tool count** | **49** across 10 namespaces | 2 (one catch-all) | ~19 |
-| **Per-tool permission gate** (allow / ask / deny) | Yes — configurable per tool with modal confirmation | No | No |
-| **Path deny-list** | Yes — glob patterns; takes precedence over tool modes | No | No |
-| **Auto-register to `~/.claude.json`** | Yes — atomic write on server start, removes on stop | No (stdio; no HTTP URL) | No |
-| **Atomic config writes** | Yes — read-modify-write with lock on `~/.claude.json` | No | No |
-| **One-shot vault audit** (`audit.report`) | Yes — orphans, dead-ends, unresolved links, tag stats in one call | No | No |
-| **Surgical note edits** (`note.patch`) | Yes — heading / block / frontmatter / eof anchors | No | Partial (`vault_patch`) |
-| **Write safety hash guard** (`vault.hash` + `expectedHash`) | Yes — `vault.write` with `mode:'overwrite'` requires hash | No | No |
-| **Server-side aggregation** (audit, graph) | Yes — single call returns vault-wide metrics | No | No |
-| **Link graph** (`graph.stats`, `graph.orphans`, `graph.deadends`, BFS) | Yes | No | No |
-| **Canvas support** | Yes (`canvas.read`, `canvas.list`, `canvas.write`) | No | No |
-| **Bases support** | Yes (`bases.list`, `bases.views`, `bases.query`, `bases.read`, `bases.create`) | No | No |
-| **CLI screenshot** | Yes (`cli.screenshot`) | No (raw `obsidian screenshot`) | No |
-| **Vault-wide tag rename** (`tags.rename`) | Yes — with dry-run preview | No | No |
-| **Frontmatter aggregation** (`frontmatter.query`) | Yes — group-by / filter across the vault | No | No |
-| **Transport** | HTTP (loopback, `127.0.0.1` Host gate) | stdio | HTTP (Streamable) |
-| **Runs inside Obsidian** | Yes (Obsidian plugin) | No (external Node process) | Yes (Obsidian plugin) |
+| Feature                                                                | Specorator Obsidian MCP                                                        | obsidian-cli-mcp-server        | obsidian-local-rest-api |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------ | ----------------------- |
+| **Tool count**                                                         | **49** across 10 namespaces                                                    | 2 (one catch-all)              | ~19                     |
+| **Per-tool permission gate** (allow / ask / deny)                      | Yes — configurable per tool with modal confirmation                            | No                             | No                      |
+| **Path deny-list**                                                     | Yes — glob patterns; takes precedence over tool modes                          | No                             | No                      |
+| **Auto-register to `~/.claude.json`**                                  | Yes — atomic write on server start, removes on stop                            | No (stdio; no HTTP URL)        | No                      |
+| **Atomic config writes**                                               | Yes — read-modify-write with lock on `~/.claude.json`                          | No                             | No                      |
+| **One-shot vault audit** (`audit.report`)                              | Yes — orphans, dead-ends, unresolved links, tag stats in one call              | No                             | No                      |
+| **Surgical note edits** (`note.patch`)                                 | Yes — heading / block / frontmatter / eof anchors                              | No                             | Partial (`vault_patch`) |
+| **Write safety hash guard** (`vault.hash` + `expectedHash`)            | Yes — `vault.write` with `mode:'overwrite'` requires hash                      | No                             | No                      |
+| **Server-side aggregation** (audit, graph)                             | Yes — single call returns vault-wide metrics                                   | No                             | No                      |
+| **Link graph** (`graph.stats`, `graph.orphans`, `graph.deadends`, BFS) | Yes                                                                            | No                             | No                      |
+| **Canvas support**                                                     | Yes (`canvas.read`, `canvas.list`, `canvas.write`)                             | No                             | No                      |
+| **Bases support**                                                      | Yes (`bases.list`, `bases.views`, `bases.query`, `bases.read`, `bases.create`) | No                             | No                      |
+| **CLI screenshot**                                                     | Yes (`cli.screenshot`)                                                         | No (raw `obsidian screenshot`) | No                      |
+| **Vault-wide tag rename** (`tags.rename`)                              | Yes — with dry-run preview                                                     | No                             | No                      |
+| **Frontmatter aggregation** (`frontmatter.query`)                      | Yes — group-by / filter across the vault                                       | No                             | No                      |
+| **Transport**                                                          | HTTP (loopback, `127.0.0.1` Host gate)                                         | stdio                          | HTTP (Streamable)       |
+| **Runs inside Obsidian**                                               | Yes (Obsidian plugin)                                                          | No (external Node process)     | Yes (Obsidian plugin)   |
 
 ## Contributing
 

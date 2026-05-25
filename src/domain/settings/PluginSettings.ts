@@ -1,5 +1,7 @@
 export type ToolMode = 'allow' | 'ask' | 'deny'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+/** Workflow Catalog — platforms the user has opted into. */
+export type CatalogPlatform = 'claude' | 'cursor' | 'codex' | 'gemini'
 
 export interface AutoRegisterSettings {
   claudeCli: boolean
@@ -27,6 +29,8 @@ export interface PluginSettings {
    * Requires a server restart after toggling.
    */
   developerMode: boolean
+  /** Workflow Catalog — platforms the user has opted into for catalog installs. */
+  platforms: CatalogPlatform[]
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
@@ -99,4 +103,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   cliRunAllowedPrefixes: [],
   obsidianBinPath: '',
   developerMode: false,
+  platforms: ['claude'],
 }

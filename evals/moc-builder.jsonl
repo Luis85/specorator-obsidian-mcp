@@ -1,0 +1,3 @@
+{"id": "moc-cmd-tag", "prompt": "/moc-builder for #project notes", "expectTrigger": "moc-builder", "mustNotTrigger": ["building-moc"], "expect": ["calls mcp__specorator-obsidian-mcp__links_bfs"]}
+{"id": "moc-cmd-cluster", "prompt": "run the MOC builder command on the AI cluster", "expectTrigger": "moc-builder", "mustNotTrigger": ["building-moc"], "expect": ["writes an index note"]}
+{"id": "moc-cmd-bare", "prompt": "/moc-builder", "expectTrigger": "moc-builder", "mustNotTrigger": ["building-moc"], "expect": ["reads the config note .specorator/catalog-config.md"]}

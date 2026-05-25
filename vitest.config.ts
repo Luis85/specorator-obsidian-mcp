@@ -6,6 +6,8 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@@': fileURLToPath(new URL('./tests', import.meta.url)),
+      // Obsidian ships only .d.ts files; stub it for unit tests.
+      obsidian: fileURLToPath(new URL('./tests/__fakes__/obsidian.stub.ts', import.meta.url)),
     },
   },
   test: {

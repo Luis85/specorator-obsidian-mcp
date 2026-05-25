@@ -1,0 +1,3 @@
+{"id": "librarian-backlinks", "prompt": "which notes link to my project-overview note?", "expectTrigger": "vault-librarian", "expect": ["calls mcp__specorator-obsidian-mcp__links_backlinks", "cites note paths"]}
+{"id": "librarian-orphans", "prompt": "how many orphaned notes are in my vault?", "expectTrigger": "vault-librarian", "expect": ["calls mcp__specorator-obsidian-mcp__graph_stats", "does not write any notes"]}
+{"id": "librarian-tags", "prompt": "what tags do I use most in the Research folder?", "expectTrigger": "vault-librarian", "expect": ["calls mcp__specorator-obsidian-mcp__metadata_tags", "read-only response"]}

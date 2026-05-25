@@ -31,6 +31,10 @@ import {
 import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
 import { SpecoratorMcpSettingsTab } from './settings'
 import { McpStatusBar } from './McpStatusBar'
+import { CatalogSettingsTab } from './CatalogSettingsTab'
+import { obsidianFs } from '../infrastructure/obsidian/catalog/catalogFs'
+import { loadBundledCatalog } from '../application/catalog/source'
+import bundledIndex from '../../catalog/index.json'
 
 export default class SpecoratorMcpPlugin extends Plugin {
   settings!: PluginSettings
@@ -64,6 +68,10 @@ export default class SpecoratorMcpPlugin extends Plugin {
     this.cli = new NodeObsidianCliAdapter({ getSettings: () => this.settings })
 
     this.addSettingTab(new SpecoratorMcpSettingsTab(this.app, this))
+
+    // Workflow Catalog — skills, commands, agents, hooks installer.
+    const catalogIndex = loadBundledCatalog(JSON.stringify(bundledIndex))
+    this.addSettingTab(new CatalogSettingsTab(this.app, this, obsidianFs(this.app), catalogIndex))
 
     this.addCommand({
       id: 'start-mcp-server',
