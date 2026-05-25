@@ -107,6 +107,17 @@ export class ObsidianBridge
     }
   }
 
+  async getFileStats(path: string): Promise<{ mtime: number; size: number } | null> {
+    const normalized = normalizePath(path)
+    try {
+      const stat = await this.app.vault.adapter.stat(normalized)
+      if (!stat) return null
+      return { mtime: stat.mtime, size: stat.size }
+    } catch {
+      return null
+    }
+  }
+
   async searchFiles(
     query: string,
     folder?: string,

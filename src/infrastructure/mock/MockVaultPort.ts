@@ -11,6 +11,7 @@ function folderPrefix(parent: string): string {
 export class MockVaultPort implements VaultPort {
   private readonly files = new Map<string, string>()
   private readonly folders = new Set<string>()
+  private readonly fileStats = new Map<string, { mtime: number }>()
 
   constructor(initialFiles: Record<string, string> = {}) {
     for (const [path, content] of Object.entries(initialFiles)) {
@@ -100,6 +101,17 @@ export class MockVaultPort implements VaultPort {
     return results
   }
 
+  async getFileStats(path: string): Promise<{ mtime: number; size: number } | null> {
+    const content = this.files.get(path)
+    if (content === undefined) return null
+    const stats = this.fileStats.get(path)
+    const size = new TextEncoder().encode(content).length
+    return {
+      mtime: stats?.mtime ?? 0,
+      size,
+    }
+  }
+
   /** Test helper: get all files as a plain object. */
   getAllFiles(): Record<string, string> {
     return Object.fromEntries(this.files)
@@ -112,5 +124,10 @@ export class MockVaultPort implements VaultPort {
     for (let i = 1; i < parts.length; i++) {
       this.folders.add(parts.slice(0, i).join('/'))
     }
+  }
+
+  /** Test helper: seed file stats (mtime in milliseconds since epoch). */
+  seedFileStats(path: string, stats: { mtime: number }): void {
+    this.fileStats.set(path, stats)
   }
 }

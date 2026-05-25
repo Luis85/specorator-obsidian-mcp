@@ -72,6 +72,9 @@ export class MockBridge
   searchFiles(query: string, folder?: string): Promise<Array<{ path: string; excerpt: string }>> {
     return this.vaultPort.searchFiles(query, folder)
   }
+  getFileStats(path: string): Promise<{ mtime: number; size: number } | null> {
+    return this.vaultPort.getFileStats(path)
+  }
 
   // ── MetadataCachePort ────────────────────────────────────────────────────
   seedMetadata(path: string, snapshot: FileMetadataSnapshot): void {

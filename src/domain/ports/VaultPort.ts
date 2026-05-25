@@ -17,4 +17,9 @@ export interface VaultPort {
    * Optionally scoped to a folder prefix.
    */
   searchFiles(query: string, folder?: string): Promise<Array<{ path: string; excerpt: string }>>
+  /**
+   * Return mtime (milliseconds since epoch) and size (bytes) for a vault file.
+   * Returns null when the file does not exist or stats are unavailable.
+   */
+  getFileStats(path: string): Promise<{ mtime: number; size: number } | null>
 }
