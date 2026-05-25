@@ -16,11 +16,11 @@ The first step of the catalog install pipeline. `scanForInjection(asset.body)` r
 
 Hard-block kinds (`HARD_BLOCK_KINDS` in `src/application/catalog/scanner.ts`):
 
-| Kind | What it catches |
-|------|----------------|
-| `hidden-unicode` | Bidi / zero-width / tag-block characters used to hide instructions |
-| `html-embed` | Active HTML tags (`<img>`, `<script>`, `<iframe>`, etc.) that load external resources |
-| `allowed-tools-wildcard` | `allowed-tools: *` frontmatter — grants every MCP tool without restriction |
+| Kind                     | What it catches                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `hidden-unicode`         | Bidi / zero-width / tag-block characters used to hide instructions                    |
+| `html-embed`             | Active HTML tags (`<img>`, `<script>`, `<iframe>`, etc.) that load external resources |
+| `allowed-tools-wildcard` | `allowed-tools: *` frontmatter — grants every MCP tool without restriction            |
 
 Advisory findings (shown in the consent UI but not auto-blocking) include `override`, `external-url`, `blob`, `destructive-tool`, `idn-homograph`, and `override-dilution`.
 
