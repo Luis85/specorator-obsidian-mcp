@@ -72,12 +72,18 @@ export default class SpecoratorMcpPlugin extends Plugin {
 
     this.statusBar = new McpStatusBar(
       () => this.addStatusBarItem(),
+      async () => {
+        if (this.mcp) await this.stopServer()
+        else await this.startServer()
+      },
       () => {
-        const appAny = this.app as unknown as {
-          setting: { open(): void; openTabById(id: string): void }
+        const settingApi = (
+          this.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }
+        ).setting
+        if (settingApi) {
+          settingApi.open()
+          settingApi.openTabById(this.manifest.id)
         }
-        appAny.setting.open()
-        appAny.setting.openTabById(this.manifest.id)
       },
     )
   }
