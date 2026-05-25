@@ -4,7 +4,7 @@ Specorator Obsidian MCP lets AI tools — Claude, Cursor, Claude Desktop — rea
 
 ## Status
 
-**0.1.0 — first public release.** Active development; feedback welcome.
+**Active development.** Current tool count: 49 (was 21 at 0.1.0 launch). See [CHANGELOG](./CHANGELOG.md) for detail.
 
 <!-- TODO: add settings tab screenshot, modal screenshot -->
 
@@ -20,6 +20,16 @@ Specorator Obsidian MCP lets AI tools — Claude, Cursor, Claude Desktop — rea
 ### Via Obsidian Community Plugins
 
 Coming soon — pending marketplace review.
+
+## What's new since 0.1.0
+
+- **One-shot vault health audit** (`audit.report`) — returns orphans, dead-end links, unresolved links, and tag stats in a single call. Server-side aggregation means the agent never has to enumerate notes individually. See [ADR-003](./docs/adr/ADR-003-server-side-aggregation.md).
+- **Surgical edits** (`note.patch`, `frontmatter.set`, `frontmatter.query`) — target a specific heading, block, frontmatter key, or end-of-file without rewriting the entire note. `frontmatter.query` aggregates across the full vault.
+- **Graph aggregates** (`graph.stats`, `graph.orphans`, `graph.deadends`) — structural link-graph metrics in one call; no per-note iteration required.
+- **Bulk + safety** (`tags.rename`, `vault.hash`, `vault.walk`) — rename a tag vault-wide with a dry-run preview; `vault.write` now requires `mode: 'overwrite'` + `expectedHash` to overwrite existing files, preventing accidental data loss. See [ADR-004](./docs/adr/ADR-004-write-safety-hash-guard.md).
+- **Obsidian CLI integration** (`cli.screenshot`, `cli.run`, `cli.daily_note`, `cli.workspace_load`, `cli.template_insert`, `cli.open_file`, `cli.reload`) — curated high-value CLI subcommands exposed as individual typed tools, plus `cli.run` for arbitrary CLI dispatch.
+- **Auto-discovery** to Claude CLI (default on), Claude Desktop, and Cursor — plugin writes and removes the server URL automatically; no manual config editing needed.
+- **49 tools total** (up from 21 at first release) across 10 namespaces. See the capability matrix below.
 
 ## Quick start
 
@@ -90,39 +100,126 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 | `autoRegister.cursor`        | boolean                                  | `false`                              |
 | `autoRegister.claudeDesktop` | boolean                                  | `false`                              |
 | `cliExecuteAllowedPrefixes`  | command-id prefix list (one per line)    | `[]`                                 |
+| `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                 |
+| `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                   |
+| `developerMode`              | boolean                                  | `false`                              |
 
 ## Tool groups
+
+49 tools across 10 namespaces. Default modes: `allow` = runs immediately; `ask` = modal confirmation; `deny` = disabled until explicitly opted in.
+
+### vault — Core file operations
 
 | Tool                   | Default mode | Description                                                                                                                |
 | ---------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `vault.read`           | `allow`      | Read full UTF-8 content of a vault file                                                                                    |
-| `vault.write`          | `ask`        | Write (overwrite or create) a vault file                                                                                   |
-| `vault.delete`         | `ask`        | Delete a vault file                                                                                                        |
-| `vault.move`           | `ask`        | Move (rename) a vault file                                                                                                 |
 | `vault.list`           | `allow`      | List files and immediate subfolders in a folder                                                                            |
 | `vault.list_recursive` | `allow`      | Recursively enumerate all files under a folder                                                                             |
 | `vault.exists`         | `allow`      | Check whether a file exists                                                                                                |
-| `vault.createFolder`   | `ask`        | Create a folder                                                                                                            |
 | `vault.search`         | `allow`      | Case-insensitive substring search over vault contents; ≤100 results with ~120-char excerpts; optionally scoped to a folder |
-| `metadata.frontmatter` | `allow`      | YAML frontmatter for a single note                                                                                         |
-| `metadata.tags`        | `allow`      | Global tag → count map across the vault                                                                                    |
-| `metadata.headings`    | `allow`      | Heading list for a single note                                                                                             |
-| `metadata.linkpath`    | `allow`      | Resolve a wikilink to its vault path                                                                                       |
-| `metadata.search`      | `allow`      | Find files by tag **or** frontmatter field=value                                                                           |
-| `links.backlinks`      | `allow`      | Backlinks (files that link to a given note)                                                                                |
-| `links.outgoing`       | `allow`      | Outgoing link map for a note                                                                                               |
-| `links.bfs`            | `allow`      | BFS traversal of the link graph                                                                                            |
-| `canvas.read`          | `allow`      | Read a JSON Canvas file                                                                                                    |
-| `canvas.write`         | `ask`        | Write (overwrite) a JSON Canvas file                                                                                       |
-| `canvas.list`          | `allow`      | List all `.canvas` files in the vault or under a folder                                                                    |
-| `bases.list`           | `allow`      | List all `.base` files in the vault via the official `obsidian bases` CLI command. Requires the Bases core plugin.         |
-| `bases.views`          | `allow`      | List views defined in a `.base` file via `obsidian base:views`. Requires the Bases core plugin.                            |
-| `bases.query`          | `allow`      | Execute a view in a `.base` file via `obsidian base:query`; format=json/md/paths/csv. Requires the Bases core plugin.      |
-| `bases.read`           | `allow`      | Read the raw YAML content of a `.base` file directly from the vault (no CLI).                                              |
-| `bases.create`         | `ask`        | Create a new note through a base view via `obsidian base:create`. Requires the Bases core plugin.                          |
-| `cli.read.list`        | `allow`      | List all Obsidian command palette commands                                                                                 |
-| `cli.read.find`        | `allow`      | Find commands by id/name substring                                                                                         |
-| `cli.execute`          | `deny`       | Execute a command palette command by id; opt in per-prefix via the allowlist setting                                       |
+| `vault.walk`           | `allow`      | Walk the vault tree and return paths with optional glob filter and metadata                                                |
+| `vault.hash`           | `allow`      | Return the SHA-256 hex hash and byte size of a vault file; use before `vault.write` with `mode:'overwrite'`                |
+| `vault.write`          | `ask`        | Write a vault file; `mode:'create'` (default) refuses to overwrite; `mode:'overwrite'` requires `expectedHash`             |
+| `vault.delete`         | `ask`        | Delete a vault file                                                                                                        |
+| `vault.move`           | `ask`        | Move (rename) a vault file                                                                                                 |
+| `vault.createFolder`   | `ask`        | Create a folder                                                                                                            |
+
+### metadata — Frontmatter, tags, headings
+
+| Tool                   | Default mode | Description                                  |
+| ---------------------- | ------------ | -------------------------------------------- |
+| `metadata.frontmatter` | `allow`      | YAML frontmatter for a single note           |
+| `metadata.tags`        | `allow`      | Global tag → count map across the vault      |
+| `metadata.headings`    | `allow`      | Heading list for a single note               |
+| `metadata.linkpath`    | `allow`      | Resolve a wikilink to its vault path         |
+| `metadata.search`      | `allow`      | Find files by tag or frontmatter field=value |
+
+### frontmatter — Vault-wide frontmatter operations
+
+| Tool                | Default mode | Description                                                                         |
+| ------------------- | ------------ | ----------------------------------------------------------------------------------- |
+| `frontmatter.set`   | `ask`        | Set or update a single frontmatter key (dot-path) across one note                   |
+| `frontmatter.query` | `allow`      | Aggregate frontmatter values across the vault — group-by, filter, or count by field |
+
+### note — Surgical note edits
+
+| Tool         | Default mode | Description                                                                                                                                  |
+| ------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `note.patch` | `ask`        | Surgical heading/block/frontmatter/eof edit; anchors by heading text, block ID, frontmatter key, or end-of-file; ops: append/prepend/replace |
+
+### links — Link graph traversal
+
+| Tool               | Default mode | Description                                 |
+| ------------------ | ------------ | ------------------------------------------- |
+| `links.backlinks`  | `allow`      | Backlinks (files that link to a given note) |
+| `links.outgoing`   | `allow`      | Outgoing link map for a note                |
+| `links.bfs`        | `allow`      | BFS traversal of the link graph             |
+| `links.unresolved` | `allow`      | List all unresolved wikilinks in the vault  |
+
+### graph — Structural link-graph aggregates
+
+| Tool             | Default mode | Description                                                               |
+| ---------------- | ------------ | ------------------------------------------------------------------------- |
+| `graph.stats`    | `allow`      | Vault-wide link graph statistics (node count, edge count, density)        |
+| `graph.orphans`  | `allow`      | Notes with no incoming or outgoing links                                  |
+| `graph.deadends` | `allow`      | Notes with outgoing links that resolve but have no further outgoing links |
+
+### tags — Tag management
+
+| Tool          | Default mode | Description                                                                                      |
+| ------------- | ------------ | ------------------------------------------------------------------------------------------------ |
+| `tags.rename` | `ask`        | Bulk rename a tag across all vault notes; default `dryRun:true` returns the plan without writing |
+
+### attachments — Non-note file management
+
+| Tool                  | Default mode | Description                                                                      |
+| --------------------- | ------------ | -------------------------------------------------------------------------------- |
+| `attachments.orphans` | `allow`      | Find unreferenced media files (non-.md/.canvas/.base) by scanning all text files |
+
+### audit — Vault health
+
+| Tool           | Default mode | Description                                                                                                 |
+| -------------- | ------------ | ----------------------------------------------------------------------------------------------------------- |
+| `audit.report` | `allow`      | One-shot vault health audit: orphans, dead-end links, unresolved links, tag stats; use `checks:[]` to scope |
+| `audit.export` | `ask`        | Run a vault audit and write a Markdown report (and optional JSON baseline) to the vault                     |
+
+### canvas — JSON Canvas files
+
+| Tool           | Default mode | Description                                             |
+| -------------- | ------------ | ------------------------------------------------------- |
+| `canvas.read`  | `allow`      | Read a JSON Canvas file                                 |
+| `canvas.list`  | `allow`      | List all `.canvas` files in the vault or under a folder |
+| `canvas.write` | `ask`        | Write (overwrite) a JSON Canvas file                    |
+
+### bases — Obsidian Bases core plugin
+
+Requires the **Bases** core plugin to be enabled in Obsidian settings.
+
+| Tool           | Default mode | Description                                                                  |
+| -------------- | ------------ | ---------------------------------------------------------------------------- |
+| `bases.list`   | `allow`      | List all `.base` files in the vault via `obsidian base:list`                 |
+| `bases.views`  | `allow`      | List views defined in a `.base` file via `obsidian base:views`               |
+| `bases.query`  | `allow`      | Execute a view in a `.base` file; format=json/md/paths/csv                   |
+| `bases.read`   | `allow`      | Read the raw YAML content of a `.base` file directly from the vault (no CLI) |
+| `bases.create` | `ask`        | Create a new note through a base view via `obsidian base:create`             |
+
+### cli — Obsidian CLI integration
+
+`cli.execute` and `cli.eval` are disabled by default; opt in via `cliExecuteAllowedPrefixes` / `developerMode`. `cli.run` requires `cliRunAllowedPrefixes`.
+
+| Tool                  | Default mode | Description                                                                                                  |
+| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------ |
+| `cli.read.list`       | `allow`      | List all Obsidian command palette commands                                                                   |
+| `cli.read.find`       | `allow`      | Find commands by id/name substring                                                                           |
+| `cli.execute`         | `deny`       | Execute a command palette command by id; opt in per-prefix via `cliExecuteAllowedPrefixes`                   |
+| `cli.run`             | `deny`       | Spawn the `obsidian` CLI binary with arbitrary command and arguments; opt in via `cliRunAllowedPrefixes`     |
+| `cli.screenshot`      | `ask`        | Capture a screenshot of the Obsidian window via the CLI                                                      |
+| `cli.daily_note`      | `ask`        | Open or create today's daily note via the CLI                                                                |
+| `cli.workspace_load`  | `ask`        | Load a named workspace layout via the CLI                                                                    |
+| `cli.template_insert` | `ask`        | Insert a template into the active note via the CLI                                                           |
+| `cli.open_file`       | `ask`        | Open a vault file in Obsidian via the CLI                                                                    |
+| `cli.reload`          | `ask`        | Reload Obsidian via the CLI (use with care)                                                                  |
+| `cli.eval`            | `deny`       | Execute arbitrary JavaScript in Obsidian's renderer context; only registered when `developerMode` is enabled |
 
 ## Troubleshooting
 
@@ -131,6 +228,14 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 **`421 Misdirected Request`:** The client is sending a non-loopback `Host` header. Add the server URL via the auto-register feature, or set the `Host` header to `127.0.0.1:7842` in your client's MCP config.
 
 **Auto-register permission denied on Windows:** Check that `~/.claude.json` is writable. The plugin shows a Notice in Obsidian if it cannot write the config file. You can also add the entry manually — see the JSON snippet in Client integration above.
+
+**`cli.screenshot` returns "obsidian: command not found":** The Obsidian CLI must be enabled (**Settings → General → Enable CLI** inside Obsidian). If the CLI is enabled but the binary is not on `PATH`, set `obsidianBinPath` in plugin settings to the full path of the `obsidian` executable (or set `OBSIDIAN_BIN=/path/to/obsidian` before starting Obsidian). Use the auto-detect button in plugin settings to let the plugin find the binary.
+
+**`audit.report` is slow on large vaults:** On vaults with more than ~5000 notes, the first `audit.report` call takes 3–5 seconds as it scans every file. Pass a scoped `checks` array (e.g. `{ "checks": ["orphans"] }`) to limit which checks run and reduce latency on subsequent calls.
+
+**`vault.write` refuses to overwrite:** The default `mode: 'create'` intentionally returns a `file_exists` error rather than silently replacing content. To overwrite: first call `vault.hash` to obtain the current file hash, then call `vault.write` with `mode: 'overwrite'` and `expectedHash` set to that hash. If another process modified the file between the two calls, `vault.write` returns `hash_mismatch` — read the file again and retry.
+
+**"Output validation error: no structured content":** This was a schema-drift bug fixed in the current `develop` build. Update the plugin via BRAT or pull the latest commit.
 
 **Running integration tests against the real Obsidian CLI:** The CLI adapter integration tests (`NodeObsidianCliAdapter.integration.test.ts`) are skipped by default so CI stays green without Obsidian installed. To run them locally, set the `OBSIDIAN_BIN` environment variable to the path of your Obsidian CLI binary:
 
