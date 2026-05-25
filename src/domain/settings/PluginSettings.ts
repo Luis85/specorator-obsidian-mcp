@@ -74,6 +74,11 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'graph.deadends': 'allow',
   'frontmatter.query': 'allow',
   'vault.walk': 'allow',
+  'note.patch': 'ask',
+  'vault.hash': 'allow',
+  'tags.rename': 'ask',
+  'attachments.orphans': 'allow',
+  'audit.export': 'ask',
 })
 
 export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({

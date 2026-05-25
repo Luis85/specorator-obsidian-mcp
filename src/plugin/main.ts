@@ -25,6 +25,8 @@ import {
   registerCliEvalTool,
   registerAuditTool,
   registerGraphTools,
+  registerPatchTools,
+  registerRemediationTools,
 } from '@/infrastructure/obsidian/mcp'
 import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
 import { SpecoratorMcpSettingsTab } from './settings'
@@ -160,6 +162,8 @@ export default class SpecoratorMcpPlugin extends Plugin {
         gate: this.gate!,
         developerMode: this.settings.developerMode,
       })
+      registerPatchTools(server, { vault: bridge, gate: this.gate! })
+      registerRemediationTools(server, { vault: bridge, metadata: bridge, gate: this.gate! })
     })
     await this.mcp.start()
     const port = this.mcp.boundPort ?? this.settings.port
