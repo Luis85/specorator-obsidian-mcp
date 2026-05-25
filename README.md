@@ -247,6 +247,40 @@ $env:OBSIDIAN_BIN = "C:\path\to\obsidian.exe"; npm test
 
 The tests invoke `obsidian version`, `obsidian help`, and an unknown command to verify the adapter wires through correctly to the real binary.
 
+## Compared with other Obsidian MCP servers
+
+Two other projects expose Obsidian over MCP. The table below lists what each one provides and where Specorator Obsidian MCP differs.
+
+### obsidian-cli-mcp-server (cks850711)
+
+A stdio MCP server that wraps the Obsidian CLI binary. It exposes **2 tools**: `obsidian_exec` (pass any CLI sub-command as a free-form string) and `obsidian_blocked_commands` (list the configured blocklist). Configuration is a static `constants.ts` file; there are no runtime settings, no per-tool modes, and no vault-side integration — it runs as a standalone Node process outside Obsidian.
+
+### obsidian-local-rest-api (coddingtonbear)
+
+An Obsidian plugin that serves both a REST API and an MCP endpoint. It exposes **~19 tools** covering vault CRUD (`vault_list`, `vault_read`, `vault_write`, `vault_append`, `vault_patch`, `vault_delete`, `vault_move`, `vault_get_document_map`), active-file operations, periodic-note resolution, search (`search_query`, `search_simple`), tag listing, and command palette access (`command_list`, `command_execute`, `open_file`). No screenshot, audit, graph, or canvas tools are present.
+
+### Feature comparison
+
+| Feature | Specorator Obsidian MCP | obsidian-cli-mcp-server | obsidian-local-rest-api |
+|---|---|---|---|
+| **Tool count** | **49** across 10 namespaces | 2 (one catch-all) | ~19 |
+| **Per-tool permission gate** (allow / ask / deny) | Yes — configurable per tool with modal confirmation | No | No |
+| **Path deny-list** | Yes — glob patterns; takes precedence over tool modes | No | No |
+| **Auto-register to `~/.claude.json`** | Yes — atomic write on server start, removes on stop | No (stdio; no HTTP URL) | No |
+| **Atomic config writes** | Yes — read-modify-write with lock on `~/.claude.json` | No | No |
+| **One-shot vault audit** (`audit.report`) | Yes — orphans, dead-ends, unresolved links, tag stats in one call | No | No |
+| **Surgical note edits** (`note.patch`) | Yes — heading / block / frontmatter / eof anchors | No | Partial (`vault_patch`) |
+| **Write safety hash guard** (`vault.hash` + `expectedHash`) | Yes — `vault.write` with `mode:'overwrite'` requires hash | No | No |
+| **Server-side aggregation** (audit, graph) | Yes — single call returns vault-wide metrics | No | No |
+| **Link graph** (`graph.stats`, `graph.orphans`, `graph.deadends`, BFS) | Yes | No | No |
+| **Canvas support** | Yes (`canvas.read`, `canvas.list`, `canvas.write`) | No | No |
+| **Bases support** | Yes (`bases.list`, `bases.views`, `bases.query`, `bases.read`, `bases.create`) | No | No |
+| **CLI screenshot** | Yes (`cli.screenshot`) | No (raw `obsidian screenshot`) | No |
+| **Vault-wide tag rename** (`tags.rename`) | Yes — with dry-run preview | No | No |
+| **Frontmatter aggregation** (`frontmatter.query`) | Yes — group-by / filter across the vault | No | No |
+| **Transport** | HTTP (loopback, `127.0.0.1` Host gate) | stdio | HTTP (Streamable) |
+| **Runs inside Obsidian** | Yes (Obsidian plugin) | No (external Node process) | Yes (Obsidian plugin) |
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
