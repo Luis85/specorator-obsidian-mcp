@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { CanvasPort, VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok, deny, err, collectFiles } from './shared'
+import { ok, okStructured, deny, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -100,7 +100,7 @@ export function registerCanvasTools(
       }
       const allFiles = await collectFiles(vault, rootFolder)
       const canvases = allFiles.filter((f) => f.endsWith('.canvas'))
-      return ok({ canvases })
+      return okStructured({ canvases })
     },
   )
 }
