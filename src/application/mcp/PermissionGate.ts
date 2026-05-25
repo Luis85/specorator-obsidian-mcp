@@ -1,5 +1,6 @@
 import type { PluginSettings, ToolMode } from '@/domain/settings/PluginSettings'
 import type { ConfirmModalPort } from '@/domain/ports'
+import { matchGlob } from '@/domain/shared/matchGlob'
 
 export interface GateDecision {
   decision: 'allow' | 'deny'
@@ -138,34 +139,4 @@ export function summarise(toolName: string, params: Record<string, unknown>): st
     default:
       return path ? `${toolName} ${path}` : toolName
   }
-}
-
-// Minimal glob: supports * (non-slash wildcard) and ** (multi-segment wildcard).
-// No external dependency. **/ at the start collapses to optional path prefix.
-function matchGlob(pattern: string, input: string): boolean {
-  let converted = ''
-  let i = 0
-  while (i < pattern.length) {
-    const ch = pattern[i]
-    if (ch === '*' && pattern[i + 1] === '*') {
-      if (pattern[i + 2] === '/') {
-        converted += '(.+/)?'
-        i += 3
-      } else {
-        converted += '.*'
-        i += 2
-      }
-    } else if (ch === '*') {
-      converted += '[^/]*'
-      i++
-    } else if (/[.+?^${}()|[\]\\]/.test(ch)) {
-      converted += '\\' + ch
-      i++
-    } else {
-      converted += ch
-      i++
-    }
-  }
-  const re = new RegExp('^' + converted + '$')
-  return re.test(input)
 }
