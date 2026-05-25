@@ -5,7 +5,7 @@ type: skill
 version: 0.1.0
 bundle: Vault Audit
 requires:
-  [audit_report, links_unresolved, vault_walk, links_backlinks, links_outgoing, metadata_tags]
+  [audit_report, links_unresolved, vault_walk, vault_list, vault_write, links_backlinks, links_outgoing, metadata_tags]
 dependsOn: []
 ---
 

@@ -2,6 +2,26 @@
   "version": "0.1.0",
   "assets": [
     {
+      "id": "auditing-vault",
+      "name": "auditing-vault",
+      "description": "Audits an Obsidian vault for orphans, broken links, and tag issues. Use when the user asks to audit, health-check, or clean up a vault, or mentions orphan notes, broken links, or messy tags.",
+      "type": "skill",
+      "version": "0.1.0",
+      "bundle": "Vault Audit",
+      "requires": [
+        "audit_report",
+        "links_unresolved",
+        "vault_walk",
+        "vault_list",
+        "vault_write",
+        "links_backlinks",
+        "links_outgoing",
+        "metadata_tags"
+      ],
+      "dependsOn": [],
+      "body": "\n# Auditing a vault\n\nProduce a vault health report using the Specorator MCP tools.\n\n## Steps\n\n1. **Try the one-shot report first.** If `mcp__specorator-obsidian-mcp__audit_report` is available, call it (it returns orphans, dead-ends, unresolved links, empty notes, large files, and tag dupes in one call) and skip to step 5. **Otherwise**, fall back to the manual steps 2–4 below.\n2. Enumerate notes with `mcp__specorator-obsidian-mcp__vault_walk` (glob `**/*.md`); fall back to `mcp__specorator-obsidian-mcp__vault_list` per subfolder on older servers (root listing is blind).\n3. For each note, gather links via `mcp__specorator-obsidian-mcp__links_backlinks` and `mcp__specorator-obsidian-mcp__links_outgoing`. Flag orphans (no backlinks) and dead-ends (no outgoing). Find broken wikilinks with `mcp__specorator-obsidian-mcp__links_unresolved`.\n4. Gather tags via `mcp__specorator-obsidian-mcp__metadata_tags`; flag case-dupes/near-dupes.\n5. Write the report to the configured report folder (default `audits/`) with `mcp__specorator-obsidian-mcp__vault_write`.\n\n> **Working-directory assumption (Decision 6):** this skill only resolves vault\n> paths correctly when the agent runs with the **vault as its project/working\n> root**. If invoked from another cwd, the MCP tools operate on the wrong tree.\n"
+    },
+    {
       "id": "building-canvas",
       "name": "building-canvas",
       "description": "Builds or expands an Obsidian canvas by reading vault structure and placing linked notes as nodes. Use when the user asks to create a canvas, build a visual map, or visualize note connections as a diagram.",
@@ -18,40 +38,6 @@
       "body": "\n# Building a Canvas\n\n1. Read any existing canvas with `mcp__specorator-obsidian-mcp__canvas_list` then `mcp__specorator-obsidian-mcp__canvas_read`.\n2. Walk the note graph from the chosen root with `mcp__specorator-obsidian-mcp__links_bfs` (depth 2, direction both).\n3. For each discovered note, read frontmatter with `mcp__specorator-obsidian-mcp__metadata_frontmatter` to extract tags and headings for card labels.\n4. Present a dry-run preview listing nodes to place and their positions; confirm before writing.\n5. Read the canvas folder from `.specorator/catalog-config.md` (field `mocFolder`) if present; else default to vault root.\n6. Fallback: if `canvas_read` is unavailable, describe the planned canvas structure as a markdown table for the user to create manually.\n"
     },
     {
-      "id": "normalizing-frontmatter",
-      "name": "normalizing-frontmatter",
-      "description": "Normalizes YAML frontmatter fields across vault notes to a consistent schema. Use when the user asks to standardize frontmatter, fix metadata inconsistencies, or align note schemas.",
-      "type": "skill",
-      "version": "0.1.0",
-      "bundle": "Vault Maintenance",
-      "requires": [
-        "metadata_frontmatter",
-        "vault_read",
-        "vault_write",
-        "vault_list"
-      ],
-      "dependsOn": [],
-      "body": "\n# Normalizing Frontmatter\n\nThis skill mutates the vault. Follow the numbered steps exactly; do not skip the dry-run.\n\n1. List target notes with `mcp__specorator-obsidian-mcp__vault_list`.\n2. For each note, read current frontmatter with `mcp__specorator-obsidian-mcp__metadata_frontmatter`.\n3. **Dry-run preview:** enumerate every field change (old value → new value) across all notes; ask the user to confirm the schema and the change set before writing anything.\n4. On confirmation, apply each change with `mcp__specorator-obsidian-mcp__vault_write` (write the full updated note content).\n5. Re-check: re-read frontmatter for 3–5 sample notes and confirm the expected fields are present.\n\nSee `catalog/skills/normalizing-frontmatter/references/schema.md` for the canonical field list and allowed value sets.\n"
-    },
-    {
-      "id": "auditing-vault",
-      "name": "auditing-vault",
-      "description": "Audits an Obsidian vault for orphans, broken links, and tag issues. Use when the user asks to audit, health-check, or clean up a vault, or mentions orphan notes, broken links, or messy tags.",
-      "type": "skill",
-      "version": "0.1.0",
-      "bundle": "Vault Audit",
-      "requires": [
-        "audit_report",
-        "links_unresolved",
-        "vault_walk",
-        "links_backlinks",
-        "links_outgoing",
-        "metadata_tags"
-      ],
-      "dependsOn": [],
-      "body": "\n# Auditing a vault\n\nProduce a vault health report using the Specorator MCP tools.\n\n## Steps\n\n1. **Try the one-shot report first.** If `mcp__specorator-obsidian-mcp__audit_report` is available, call it (it returns orphans, dead-ends, unresolved links, empty notes, large files, and tag dupes in one call) and skip to step 5. **Otherwise**, fall back to the manual steps 2–4 below.\n2. Enumerate notes with `mcp__specorator-obsidian-mcp__vault_walk` (glob `**/*.md`); fall back to `mcp__specorator-obsidian-mcp__vault_list` per subfolder on older servers (root listing is blind).\n3. For each note, gather links via `mcp__specorator-obsidian-mcp__links_backlinks` and `mcp__specorator-obsidian-mcp__links_outgoing`. Flag orphans (no backlinks) and dead-ends (no outgoing). Find broken wikilinks with `mcp__specorator-obsidian-mcp__links_unresolved`.\n4. Gather tags via `mcp__specorator-obsidian-mcp__metadata_tags`; flag case-dupes/near-dupes.\n5. Write the report to the configured report folder (default `audits/`) with `mcp__specorator-obsidian-mcp__vault_write`.\n\n> **Working-directory assumption (Decision 6):** this skill only resolves vault\n> paths correctly when the agent runs with the **vault as its project/working\n> root**. If invoked from another cwd, the MCP tools operate on the wrong tree.\n"
-    },
-    {
       "id": "building-moc",
       "name": "building-moc",
       "description": "Builds a Map of Content / index note from tags and link clusters. Use when the user asks to create an index, MOC, table of contents, or to organize a link-sparse vault.",
@@ -61,7 +47,8 @@
       "requires": [
         "metadata_tags",
         "links_backlinks",
-        "links_bfs"
+        "links_bfs",
+        "vault_write"
       ],
       "dependsOn": [],
       "body": "\n# Building a MOC\n\n1. Read tags via `mcp__specorator-obsidian-mcp__metadata_tags`.\n2. For a chosen topic tag, find notes; map clusters with `mcp__specorator-obsidian-mcp__links_bfs` (direction both, depth 2).\n3. Write an index note grouping notes by cluster, linking each with `[[...]]`.\n4. Read the report folder from the `/setup` config note (`.specorator/catalog-config.md`) if present; else default to vault root.\n5. Fallback: if `links_bfs` is unavailable, use `mcp__specorator-obsidian-mcp__links_backlinks` to enumerate linked notes per tag.\n"
@@ -76,10 +63,43 @@
       "requires": [
         "links_unresolved",
         "vault_read",
+        "note_patch",
         "vault_write"
       ],
       "dependsOn": [],
-      "body": "\n# Fixing Links\n\nThis skill mutates the vault. Follow the numbered steps exactly; do not skip the dry-run.\n\n1. Enumerate broken links with `mcp__specorator-obsidian-mcp__links_unresolved`.\n2. For each broken link, read the source note with `mcp__specorator-obsidian-mcp__vault_read`.\n3. **Dry-run preview:** list every intended change (old link → new link or deletion) and ask the user to confirm before writing anything.\n4. On confirmation, fix each note with `mcp__specorator-obsidian-mcp__vault_write`.\n5. Re-check: run `mcp__specorator-obsidian-mcp__links_unresolved` again; report remaining broken links if any.\n\nSee `catalog/skills/fixing-links/references/patterns.md` for common link-repair patterns.\n"
+      "body": "\n# Fixing Links\n\nThis skill mutates the vault. Follow the numbered steps exactly; do not skip the dry-run.\n\n1. Enumerate broken links with `mcp__specorator-obsidian-mcp__links_unresolved`.\n2. For each broken link, read the source note with `mcp__specorator-obsidian-mcp__vault_read`.\n3. **Dry-run preview:** list every intended change (old link → new link or deletion) and ask the user to confirm before writing anything.\n4. On confirmation, fix each note. Prefer `mcp__specorator-obsidian-mcp__note_patch` (heading or block anchor) for surgical in-place link edits; fall back to `mcp__specorator-obsidian-mcp__vault_write` only when the note has no stable anchor or the patch would span multiple sections.\n5. Re-check: run `mcp__specorator-obsidian-mcp__links_unresolved` again; report remaining broken links if any.\n\nSee `catalog/skills/fixing-links/references/patterns.md` for common link-repair patterns.\n"
+    },
+    {
+      "id": "normalizing-frontmatter",
+      "name": "normalizing-frontmatter",
+      "description": "Normalizes YAML frontmatter fields across vault notes to a consistent schema. Use when the user asks to standardize frontmatter, fix metadata inconsistencies, or align note schemas.",
+      "type": "skill",
+      "version": "0.1.0",
+      "bundle": "Vault Maintenance",
+      "requires": [
+        "metadata_frontmatter",
+        "vault_write",
+        "vault_list"
+      ],
+      "dependsOn": [],
+      "body": "\n# Normalizing Frontmatter\n\nThis skill mutates the vault. Follow the numbered steps exactly; do not skip the dry-run.\n\n1. List target notes with `mcp__specorator-obsidian-mcp__vault_list`.\n2. For each note, read current frontmatter with `mcp__specorator-obsidian-mcp__metadata_frontmatter`.\n3. **Dry-run preview:** enumerate every field change (old value → new value) across all notes; ask the user to confirm the schema and the change set before writing anything.\n4. On confirmation, apply each change with `mcp__specorator-obsidian-mcp__vault_write` (write the full updated note content).\n5. Re-check: re-read frontmatter for 3–5 sample notes and confirm the expected fields are present.\n\nSee `catalog/skills/normalizing-frontmatter/references/schema.md` for the canonical field list and allowed value sets.\n"
+    },
+    {
+      "id": "audit-vault",
+      "name": "audit-vault",
+      "description": "Slash command that runs a full vault health audit and writes a report note. Invoke only via /audit-vault; for natural-language audit requests the auditing-vault skill fires instead.",
+      "type": "command",
+      "version": "0.1.0",
+      "bundle": "Vault Audit",
+      "requires": [
+        "links_unresolved",
+        "graph_orphans",
+        "attachments_orphans",
+        "audit_report",
+        "vault_write"
+      ],
+      "dependsOn": [],
+      "body": "\n# /audit-vault\n\nRead config from `.specorator/catalog-config.md` (fields `reportFolder`, `auditDefaults`).\nDefault `reportFolder` is vault root; default `auditDefaults.includeOrphans` is true.\n\n1. Run `mcp__specorator-obsidian-mcp__links_unresolved` — collect broken links.\n2. Run `mcp__specorator-obsidian-mcp__graph_orphans` — collect orphaned notes.\n3. Run `mcp__specorator-obsidian-mcp__attachments_orphans` — collect unused attachments.\n4. Run `mcp__specorator-obsidian-mcp__audit_report` if available; else aggregate the above manually.\n5. Write a report note to `{reportFolder}/vault-audit-{YYYY-MM-DD}.md` listing findings by category.\n"
     },
     {
       "id": "moc-builder",
@@ -90,28 +110,11 @@
       "bundle": "MOC / Index Builder",
       "requires": [
         "metadata_tags",
-        "links_bfs"
+        "links_bfs",
+        "vault_write"
       ],
       "dependsOn": [],
       "body": "\n# /moc-builder\n\nRead the config note `.specorator/catalog-config.md` for the MOC location (`mocFolder`).\nDefault `mocFolder` is vault root.\n\n1. Parse the argument: `/moc-builder #tag` or `/moc-builder folder/`.\n2. Enumerate notes matching the tag via `mcp__specorator-obsidian-mcp__metadata_tags`.\n3. Map clusters with `mcp__specorator-obsidian-mcp__links_bfs` (direction both, depth per `auditDefaults.maxDepth`).\n4. Write the index note to `{mocFolder}/{tag}-moc.md` with `[[wikilinks]]` grouped by cluster.\n"
-    },
-    {
-      "id": "audit-vault",
-      "name": "audit-vault",
-      "description": "Slash command that runs a full vault health audit and writes a report note. Invoke only via /audit-vault; for natural-language audit requests the auditing-vault skill fires instead.",
-      "type": "command",
-      "version": "0.1.0",
-      "bundle": "Vault Audit",
-      "requires": [
-        "vault_read",
-        "vault_list",
-        "links_unresolved",
-        "graph_orphans",
-        "attachments_orphans",
-        "audit_report"
-      ],
-      "dependsOn": [],
-      "body": "\n# /audit-vault\n\nRead config from `.specorator/catalog-config.md` (fields `reportFolder`, `auditDefaults`).\nDefault `reportFolder` is vault root; default `auditDefaults.includeOrphans` is true.\n\n1. Run `mcp__specorator-obsidian-mcp__links_unresolved` — collect broken links.\n2. Run `mcp__specorator-obsidian-mcp__graph_orphans` — collect orphaned notes.\n3. Run `mcp__specorator-obsidian-mcp__attachments_orphans` — collect unused attachments.\n4. Run `mcp__specorator-obsidian-mcp__audit_report` if available; else aggregate the above manually.\n5. Write a report note to `{reportFolder}/vault-audit-{YYYY-MM-DD}.md` listing findings by category.\n"
     },
     {
       "id": "setup",
@@ -125,7 +128,7 @@
         "vault_write"
       ],
       "dependsOn": [],
-      "body": "\n# /setup\n\nCreates `.specorator/catalog-config.md` with user-chosen settings.\n\n1. Ask the user for:\n   - `reportFolder` (default: \"Reports\")\n   - `mocFolder` (default: \"Maps of Content\")\n   - `auditDefaults.includeOrphans` (default: true)\n   - `auditDefaults.includeBrokenLinks` (default: true)\n   - `auditDefaults.maxDepth` (default: 2)\n2. Check if `.specorator/catalog-config.md` already exists with `mcp__specorator-obsidian-mcp__vault_read`.\n   If it does, show current values and confirm before overwriting.\n3. Write the config note with:\n\n```\n---\nreportFolder: \"{value}\"\nmocFolder: \"{value}\"\nauditDefaults:\n  includeOrphans: {value}\n  includeBrokenLinks: {value}\n  maxDepth: {value}\nversion: 0.1.0\n---\n# Specorator Catalog Configuration\nThis note is generated by /setup. Edit values above; assets read this frontmatter.\n```\n\nAll fields are optional for catalog consumers — assets fall back to documented defaults when absent.\n"
+      "body": "\n# /setup\n\nCreates `.specorator/catalog-config.md` with user-chosen settings.\n\n1. Ask the user for:\n   - `reportFolder` (default: \"Reports\")\n   - `mocFolder` (default: \"Maps of Content\")\n   - `auditDefaults.includeOrphans` (default: true)\n   - `auditDefaults.includeBrokenLinks` (default: true)\n   - `auditDefaults.maxDepth` (default: 2)\n2. Check if `.specorator/catalog-config.md` already exists with `mcp__specorator-obsidian-mcp__vault_read`.\n   If it does, show current values and confirm before overwriting.\n3. Write the config note with `mcp__specorator-obsidian-mcp__vault_write` to `.specorator/catalog-config.md`:\n\n```\n---\nreportFolder: \"{value}\"\nmocFolder: \"{value}\"\nauditDefaults:\n  includeOrphans: {value}\n  includeBrokenLinks: {value}\n  maxDepth: {value}\nversion: 0.1.0\n---\n# Specorator Catalog Configuration\nThis note is generated by /setup. Edit values above; assets read this frontmatter.\n```\n\nAll fields are optional for catalog consumers — assets fall back to documented defaults when absent.\n"
     },
     {
       "id": "vault-librarian",
@@ -168,7 +171,7 @@
       "bundle": "Vault Audit",
       "requires": [],
       "dependsOn": [],
-      "body": "\n```json\n{\n  \"id\": \"session-audit\",\n  \"event\": \"SessionStart\",\n  \"entry\": {\n    \"matcher\": \"*\",\n    \"command\": \"claude --print '/audit-vault' >> \\\"$VAULT/$(date +%Y-%m-%d).md\\\"\"\n  }\n}\n```\n"
+      "body": "\n> **`$VAULT` prerequisite:** set `VAULT` to your vault's absolute path before relying on this hook (e.g. `export VAULT=/path/to/your/vault` in your shell profile or the Claude Code environment). Without it the shell expansion `$VAULT/$(date ...).md` resolves to a path under your home directory instead of the vault.\n\n```json\n{\n  \"id\": \"session-audit\",\n  \"event\": \"SessionStart\",\n  \"entry\": {\n    \"matcher\": \"*\",\n    \"command\": \"claude --print '/audit-vault' >> \\\"$VAULT/$(date +%Y-%m-%d).md\\\"\"\n  }\n}\n```\n"
     }
   ]
 }

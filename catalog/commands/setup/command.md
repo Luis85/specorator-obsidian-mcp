@@ -20,7 +20,7 @@ Creates `.specorator/catalog-config.md` with user-chosen settings.
    - `auditDefaults.maxDepth` (default: 2)
 2. Check if `.specorator/catalog-config.md` already exists with `mcp__specorator-obsidian-mcp__vault_read`.
    If it does, show current values and confirm before overwriting.
-3. Write the config note with:
+3. Write the config note with `mcp__specorator-obsidian-mcp__vault_write` to `.specorator/catalog-config.md`:
 
 ```
 ---

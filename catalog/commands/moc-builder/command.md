@@ -4,7 +4,7 @@ description: Slash command that builds a MOC for an explicit tag or folder argum
 type: command
 version: 0.1.0
 bundle: MOC / Index Builder
-requires: [metadata_tags, links_bfs]
+requires: [metadata_tags, links_bfs, vault_write]
 dependsOn: []
 ---
 
