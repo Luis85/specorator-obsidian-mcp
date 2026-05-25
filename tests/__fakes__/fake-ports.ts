@@ -6,6 +6,7 @@ import { MockCanvasPort } from '@/infrastructure/mock/MockCanvasPort'
 import { MockNotificationPort } from '@/infrastructure/mock/MockNotificationPort'
 import { MockLoggerPort } from '@/infrastructure/mock/MockLoggerPort'
 import { MockSettingsPort } from '@/infrastructure/mock/MockSettingsPort'
+import { MockObsidianCliPort } from '@/infrastructure/mock/MockObsidianCliPort'
 
 export interface FakePorts {
   vault: MockVaultPort
@@ -15,6 +16,7 @@ export interface FakePorts {
   logger: MockLoggerPort
   settings: MockSettingsPort
   confirmModal: MockConfirmModalPort
+  cli: MockObsidianCliPort
   bridge: MockBridge // keep for back-compat — still exposes all the mocks
 }
 
@@ -28,6 +30,7 @@ export function fakeModulePorts(): FakePorts {
     logger: bridge.loggerPort,
     settings: bridge.settingsPort,
     confirmModal: new MockConfirmModalPort(),
+    cli: new MockObsidianCliPort(),
     bridge,
   }
 }
