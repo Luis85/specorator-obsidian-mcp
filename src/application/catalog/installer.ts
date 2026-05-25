@@ -189,7 +189,7 @@ async function installHookAsset(fs: FileSystem, a: AssetMeta, opts: EnableOption
     hash: bodyHash,
     hookEnabled: true,
   })
-  await appendAudit(fs, { action: 'enable', id: a.id, hash: bodyHash })
+  await appendAudit(fs, { kind: 'install', action: 'enable', id: a.id, hash: bodyHash })
 }
 
 async function installAsset(
@@ -252,7 +252,7 @@ async function installAsset(
     // entry entirely so state stays clean.
     if (paths.length === 0) return
     await saveRecord(fs, a.id, { version: a.version, platforms: targets, paths, hash: bodyHash })
-    await appendAudit(fs, { action: 'enable', id: a.id, hash: bodyHash })
+    await appendAudit(fs, { kind: 'install', action: 'enable', id: a.id, hash: bodyHash })
   } catch (e) {
     await rollback()
     throw e
@@ -356,7 +356,12 @@ export async function updateAsset(
     throw e
   }
 
-  await appendAudit(fs, { action: 'update', id: asset.id, hash: await sha256(asset.body) })
+  await appendAudit(fs, {
+    kind: 'install',
+    action: 'update',
+    id: asset.id,
+    hash: await sha256(asset.body),
+  })
   if (baks.length > 0) {
     const warnFn =
       opts.warn ??
@@ -428,5 +433,5 @@ export async function disableAsset(fs: FileSystem, id: string): Promise<void> {
     await removeAssetFiles(fs, rec, id, state)
   }
   await removeRecord(fs, id)
-  await appendAudit(fs, { action: 'disable', id, hash: rec.hash })
+  await appendAudit(fs, { kind: 'install', action: 'disable', id, hash: rec.hash })
 }

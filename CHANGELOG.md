@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tool-call audit log** — every MCP tool invocation appends to `.specorator/audit-log.jsonl` with tool name, decision, reason, and redacted params for forensic visibility.
+
 ### Security
 
 - **Default `pathDenyList` now blocks `.specorator/**`, `.claude/hooks/**`, and `.claude/hooks/hooks.json`.**

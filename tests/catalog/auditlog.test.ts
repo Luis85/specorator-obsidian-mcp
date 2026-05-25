@@ -5,8 +5,8 @@ import { memFs } from './memfs'
 describe('auditlog', () => {
   it('appends a JSONL entry', async () => {
     const fs = memFs()
-    await appendAudit(fs, { action: 'enable', id: 'x', hash: 'h' })
-    await appendAudit(fs, { action: 'disable', id: 'x', hash: 'h' })
+    await appendAudit(fs, { kind: 'install', action: 'enable', id: 'x', hash: 'h' })
+    await appendAudit(fs, { kind: 'install', action: 'disable', id: 'x', hash: 'h' })
     const lines = (await fs.read(AUDIT_PATH))!.trim().split('\n')
     expect(lines).toHaveLength(2)
     expect(JSON.parse(lines[0]).action).toBe('enable')
@@ -21,6 +21,7 @@ describe('auditlog', () => {
     // Fire N appends concurrently — all must appear in the final log.
     const N = 10
     const entries = Array.from({ length: N }, (_, i) => ({
+      kind: 'install' as const,
       action: 'enable' as const,
       id: `asset-${i}`,
       hash: `hash-${i}`,
