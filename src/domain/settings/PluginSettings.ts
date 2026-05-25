@@ -17,6 +17,8 @@ export interface PluginSettings {
   autoRegister: AutoRegisterSettings
   /** Command-id prefixes (e.g. "editor:") that bypass the ask-gate for cli.execute. */
   cliExecuteAllowedPrefixes: string[]
+  /** CLI command-name prefixes (e.g. "version", "search", "base:") that bypass the ask-gate for cli.run. Kept separate from cliExecuteAllowedPrefixes — cli.run invokes the external binary and has a wider attack surface (e.g. eval). */
+  cliRunAllowedPrefixes: string[]
   /** Path to the `obsidian` CLI binary. Empty string = auto-resolve (PATH > platform defaults). */
   obsidianBinPath: string
 }
@@ -44,6 +46,7 @@ export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.fre
   'cli.read.find': 'allow',
   'cli.execute': 'deny',
   'cli.screenshot': 'ask',
+  'cli.run': 'deny',
   'vault.search': 'allow',
   'vault.list_recursive': 'allow',
   'metadata.search': 'allow',
@@ -65,5 +68,6 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   logLevel: 'warn',
   autoRegister: { ...DEFAULT_AUTO_REGISTER },
   cliExecuteAllowedPrefixes: [],
+  cliRunAllowedPrefixes: [],
   obsidianBinPath: '',
 }

@@ -173,6 +173,23 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         }),
     )
 
+    containerEl.createEl('h2', { text: 'CLI run allow-list' })
+    containerEl.createEl('p', {
+      text: 'Commands whose name starts with any prefix here bypass the ask flow for cli.run (external Obsidian CLI binary). Leave empty to require explicit confirmation for every CLI command. One prefix per line (e.g. "version", "help", "search", "base:"). This list is separate from the cli.execute allow-list — the two tools have different risk profiles.',
+    })
+
+    new Setting(containerEl).setName('Allowed prefixes (one per line)').addTextArea((t) =>
+      t
+        .setValue((this.plugin.settings.cliRunAllowedPrefixes ?? []).join('\n'))
+        .onChange(async (v) => {
+          this.plugin.settings.cliRunAllowedPrefixes = v
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+          await this.plugin.saveSettings()
+        }),
+    )
+
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
 
