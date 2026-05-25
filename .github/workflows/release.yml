@@ -18,6 +18,7 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      - run: npm run verify
       - run: npm run build
       - name: Ensure styles.css exists
         run: test -f styles.css || touch styles.css
