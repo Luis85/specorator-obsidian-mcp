@@ -210,7 +210,10 @@ export function renderMcpServerSettings(
 
   new Setting(containerEl)
     .setName('Auto-start on Obsidian startup')
-    .setDesc('Start the MCP server automatically when Obsidian loads this plugin. Default off.')
+    .setDesc(
+      'Start the MCP server automatically when Obsidian loads this plugin. Default off. ' +
+        'If the port is already in use at startup, a Notice will appear and the server will not start — change the port below.',
+    )
     .addToggle((t) =>
       t.setValue(plugin.settings.autoStart ?? false).onChange(async (v) => {
         plugin.settings.autoStart = v
