@@ -95,11 +95,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   port: 7842,
   defaultMode: 'ask',
   toolModes: { ...DEFAULT_TOOL_MODES },
-  pathDenyList: [
-    '.specorator/**',
-    '.claude/hooks/**',
-    '.claude/hooks/hooks.json',
-  ],
+  pathDenyList: ['.specorator/**', '.claude/hooks/**', '.claude/hooks/hooks.json'],
   askTimeoutMs: 30_000,
   logLevel: 'warn',
   autoRegister: { ...DEFAULT_AUTO_REGISTER },

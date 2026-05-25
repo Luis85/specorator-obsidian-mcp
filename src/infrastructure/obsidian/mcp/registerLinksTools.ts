@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok, okStructured, err, collectFiles } from './shared'
+import { okStructured, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)

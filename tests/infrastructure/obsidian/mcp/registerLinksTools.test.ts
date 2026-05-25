@@ -80,7 +80,10 @@ describe('registerLinksTools', () => {
       startPath: 'a.md',
       depth: 2,
       direction: 'outgoing',
-    })) as { structuredContent: { nodes: string[]; edges: Array<[string, string]> }; content: [{ text: string }] }
+    })) as {
+      structuredContent: { nodes: string[]; edges: Array<[string, string]> }
+      content: [{ text: string }]
+    }
     expect(result).toHaveProperty('structuredContent')
     expect(result.structuredContent.nodes).toContain('a.md')
     expect(result.structuredContent.nodes).toContain('b.md')
@@ -183,7 +186,10 @@ describe('registerLinksTools', () => {
 
       expect(result).toHaveProperty('structuredContent')
       expect(result.structuredContent.count).toBe(1)
-      expect(result.structuredContent.unresolved[0]).toEqual({ source: 'note.md', target: 'Missing' })
+      expect(result.structuredContent.unresolved[0]).toEqual({
+        source: 'note.md',
+        target: 'Missing',
+      })
     })
 
     it('returns empty result when all links resolve', async () => {

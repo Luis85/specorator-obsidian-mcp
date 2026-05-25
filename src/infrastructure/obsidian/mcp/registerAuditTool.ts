@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
 import { auditVault, ALL_CHECKS } from '@/application/mcp/audit'
-import { ok, okStructured, err } from './shared'
+import { okStructured, err } from './shared'
 
 const CHECKS_ENUM = z.enum([
   'orphans',
@@ -50,9 +50,7 @@ export function registerAuditTool(
             .array(z.object({ source: z.string(), target: z.string() }))
             .optional(),
           empty_notes: z.array(z.string()).optional(),
-          large_files: z
-            .array(z.object({ path: z.string(), bytes: z.number() }))
-            .optional(),
+          large_files: z.array(z.object({ path: z.string(), bytes: z.number() })).optional(),
           tag_dupes: z
             .array(z.object({ canonical: z.string(), variants: z.array(z.string()) }))
             .optional(),
