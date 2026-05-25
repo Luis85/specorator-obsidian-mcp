@@ -29,19 +29,19 @@ describe('registerLinksTools', () => {
     const { server, ports } = setup()
     ports.bridge.seedBacklinks('target.md', ['source1.md', 'source2.md'])
     const result = (await getHandler(server, 'links.backlinks')({ path: 'target.md' })) as {
+      structuredContent: { backlinks: string[] }
       content: [{ text: string }]
     }
-    const parsed = JSON.parse(result.content[0].text) as { backlinks: string[] }
-    expect(parsed.backlinks).toEqual(['source1.md', 'source2.md'])
+    expect(result).toHaveProperty('structuredContent')
+    expect(result.structuredContent.backlinks).toEqual(['source1.md', 'source2.md'])
   })
 
   it('links.backlinks returns empty array for note with no backlinks', async () => {
     const { server } = setup()
     const result = (await getHandler(server, 'links.backlinks')({ path: 'orphan.md' })) as {
-      content: [{ text: string }]
+      structuredContent: { backlinks: string[] }
     }
-    const parsed = JSON.parse(result.content[0].text) as { backlinks: string[] }
-    expect(parsed.backlinks).toEqual([])
+    expect(result.structuredContent.backlinks).toEqual([])
   })
 
   it('links.outgoing returns outgoing links from snapshot', async () => {
@@ -54,19 +54,19 @@ describe('registerLinksTools', () => {
       embeds: [],
     })
     const result = (await getHandler(server, 'links.outgoing')({ path: 'note.md' })) as {
+      structuredContent: { links: string[] }
       content: [{ text: string }]
     }
-    const parsed = JSON.parse(result.content[0].text) as { links: string[] }
-    expect(parsed.links).toEqual(['other.md', 'third.md'])
+    expect(result).toHaveProperty('structuredContent')
+    expect(result.structuredContent.links).toEqual(['other.md', 'third.md'])
   })
 
   it('links.outgoing returns empty array when no snapshot', async () => {
     const { server } = setup()
     const result = (await getHandler(server, 'links.outgoing')({ path: 'no-snap.md' })) as {
-      content: [{ text: string }]
+      structuredContent: { links: string[] }
     }
-    const parsed = JSON.parse(result.content[0].text) as { links: string[] }
-    expect(parsed.links).toEqual([])
+    expect(result.structuredContent.links).toEqual([])
   })
 
   it('links.bfs traverses outgoing edges', async () => {
@@ -80,16 +80,13 @@ describe('registerLinksTools', () => {
       startPath: 'a.md',
       depth: 2,
       direction: 'outgoing',
-    })) as { content: [{ text: string }] }
-    const parsed = JSON.parse(result.content[0].text) as {
-      nodes: string[]
-      edges: Array<[string, string]>
-    }
-    expect(parsed.nodes).toContain('a.md')
-    expect(parsed.nodes).toContain('b.md')
-    expect(parsed.nodes).toContain('c.md')
-    expect(parsed.edges).toContainEqual(['a.md', 'b.md'])
-    expect(parsed.edges).toContainEqual(['b.md', 'c.md'])
+    })) as { structuredContent: { nodes: string[]; edges: Array<[string, string]> }; content: [{ text: string }] }
+    expect(result).toHaveProperty('structuredContent')
+    expect(result.structuredContent.nodes).toContain('a.md')
+    expect(result.structuredContent.nodes).toContain('b.md')
+    expect(result.structuredContent.nodes).toContain('c.md')
+    expect(result.structuredContent.edges).toContainEqual(['a.md', 'b.md'])
+    expect(result.structuredContent.edges).toContainEqual(['b.md', 'c.md'])
   })
 
   describe('links.bfs depth schema', () => {
@@ -119,12 +116,9 @@ describe('registerLinksTools', () => {
         startPath: 'a.md',
         depth: 2,
         direction: 'outgoing',
-      })) as { content: [{ text: string }] }
-      const parsed = JSON.parse(result.content[0].text) as {
-        edges: Array<[string, string]>
-      }
-      const ab = parsed.edges.filter(([f, t]) => f === 'a.md' && t === 'b.md')
-      const ba = parsed.edges.filter(([f, t]) => f === 'b.md' && t === 'a.md')
+      })) as { structuredContent: { edges: Array<[string, string]> } }
+      const ab = result.structuredContent.edges.filter(([f, t]) => f === 'a.md' && t === 'b.md')
+      const ba = result.structuredContent.edges.filter(([f, t]) => f === 'b.md' && t === 'a.md')
       expect(ab).toHaveLength(1)
       expect(ba).toHaveLength(1)
     })
@@ -141,12 +135,9 @@ describe('registerLinksTools', () => {
         startPath: 'a.md',
         depth: 3,
         direction: 'outgoing',
-      })) as { content: [{ text: string }] }
-      const parsed = JSON.parse(result.content[0].text) as {
-        edges: Array<[string, string]>
-      }
-      const bc = parsed.edges.filter(([f, t]) => f === 'b.md' && t === 'c.md')
-      const ac = parsed.edges.filter(([f, t]) => f === 'a.md' && t === 'c.md')
+      })) as { structuredContent: { edges: Array<[string, string]> } }
+      const bc = result.structuredContent.edges.filter(([f, t]) => f === 'b.md' && t === 'c.md')
+      const ac = result.structuredContent.edges.filter(([f, t]) => f === 'a.md' && t === 'c.md')
       expect(bc).toHaveLength(1)
       expect(ac).toHaveLength(1)
     })
@@ -165,9 +156,8 @@ describe('registerLinksTools', () => {
       startPath: 'a.md',
       depth: 10,
       direction: 'outgoing',
-    })) as { content: [{ text: string }] }
-    const parsed = JSON.parse(result.content[0].text) as { nodes: string[] }
-    expect(parsed.nodes).not.toContain('g.md')
+    })) as { structuredContent: { nodes: string[] } }
+    expect(result.structuredContent.nodes).not.toContain('g.md')
   })
 
   describe('links.unresolved', () => {
@@ -185,15 +175,15 @@ describe('registerLinksTools', () => {
       // 'Missing' has no seedLinkpathDest → null → unresolved
 
       const result = (await getHandler(server, 'links.unresolved')({})) as {
-        content: [{ text: string }]
-      }
-      const parsed = JSON.parse(result.content[0].text) as {
-        unresolved: Array<{ source: string; target: string }>
-        count: number
+        structuredContent: {
+          unresolved: Array<{ source: string; target: string }>
+          count: number
+        }
       }
 
-      expect(parsed.count).toBe(1)
-      expect(parsed.unresolved[0]).toEqual({ source: 'note.md', target: 'Missing' })
+      expect(result).toHaveProperty('structuredContent')
+      expect(result.structuredContent.count).toBe(1)
+      expect(result.structuredContent.unresolved[0]).toEqual({ source: 'note.md', target: 'Missing' })
     })
 
     it('returns empty result when all links resolve', async () => {
@@ -209,15 +199,11 @@ describe('registerLinksTools', () => {
       ports.bridge.seedLinkpathDest('Target', 'clean.md', 'target.md')
 
       const result = (await getHandler(server, 'links.unresolved')({})) as {
-        content: [{ text: string }]
-      }
-      const parsed = JSON.parse(result.content[0].text) as {
-        unresolved: unknown[]
-        count: number
+        structuredContent: { unresolved: unknown[]; count: number }
       }
 
-      expect(parsed.count).toBe(0)
-      expect(parsed.unresolved).toEqual([])
+      expect(result.structuredContent.count).toBe(0)
+      expect(result.structuredContent.unresolved).toEqual([])
     })
 
     it('returns empty result when notes have no outgoing links', async () => {
@@ -232,11 +218,10 @@ describe('registerLinksTools', () => {
       })
 
       const result = (await getHandler(server, 'links.unresolved')({})) as {
-        content: [{ text: string }]
+        structuredContent: { count: number }
       }
-      const parsed = JSON.parse(result.content[0].text) as { count: number }
 
-      expect(parsed.count).toBe(0)
+      expect(result.structuredContent.count).toBe(0)
     })
 
     it('scopes scan to a subfolder', async () => {
@@ -259,16 +244,15 @@ describe('registerLinksTools', () => {
       })
 
       const result = (await getHandler(server, 'links.unresolved')({ folder: 'sub' })) as {
-        content: [{ text: string }]
-      }
-      const parsed = JSON.parse(result.content[0].text) as {
-        unresolved: Array<{ source: string; target: string }>
-        count: number
+        structuredContent: {
+          unresolved: Array<{ source: string; target: string }>
+          count: number
+        }
       }
 
       // Only the sub/ note is scanned
-      expect(parsed.count).toBe(1)
-      expect(parsed.unresolved[0]!.source).toBe('sub/in.md')
+      expect(result.structuredContent.count).toBe(1)
+      expect(result.structuredContent.unresolved[0]!.source).toBe('sub/in.md')
     })
 
     it('returns error for unsafe folder path', async () => {
