@@ -199,6 +199,16 @@ export function renderMcpServerSettings(
     })
   })
 
+  new Setting(containerEl)
+    .setName('Auto-start on Obsidian startup')
+    .setDesc('Start the MCP server automatically when Obsidian loads this plugin. Default off.')
+    .addToggle((t) =>
+      t.setValue(plugin.settings.autoStart ?? false).onChange(async (v) => {
+        plugin.settings.autoStart = v
+        await plugin.saveSettings()
+      }),
+    )
+
   // ── Obsidian CLI binary path with auto-detect button ─────────────────────
   new Setting(containerEl)
     .setName('Obsidian CLI binary path')

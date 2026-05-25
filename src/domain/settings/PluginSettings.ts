@@ -31,6 +31,11 @@ export interface PluginSettings {
   developerMode: boolean
   /** Workflow Catalog — platforms the user has opted into for catalog installs. */
   platforms: CatalogPlatform[]
+  /**
+   * When true, the MCP server starts automatically when Obsidian loads this
+   * plugin. Default false — user must explicitly opt in.
+   */
+  autoStart: boolean
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
@@ -104,4 +109,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   obsidianBinPath: '',
   developerMode: false,
   platforms: ['claude'],
+  autoStart: false,
 }

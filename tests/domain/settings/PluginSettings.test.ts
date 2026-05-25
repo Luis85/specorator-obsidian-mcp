@@ -62,6 +62,10 @@ describe('PluginSettings defaults', () => {
     expect(DEFAULT_SETTINGS.developerMode).toBe(false)
   })
 
+  it('autoStart defaults to false', () => {
+    expect(DEFAULT_SETTINGS.autoStart).toBe(false)
+  })
+
   it('cli.eval defaults to deny in DEFAULT_TOOL_MODES', () => {
     expect(DEFAULT_SETTINGS.toolModes['cli.eval']).toBe('deny')
   })

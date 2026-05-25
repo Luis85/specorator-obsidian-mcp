@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `autoStart` setting — when enabled, the MCP server starts automatically on plugin load (default off). Available in Settings → Server.
 - **Tool-call audit log** — every MCP tool invocation appends to `.specorator/audit-log.jsonl` with tool name, decision, reason, and redacted params for forensic visibility.
 
 ### Security

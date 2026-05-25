@@ -100,6 +100,7 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 | `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                 |
 | `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                   |
 | `developerMode`              | boolean                                  | `false`                              |
+| `autoStart`                  | boolean                                  | `false`                              |
 
 ## Tool groups
 

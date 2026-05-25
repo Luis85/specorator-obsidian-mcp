@@ -110,6 +110,19 @@ export default class SpecoratorMcpPlugin extends Plugin {
         }
       },
     )
+
+    // Auto-start: if the user has opted in, start the MCP server in the
+    // background immediately after plugin load. `void` is intentional —
+    // onload must not block waiting for the server to bind. Failures surface
+    // as a Notice so the user is not left wondering why the server is down.
+    if (this.settings.autoStart) {
+      void this.startServer().catch((err: unknown) => {
+        new Notice(
+          `MCP server auto-start failed: ${err instanceof Error ? err.message : String(err)}`,
+          10000,
+        )
+      })
+    }
   }
 
   async onunload(): Promise<void> {
