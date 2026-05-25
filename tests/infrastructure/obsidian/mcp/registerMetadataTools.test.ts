@@ -19,7 +19,7 @@ describe('registerMetadataTools', () => {
     const { server } = setup()
     const tools = getRegisteredTools(server)
     const expected = Object.keys(DEFAULT_TOOL_MODES)
-      .filter((k) => k.startsWith('metadata.') || k === 'frontmatter.set')
+      .filter((k) => k.startsWith('metadata.') || k.startsWith('frontmatter.'))
       .sort()
     expect(Object.keys(tools).sort()).toEqual(expected)
   })
@@ -406,6 +406,121 @@ describe('registerMetadataTools', () => {
       // File must be unmodified
       const content = await ports.vault.readFile('secret.md')
       expect(content).not.toContain('leaked')
+    })
+  })
+
+  describe('frontmatter.query', () => {
+    it('registers the frontmatter.query tool', () => {
+      const { server } = setup()
+      const handler = getHandler(server, 'frontmatter.query')
+      expect(typeof handler).toBe('function')
+    })
+
+    it('returns matches for eq condition', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('a.md', '')
+      ports.vault.seedFile('b.md', '')
+      ports.metadataCache.seedMetadata('a.md', {
+        path: 'a.md',
+        tags: [],
+        frontmatter: { status: 'done' },
+        links: [],
+        embeds: [],
+      })
+      ports.metadataCache.seedMetadata('b.md', {
+        path: 'b.md',
+        tags: [],
+        frontmatter: { status: 'todo' },
+        links: [],
+        embeds: [],
+      })
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.query',
+      )({
+        where: [{ field: 'status', op: 'eq', value: 'done' }],
+        op: 'AND',
+      })) as { structuredContent: { matches: Array<{ path: string }>; count: number } }
+
+      expect(result.structuredContent.count).toBe(1)
+      expect(result.structuredContent.matches[0]?.path).toBe('a.md')
+    })
+
+    it('returns empty on no-match', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('a.md', '')
+      ports.metadataCache.seedMetadata('a.md', {
+        path: 'a.md',
+        tags: [],
+        frontmatter: { status: 'todo' },
+        links: [],
+        embeds: [],
+      })
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.query',
+      )({
+        where: [{ field: 'status', op: 'eq', value: 'done' }],
+        op: 'AND',
+      })) as { structuredContent: { count: number } }
+
+      expect(result.structuredContent.count).toBe(0)
+    })
+
+    it('supports OR combinator', async () => {
+      const { server, ports } = setup()
+      ports.vault.seedFile('a.md', '')
+      ports.vault.seedFile('b.md', '')
+      ports.vault.seedFile('c.md', '')
+      ports.metadataCache.seedMetadata('a.md', {
+        path: 'a.md',
+        tags: [],
+        frontmatter: { status: 'done' },
+        links: [],
+        embeds: [],
+      })
+      ports.metadataCache.seedMetadata('b.md', {
+        path: 'b.md',
+        tags: [],
+        frontmatter: { priority: 'high' },
+        links: [],
+        embeds: [],
+      })
+      ports.metadataCache.seedMetadata('c.md', {
+        path: 'c.md',
+        tags: [],
+        frontmatter: { other: 'x' },
+        links: [],
+        embeds: [],
+      })
+
+      const result = (await getHandler(
+        server,
+        'frontmatter.query',
+      )({
+        where: [
+          { field: 'status', op: 'eq', value: 'done' },
+          { field: 'priority', op: 'eq', value: 'high' },
+        ],
+        op: 'OR',
+      })) as { structuredContent: { count: number } }
+
+      expect(result.structuredContent.count).toBe(2)
+    })
+
+    it('returns error for unsafe folder', async () => {
+      const { server } = setup()
+      const result = (await getHandler(
+        server,
+        'frontmatter.query',
+      )({
+        folder: '../outside',
+        where: [{ field: 'x', op: 'exists' }],
+        op: 'AND',
+      })) as { isError: boolean }
+      expect(result.isError).toBe(true)
     })
   })
 })

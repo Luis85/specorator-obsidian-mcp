@@ -2,8 +2,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import type { PermissionGate } from '@/application/mcp/PermissionGate'
-import { normalizeVaultPath } from '@/domain/shared/VaultPath'
+import { normalizeVaultPath, isVaultRoot } from '@/domain/shared/VaultPath'
 import { okStructured, err, deny, parseFrontmatter, applyFrontmatterUpdate } from './shared'
+import { queryFrontmatter } from '@/application/mcp/frontmatterQuery'
+import type { Condition, ConditionOp } from '@/application/mcp/frontmatterQuery'
 
 export function registerMetadataTools(
   server: McpServer,
@@ -150,6 +152,63 @@ export function registerMetadataTools(
       // Set/update the field
       await applyFrontmatterUpdate(vault, safePath, { [field]: value })
       return okStructured({ path: safePath, field, previousValue, newValue: value })
+    },
+  )
+
+  // ── frontmatter.query ──────────────────────────────────────────────────
+
+  const ConditionSchema = z.object({
+    field: z.string(),
+    op: z.enum(['eq', 'neq', 'contains', 'in', 'exists', 'gt', 'lt']),
+    value: z
+      .union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())])
+      .optional(),
+  })
+
+  server.registerTool(
+    'frontmatter.query',
+    {
+      description:
+        'Find notes whose frontmatter matches compound conditions (AND/OR). Operators: eq, neq, contains (substring/array includes), in (field value is element of array), exists (field present), gt/lt (numeric). Scoped to folder or vault root.',
+      inputSchema: {
+        folder: z
+          .string()
+          .optional()
+          .describe('Vault-relative folder to search (default: vault root).'),
+        where: z.array(ConditionSchema).min(1).describe('Array of conditions to evaluate.'),
+        op: z.enum(['AND', 'OR']).default('AND').describe('Logical combinator for conditions.'),
+      },
+      outputSchema: {
+        matches: z.array(
+          z.object({
+            path: z.string(),
+            frontmatter: z.record(z.string(), z.unknown()),
+          }),
+        ),
+        count: z.number().int(),
+      },
+    },
+    async ({ folder = '', where, op }) => {
+      const resolvedFolder = isVaultRoot(folder)
+        ? ''
+        : (() => {
+            const norm = normalizeVaultPath(folder)
+            if (!norm.ok) return null
+            return norm.value
+          })()
+
+      if (resolvedFolder === null) {
+        return err('unsafe path')
+      }
+
+      const conditions: Condition[] = where.map((c) => ({
+        field: c.field,
+        op: c.op as ConditionOp,
+        value: c.value,
+      }))
+
+      const result = await queryFrontmatter({ vault, metadata }, resolvedFolder, conditions, op)
+      return okStructured(result as unknown as Record<string, unknown>)
     },
   )
 }
