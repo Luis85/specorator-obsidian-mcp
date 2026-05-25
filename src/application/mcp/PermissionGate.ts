@@ -14,6 +14,20 @@ interface SettingsSource {
 export class PermissionGate {
   private readonly sessionAllowed = new Set<string>()
 
+  /**
+   * WS-Z2 Fix 3: invalidate the session-allow cache when a new catalog asset is
+   * installed.  Clearing a specific tool (or all when undefined) forces the gate
+   * to re-prompt on the next call, preventing a newly installed asset from silently
+   * inheriting a session grant made for a prior asset.
+   */
+  invalidateSessionAllow(toolName?: string): void {
+    if (toolName === undefined) {
+      this.sessionAllowed.clear()
+    } else {
+      this.sessionAllowed.delete(toolName)
+    }
+  }
+
   constructor(
     private readonly settings: SettingsSource,
     private readonly modal: ConfirmModalPort,
