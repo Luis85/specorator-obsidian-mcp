@@ -1,4 +1,5 @@
-import { App, PluginSettingTab, Setting } from 'obsidian'
+import { Notice, App, PluginSettingTab, Setting } from 'obsidian'
+import { exec } from 'child_process'
 import type SpecoratorMcpPlugin from './main'
 import {
   DEFAULT_TOOL_MODES,
@@ -6,9 +7,26 @@ import {
   type ToolMode,
   type LogLevel,
 } from '@/domain/settings/PluginSettings'
+import { applyPreset } from '@/application/settings/presets'
 
 const MODES: ToolMode[] = ['allow', 'ask', 'deny']
 const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
+
+/** One-line descriptions shown under each namespace header. */
+const NS_DESCRIPTIONS: Record<string, string> = {
+  vault: 'Read and write notes in your vault.',
+  metadata: 'Inspect frontmatter, tags, headings, links.',
+  links: 'Query the link graph.',
+  canvas: 'Read and write .canvas files.',
+  bases: 'Query and create Obsidian Bases.',
+  cli: 'Run the official Obsidian CLI.',
+  graph: 'Aggregate graph statistics.',
+  audit: 'Vault health audit.',
+  frontmatter: 'Frontmatter set / query.',
+  note: 'Surgical note edits (note.patch).',
+  attachments: 'Find orphan attachments.',
+  tags: 'Bulk tag operations.',
+}
 
 export class SpecoratorMcpSettingsTab extends PluginSettingTab {
   constructor(
@@ -21,6 +39,9 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this
     containerEl.empty()
+
+    // ── Server status banner ──────────────────────────────────────────────────
+    this.renderStatusBanner(containerEl)
 
     containerEl.createEl('h2', { text: 'Server' })
 
@@ -91,6 +112,7 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
       })
     })
 
+    // ── Obsidian CLI binary path with auto-detect button ─────────────────────
     new Setting(containerEl)
       .setName('Obsidian CLI binary path')
       .setDesc(
@@ -105,11 +127,41 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings()
           }),
       )
+      .addExtraButton((btn) => {
+        btn
+          .setIcon('search')
+          .setTooltip('Auto-detect Obsidian CLI binary in PATH')
+          .onClick(() => {
+            const cmd = process.platform === 'win32' ? 'where Obsidian.com' : 'which obsidian'
+            exec(cmd, (err, stdout) => {
+              if (err || !stdout.trim()) {
+                new Notice(
+                  'No obsidian binary found in PATH; install Obsidian CLI from Settings → General in Obsidian.',
+                )
+                return
+              }
+              const resolved = stdout.trim().split(/\r?\n/)[0]!.trim()
+              this.plugin.settings.obsidianBinPath = resolved
+              void this.plugin.saveSettings().then(() => {
+                new Notice(`CLI binary found: ${resolved}`)
+                this.display()
+              })
+            })
+          })
+      })
 
+    // ── Path deny-list ────────────────────────────────────────────────────────
     containerEl.createEl('h2', { text: 'Path deny-list' })
-    containerEl.createEl('p', {
-      text: 'Glob patterns. Tool calls whose "path" param matches any pattern are denied regardless of mode.',
+    const denyDesc = containerEl.createEl('p', {
+      text: 'Glob patterns (micromatch syntax — see ',
     })
+    denyDesc.createEl('a', {
+      text: 'path-deny-list glossary',
+      href: 'docs/glossary/path-deny-list.md',
+    })
+    denyDesc.appendText(
+      '). Tool calls whose "path" param matches any pattern are denied regardless of mode. Use `.` to match the vault root itself; use `**` to match recursively.',
+    )
 
     new Setting(containerEl).setName('Patterns (one per line)').addTextArea((t) =>
       t.setValue(this.plugin.settings.pathDenyList.join('\n')).onChange(async (v) => {
@@ -121,6 +173,7 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
       }),
     )
 
+    // ── Auto-register ─────────────────────────────────────────────────────────
     containerEl.createEl('h2', { text: 'Auto-register MCP URL with clients' })
     containerEl.createEl('p', {
       text: 'When the server starts, write the MCP URL into well-known client config files. Changes take effect on next start of the server.',
@@ -156,6 +209,7 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         )
     }
 
+    // ── cli.execute allowed prefixes ──────────────────────────────────────────
     containerEl.createEl('h2', { text: 'cli.execute allowed prefixes' })
     containerEl.createEl('p', {
       text: 'Command-id prefixes that bypass the ask-gate for cli.execute (e.g. "editor:"). One per line. Does not bypass the path deny-list.',
@@ -173,6 +227,7 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         }),
     )
 
+    // ── CLI run allow-list ────────────────────────────────────────────────────
     containerEl.createEl('h2', { text: 'CLI run allow-list' })
     containerEl.createEl('p', {
       text: 'Commands whose name starts with any prefix here bypass the ask flow for cli.run (external Obsidian CLI binary). Leave empty to require explicit confirmation for every CLI command. One prefix per line (e.g. "version", "help", "search", "base:"). This list is separate from the cli.execute allow-list — the two tools have different risk profiles.',
@@ -190,6 +245,7 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         }),
     )
 
+    // ── Developer mode ────────────────────────────────────────────────────────
     containerEl.createEl('h3', { text: 'Developer mode' })
     const developerWarning = containerEl.createEl('p', {
       text: 'Enabling developer mode registers the cli.eval tool, which lets MCP clients execute arbitrary JavaScript in Obsidian. Only enable if you understand the risk and trust the connected client.',
@@ -208,9 +264,14 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
         }),
       )
 
+    // ── Tool modes ────────────────────────────────────────────────────────────
     containerEl.createEl('h2', { text: 'Tool modes' })
     containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
 
+    // Quick preset buttons
+    this.renderPresetButtons(containerEl)
+
+    // Group tools by namespace
     const groups = new Map<string, string[]>()
     for (const tool of Object.keys(DEFAULT_TOOL_MODES).sort()) {
       const ns = tool.split('.')[0]!
@@ -220,6 +281,10 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
 
     for (const [ns, tools] of groups) {
       containerEl.createEl('h3', { text: `${capitalise(ns)} tools` })
+      const nsDesc = NS_DESCRIPTIONS[ns]
+      if (nsDesc) {
+        containerEl.createEl('p', { text: nsDesc, cls: 'setting-item-description' })
+      }
       for (const tool of tools) {
         new Setting(containerEl)
           .setName(tool)
@@ -234,6 +299,80 @@ export class SpecoratorMcpSettingsTab extends PluginSettingTab {
             )
           })
       }
+    }
+  }
+
+  // ── Private render helpers ─────────────────────────────────────────────────
+
+  private renderStatusBanner(containerEl: HTMLElement): void {
+    const isRunning = this.plugin.isMcpRunning()
+    const port = this.plugin.getMcpPort()
+
+    const banner = containerEl.createEl('div', { cls: 'specorator-mcp-status-banner' })
+    banner.style.cssText =
+      'display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:16px;' +
+      'border-radius:6px;background:var(--background-modifier-border);'
+
+    const dot = banner.createEl('span')
+    dot.style.cssText = isRunning
+      ? 'width:10px;height:10px;border-radius:50%;background:var(--color-green,#4caf50);flex-shrink:0;'
+      : 'width:10px;height:10px;border-radius:50%;background:var(--text-muted,#888);flex-shrink:0;'
+
+    const statusText = banner.createEl('span', {
+      text: isRunning ? `MCP server running on port ${port}` : 'MCP server stopped',
+    })
+    statusText.style.flex = '1'
+
+    if (!isRunning) {
+      const startBtn = banner.createEl('button', { text: 'Start server' })
+      startBtn.onclick = () => {
+        void this.plugin.startServerPublic().then(() => this.display())
+      }
+    } else {
+      const restartBtn = banner.createEl('button', { text: 'Restart server' })
+      restartBtn.style.marginRight = '4px'
+      restartBtn.onclick = () => {
+        void this.plugin.restartServerPublic().then(() => this.display())
+      }
+
+      const stopBtn = banner.createEl('button', { text: 'Stop server' })
+      stopBtn.onclick = () => {
+        void this.plugin.stopServerPublic().then(() => this.display())
+      }
+    }
+  }
+
+  private renderPresetButtons(containerEl: HTMLElement): void {
+    const row = containerEl.createEl('div', { cls: 'specorator-mcp-preset-row' })
+    row.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;'
+
+    const allAskBtn = row.createEl('button', { text: 'All ask' })
+    allAskBtn.title = 'Set every tool mode to "ask" (safest — always prompts before acting)'
+    allAskBtn.onclick = async () => {
+      this.plugin.settings = applyPreset(this.plugin.settings, 'all-ask')
+      await this.plugin.saveSettings()
+      this.display()
+    }
+
+    const safeBtn = row.createEl('button', { text: 'Safe defaults' })
+    safeBtn.title = 'Restore the as-shipped DEFAULT_TOOL_MODES'
+    safeBtn.onclick = async () => {
+      this.plugin.settings = applyPreset(this.plugin.settings, 'safe-defaults')
+      await this.plugin.saveSettings()
+      this.display()
+    }
+
+    const allAllowBtn = row.createEl('button', { text: 'All allow (advanced)' })
+    allAllowBtn.title = 'Grant full access — only use in isolated / trusted environments'
+    allAllowBtn.style.color = 'var(--text-warning, #ff6b6b)'
+    allAllowBtn.onclick = async () => {
+      this.plugin.settings = applyPreset(this.plugin.settings, 'all-allow')
+      await this.plugin.saveSettings()
+      new Notice(
+        'This grants the MCP client full access. Only do this in isolated environments.',
+        8000,
+      )
+      this.display()
     }
   }
 }

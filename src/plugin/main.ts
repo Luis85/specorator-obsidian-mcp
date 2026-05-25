@@ -130,6 +130,29 @@ export default class SpecoratorMcpPlugin extends Plugin {
     await this.saveData(this.settings)
   }
 
+  // ── Public helpers used by the settings UI ───────────────────────────────
+
+  isMcpRunning(): boolean {
+    return this.mcp !== undefined
+  }
+
+  getMcpPort(): number {
+    return this.mcp?.boundPort ?? this.settings.port
+  }
+
+  async startServerPublic(): Promise<void> {
+    return this.startServer()
+  }
+
+  async stopServerPublic(): Promise<void> {
+    return this.stopServer()
+  }
+
+  async restartServerPublic(): Promise<void> {
+    await this.stopServer()
+    await this.startServer()
+  }
+
   private async startServer(): Promise<void> {
     if (this.mcp) return
     const modal = new ObsidianConfirmModalAdapter(this.app)
