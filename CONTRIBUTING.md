@@ -33,6 +33,20 @@ npm run test:coverage     # unit tests + lcov coverage report
 
 Hard coverage thresholds: 80/70/80/80 (statements/branches/functions/lines). Thresholds are enforced by `npm run verify`.
 
+## Integration tests
+
+Integration tests that invoke the real Obsidian CLI binary are gated behind the `OBSIDIAN_BIN` environment variable. They are **skipped automatically** when the variable is absent, so `npm test` and CI always pass without Obsidian installed.
+
+To exercise the CLI adapter against the real binary:
+
+```sh
+OBSIDIAN_BIN=/path/to/obsidian npm test
+# Windows (PowerShell):
+$env:OBSIDIAN_BIN = "C:\path\to\obsidian.exe"; npm test
+```
+
+These tests live in `tests/infrastructure/node/NodeObsidianCliAdapter.integration.test.ts`. No vault is required — only the Obsidian CLI binary needs to be present and executable. The suite covers `obsidian version`, `obsidian help`, and an unknown-command error path.
+
 ## Code style
 
 - **Prettier** runs automatically as part of `npm run format`. Check only: `npm run format:check`.

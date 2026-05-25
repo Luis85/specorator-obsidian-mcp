@@ -129,6 +129,16 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 
 **Auto-register permission denied on Windows:** Check that `~/.claude.json` is writable. The plugin shows a Notice in Obsidian if it cannot write the config file. You can also add the entry manually — see the JSON snippet in Client integration above.
 
+**Running integration tests against the real Obsidian CLI:** The CLI adapter integration tests (`NodeObsidianCliAdapter.integration.test.ts`) are skipped by default so CI stays green without Obsidian installed. To run them locally, set the `OBSIDIAN_BIN` environment variable to the path of your Obsidian CLI binary:
+
+```sh
+OBSIDIAN_BIN=/path/to/obsidian npm test
+# Windows (PowerShell):
+$env:OBSIDIAN_BIN = "C:\path\to\obsidian.exe"; npm test
+```
+
+The tests invoke `obsidian version`, `obsidian help`, and an unknown command to verify the adapter wires through correctly to the real binary.
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
