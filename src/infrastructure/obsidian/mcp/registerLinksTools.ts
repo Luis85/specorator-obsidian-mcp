@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { MetadataCachePort, VaultPort } from '@/domain/ports'
 import { normalizeVaultPath } from '@/domain/shared/VaultPath'
-import { ok, err, collectFiles } from './shared'
+import { okStructured, err, collectFiles } from './shared'
 
 function unsafePath(msg: string): { isError: true; content: [{ type: 'text'; text: string }] } {
   return err(`unsafe path: ${msg}`)
@@ -79,11 +79,12 @@ export function registerLinksTools(
     {
       description: 'Get vault paths that link to the given note',
       inputSchema: { path: z.string().describe('Vault-relative path') },
+      outputSchema: { backlinks: z.array(z.string()) },
     },
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
-      return ok({ backlinks: metadata.getBacklinks(norm.value) })
+      return okStructured({ backlinks: [...metadata.getBacklinks(norm.value)] })
     },
   )
 
@@ -92,12 +93,13 @@ export function registerLinksTools(
     {
       description: 'Get outgoing wikilinks from a note (resolved link targets)',
       inputSchema: { path: z.string().describe('Vault-relative path') },
+      outputSchema: { links: z.array(z.string()) },
     },
     async ({ path }) => {
       const norm = normalizeVaultPath(path)
       if (!norm.ok) return unsafePath(norm.error.message)
       const snapshot = metadata.getFileMetadata(norm.value)
-      return ok({ links: snapshot?.links ?? [] })
+      return okStructured({ links: snapshot?.links ?? [] })
     },
   )
 
@@ -111,12 +113,16 @@ export function registerLinksTools(
         depth: z.number().int().min(1).max(5).describe('Hop limit (max 5)'),
         direction: z.enum(['outgoing', 'backlinks', 'both']),
       },
+      outputSchema: {
+        nodes: z.array(z.string()),
+        edges: z.array(z.tuple([z.string(), z.string()])),
+      },
     },
     async ({ startPath, depth, direction }) => {
       const norm = normalizeVaultPath(startPath)
       if (!norm.ok) return unsafePath(norm.error.message)
       const result = bfsTraverse(metadata, norm.value, Math.min(depth, 5), direction)
-      return ok(result)
+      return okStructured(result as unknown as Record<string, unknown>)
     },
   )
 
@@ -130,6 +136,10 @@ export function registerLinksTools(
           .string()
           .optional()
           .describe('Vault-relative folder to scan (default: vault root).'),
+      },
+      outputSchema: {
+        unresolved: z.array(z.object({ source: z.string(), target: z.string() })),
+        count: z.number().int(),
       },
     },
     async ({ folder = '' }) => {
@@ -151,7 +161,7 @@ export function registerLinksTools(
         }
       }
 
-      return ok({ unresolved, count: unresolved.length })
+      return okStructured({ unresolved, count: unresolved.length })
     },
   )
 }

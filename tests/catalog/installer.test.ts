@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { enableAsset, disableAsset, ScanBlockedError } from '@/application/catalog/installer'
 import { loadState } from '@/application/catalog/sidecar'
 import { memFs } from './memfs'
@@ -63,6 +63,28 @@ describe('installer', () => {
     const fm = parseYaml(fmText)
     expect(fm.description).toBe('Audits a vault: orphans, links, and tags. Use when: cleaning up.')
     expect(fm.name).toBe('auditing-vault')
+  })
+
+  // WS-Z2 Fix 3: enabling an asset with destructive requires must invalidate
+  // the session-allow cache for those tools via the optional gate reference.
+  it('calls gate.invalidateSessionAllow for each destructive tool in a.requires', async () => {
+    const fs = memFs()
+    const writeAsset: AssetMeta = {
+      ...asset,
+      id: 'write-asset',
+      name: 'write-asset',
+      requires: ['vault_write', 'vault_read'], // vault_write is destructive; vault_read is not
+    }
+    const gate = { invalidateSessionAllow: vi.fn() }
+    await enableAsset(fs, writeAsset, [writeAsset], ['claude'], { gate })
+    // Only the destructive tool should trigger invalidation
+    expect(gate.invalidateSessionAllow).toHaveBeenCalledWith('vault_write')
+    expect(gate.invalidateSessionAllow).not.toHaveBeenCalledWith('vault_read')
+  })
+
+  it('does not throw when gate is absent (backward-compatible)', async () => {
+    const fs = memFs()
+    await expect(enableAsset(fs, asset, [asset], ['claude'])).resolves.toBeDefined()
   })
 
   // H1: a shared dependency installed in the same call must be visible to later

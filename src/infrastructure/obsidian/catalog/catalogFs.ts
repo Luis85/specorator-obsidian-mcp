@@ -11,6 +11,17 @@ export function obsidianFs(app: App): FileSystem {
     async write(p, c) {
       await a.write(normalizePath(p), c)
     },
+    // WS-Z2 Fix 5: Obsidian's vault adapter does not expose a native append.
+    // We fall back to a synchronous read+write under the Obsidian single-process
+    // guarantee — the vault adapter serialises all I/O so there is no
+    // cross-process race here; only in-process concurrent awaits could race, but
+    // the installer's sequential asset loop makes that impossible in practice.
+    // not race-safe but Obsidian vault is single-process
+    async append(p, c) {
+      const n = normalizePath(p)
+      const prev = (await a.exists(n)) ? await a.read(n) : ''
+      await a.write(n, prev + c)
+    },
     async exists(p) {
       return a.exists(normalizePath(p))
     },

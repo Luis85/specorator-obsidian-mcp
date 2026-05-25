@@ -14,20 +14,27 @@ export class ConflictModal extends Modal {
   onOpen(): void {
     const { contentEl } = this
     contentEl.createEl('h3', { text: 'File already exists' })
-    contentEl.createEl('p', { text: this.path })
+    contentEl.createEl('p', {
+      text: `A file at ${this.path} already exists and was not installed by this plugin. Choose how to proceed:`,
+    })
     const choose = (c: ConflictChoice) => () => {
       this.onChoice(c)
       this.close()
     }
-    contentEl
-      .createEl('button', { text: 'Keep mine (skip)' })
-      .addEventListener('click', choose('skip'))
-    contentEl
+    const btnRow = contentEl.createEl('div')
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;'
+
+    const keepBtn = btnRow.createEl('button', { text: 'Keep mine (skip)' })
+    keepBtn.classList.add('mod-cta')
+    keepBtn.addEventListener('click', choose('skip'))
+
+    btnRow
       .createEl('button', { text: 'Backup & replace' })
       .addEventListener('click', choose('backup'))
-    contentEl
-      .createEl('button', { text: 'Overwrite' })
-      .addEventListener('click', choose('overwrite'))
+
+    const overwriteBtn = btnRow.createEl('button', { text: 'Overwrite' })
+    overwriteBtn.classList.add('mod-warning')
+    overwriteBtn.addEventListener('click', choose('overwrite'))
   }
 
   onClose(): void {

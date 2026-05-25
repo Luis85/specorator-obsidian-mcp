@@ -8,6 +8,8 @@ requires: []
 dependsOn: []
 ---
 
+> **`$VAULT` prerequisite:** set `VAULT` to your vault's absolute path before relying on this hook (e.g. `export VAULT=/path/to/your/vault` in your shell profile or the Claude Code environment). Without it the shell expansion `$VAULT/$(date ...).md` resolves to a path under your home directory instead of the vault.
+
 ```json
 {
   "id": "session-audit",

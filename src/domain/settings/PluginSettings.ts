@@ -31,58 +31,86 @@ export interface PluginSettings {
   developerMode: boolean
   /** Workflow Catalog — platforms the user has opted into for catalog installs. */
   platforms: CatalogPlatform[]
+  /**
+   * When true, the MCP server starts automatically when Obsidian loads this
+   * plugin. Default false — user must explicitly opt in.
+   */
+  autoStart: boolean
 }
 
 export const DEFAULT_TOOL_MODES: Readonly<Record<string, ToolMode>> = Object.freeze({
-  'vault.read': 'allow',
-  'vault.list': 'allow',
-  'vault.exists': 'allow',
-  'vault.write': 'ask',
-  'vault.delete': 'ask',
-  'vault.move': 'ask',
+  // vault
   'vault.createFolder': 'ask',
+  'vault.delete': 'ask',
+  'vault.exists': 'allow',
+  'vault.hash': 'allow',
+  'vault.list': 'allow',
+  'vault.list_recursive': 'allow',
+  'vault.move': 'ask',
+  'vault.read': 'allow',
+  'vault.search': 'allow',
+  'vault.walk': 'allow',
+  'vault.write': 'ask',
+
+  // metadata
   'metadata.frontmatter': 'allow',
-  'metadata.tags': 'allow',
   'metadata.headings': 'allow',
   'metadata.linkpath': 'allow',
+  'metadata.search': 'allow',
+  'metadata.tags': 'allow',
+
+  // frontmatter
+  'frontmatter.query': 'allow',
+  'frontmatter.set': 'ask',
+
+  // note
+  'note.patch': 'ask',
+
+  // links
   'links.backlinks': 'allow',
-  'links.outgoing': 'allow',
   'links.bfs': 'allow',
+  'links.outgoing': 'allow',
+  'links.unresolved': 'allow',
+
+  // graph
+  'graph.deadends': 'allow',
+  'graph.orphans': 'allow',
+  'graph.stats': 'allow',
+
+  // tags
+  'tags.rename': 'ask',
+
+  // attachments
+  'attachments.orphans': 'allow',
+
+  // canvas
+  'canvas.list': 'allow',
   'canvas.read': 'allow',
   'canvas.write': 'ask',
+
+  // bases
+  'bases.create': 'ask',
   'bases.list': 'allow',
-  'bases.views': 'allow',
   'bases.query': 'allow',
   'bases.read': 'allow',
-  'bases.create': 'ask',
-  'cli.read.list': 'allow',
-  'cli.read.find': 'allow',
-  'cli.execute': 'deny',
-  'cli.screenshot': 'ask',
-  'cli.run': 'deny',
-  'vault.search': 'allow',
-  'vault.list_recursive': 'allow',
-  'metadata.search': 'allow',
-  'canvas.list': 'allow',
+  'bases.views': 'allow',
+
+  // cli
   'cli.daily_note': 'ask',
-  'cli.workspace_load': 'ask',
-  'cli.template_insert': 'ask',
-  'cli.open_file': 'ask',
-  'cli.reload': 'ask',
   'cli.eval': 'deny',
-  'audit.report': 'allow',
-  'links.unresolved': 'allow',
-  'frontmatter.set': 'ask',
-  'graph.stats': 'allow',
-  'graph.orphans': 'allow',
-  'graph.deadends': 'allow',
-  'frontmatter.query': 'allow',
-  'vault.walk': 'allow',
-  'note.patch': 'ask',
-  'vault.hash': 'allow',
-  'tags.rename': 'ask',
-  'attachments.orphans': 'allow',
+  'cli.execute': 'deny',
+  'cli.open_file': 'ask',
+  'cli.read.find': 'allow',
+  'cli.read.list': 'allow',
+  'cli.reload': 'ask',
+  'cli.run': 'deny',
+  'cli.screenshot': 'ask',
+  'cli.template_insert': 'ask',
+  'cli.workspace_load': 'ask',
+
+  // audit
   'audit.export': 'ask',
+  'audit.report': 'allow',
 })
 
 export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({
@@ -95,7 +123,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   port: 7842,
   defaultMode: 'ask',
   toolModes: { ...DEFAULT_TOOL_MODES },
-  pathDenyList: [],
+  pathDenyList: ['.specorator/**', '.claude/hooks/**', '.claude/hooks/hooks.json'],
   askTimeoutMs: 30_000,
   logLevel: 'warn',
   autoRegister: { ...DEFAULT_AUTO_REGISTER },
@@ -104,4 +132,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   obsidianBinPath: '',
   developerMode: false,
   platforms: ['claude'],
+  autoStart: false,
 }

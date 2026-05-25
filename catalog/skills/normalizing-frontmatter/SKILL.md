@@ -4,7 +4,7 @@ description: Normalizes YAML frontmatter fields across vault notes to a consiste
 type: skill
 version: 0.1.0
 bundle: Vault Maintenance
-requires: [metadata_frontmatter, vault_read, vault_write, vault_list]
+requires: [metadata_frontmatter, vault_write, vault_list]
 dependsOn: []
 ---
 

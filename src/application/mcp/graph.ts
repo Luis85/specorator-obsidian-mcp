@@ -7,6 +7,7 @@
  */
 import type { MetadataCachePort } from '@/domain/ports/MetadataCachePort'
 import type { VaultPort } from '@/domain/ports/VaultPort'
+import { pool, yieldEveryN } from '@/application/mcp/batching'
 
 // ── shared file collector ────────────────────────────────────────────────────
 
@@ -20,9 +21,8 @@ async function collectAllFiles(vault: VaultPort, folder: string): Promise<string
     vault.listFiles(folder),
     vault.listFolders(folder),
   ])
-  const nested = await Promise.all(
-    subfolders.map((sub) => collectAllFiles(vault, joinPath(folder, sub))),
-  )
+  // Cap concurrency at 8 to prevent unbounded recursive fan-out on large vaults.
+  const nested = await pool(subfolders, 8, (sub) => collectAllFiles(vault, joinPath(folder, sub)))
   return [...files, ...nested.flat()]
 }
 
@@ -107,7 +107,8 @@ export async function computeGraphStats(
   const uf = makeUnionFind(mdFiles)
   const mdSet = new Set(mdFiles)
 
-  for (const path of mdFiles) {
+  // Pure metadata-cache reads — yield every 200 items (CPU-bound)
+  await yieldEveryN(mdFiles, 200, (path) => {
     const resolved = metadata.getResolvedLinks(path)
     for (const [target, count] of Object.entries(resolved)) {
       totalLinks += count
@@ -116,7 +117,7 @@ export async function computeGraphStats(
         uf.union(path, target)
       }
     }
-  }
+  })
 
   // Orphans: zero in-degree
   let orphanCount = 0
@@ -124,13 +125,13 @@ export async function computeGraphStats(
     if (deg === 0) orphanCount++
   }
 
-  // Deadends: zero out-degree
+  // Deadends: zero out-degree — yield every 200 items (CPU-bound)
   let deadendCount = 0
-  for (const path of mdFiles) {
+  await yieldEveryN(mdFiles, 200, (path) => {
     const resolved = metadata.getResolvedLinks(path)
     const outgoing = Object.keys(resolved).filter((t) => mdSet.has(t))
     if (outgoing.length === 0) deadendCount++
-  }
+  })
 
   // Hubs: top 10 by in-degree
   const sorted = [...inDegree.entries()]
@@ -179,20 +180,21 @@ export async function findOrphans(
   const staleCutoff = staleDays !== undefined ? now - staleDays * 86_400_000 : null
 
   const orphans: OrphanEntry[] = []
-  for (const path of mdFiles) {
+  // I/O: vault.getFileStats per file — yield every 50 items
+  await yieldEveryN(mdFiles, 50, async (path) => {
     const backlinks = metadata.getBacklinks(path)
-    if (backlinks.length > 0) continue
+    if (backlinks.length > 0) return
 
     const stats = await vault.getFileStats(path)
     const mtime = stats?.mtime ?? 0
     const bytes = stats?.size ?? 0
 
     // Apply stale filter if requested
-    if (staleCutoff !== null && mtime > staleCutoff) continue
+    if (staleCutoff !== null && mtime > staleCutoff) return
 
     const lastModified = new Date(mtime).toISOString()
     orphans.push({ path, lastModified, bytes })
-  }
+  })
 
   return { orphans, count: orphans.length }
 }
@@ -215,11 +217,12 @@ export async function findDeadends(
   const mdSet = new Set(mdFiles)
 
   const deadends: string[] = []
-  for (const path of mdFiles) {
+  // Pure metadata-cache reads — yield every 200 items (CPU-bound)
+  await yieldEveryN(mdFiles, 200, (path) => {
     const resolved = metadata.getResolvedLinks(path)
     const outgoing = Object.keys(resolved).filter((t) => mdSet.has(t))
     if (outgoing.length === 0) deadends.push(path)
-  }
+  })
 
   return { deadends, count: deadends.length }
 }

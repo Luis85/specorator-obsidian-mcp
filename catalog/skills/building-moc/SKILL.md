@@ -4,7 +4,7 @@ description: Builds a Map of Content / index note from tags and link clusters. U
 type: skill
 version: 0.1.0
 bundle: MOC / Index Builder
-requires: [metadata_tags, links_backlinks, links_bfs]
+requires: [metadata_tags, links_backlinks, links_bfs, vault_write]
 dependsOn: []
 ---
 

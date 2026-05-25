@@ -25,20 +25,19 @@ describe('registerAuditTool', () => {
     ports.vault.seedFile('b.md', '# B')
 
     const result = (await getHandler(server, 'audit.report')({})) as {
-      content: [{ text: string }]
-    }
-    const parsed = JSON.parse(result.content[0].text) as {
-      totalFiles: number
-      checksRun: string[]
-      findings: Record<string, unknown>
-      counts: Record<string, number>
+      structuredContent: {
+        totalFiles: number
+        checksRun: string[]
+        findings: Record<string, unknown>
+        counts: Record<string, number>
+      }
     }
 
-    expect(parsed.totalFiles).toBe(2)
-    expect(parsed.checksRun).toHaveLength(6)
-    expect(parsed.findings.orphans).toBeDefined()
-    expect(parsed.findings.deadends).toBeDefined()
-    expect(parsed.findings.unresolved_links).toBeDefined()
+    expect(result.structuredContent.totalFiles).toBe(2)
+    expect(result.structuredContent.checksRun).toHaveLength(6)
+    expect(result.structuredContent.findings['orphans']).toBeDefined()
+    expect(result.structuredContent.findings['deadends']).toBeDefined()
+    expect(result.structuredContent.findings['unresolved_links']).toBeDefined()
   })
 
   it('runs only the requested checks', async () => {
@@ -49,18 +48,17 @@ describe('registerAuditTool', () => {
       server,
       'audit.report',
     )({ checks: ['orphans', 'deadends'] })) as {
-      content: [{ text: string }]
-    }
-    const parsed = JSON.parse(result.content[0].text) as {
-      checksRun: string[]
-      findings: Record<string, unknown>
+      structuredContent: {
+        checksRun: string[]
+        findings: Record<string, unknown>
+      }
     }
 
-    expect(parsed.checksRun).toEqual(['orphans', 'deadends'])
-    expect(parsed.findings.orphans).toBeDefined()
-    expect(parsed.findings.deadends).toBeDefined()
-    expect(parsed.findings.unresolved_links).toBeUndefined()
-    expect(parsed.findings.tag_dupes).toBeUndefined()
+    expect(result.structuredContent.checksRun).toEqual(['orphans', 'deadends'])
+    expect(result.structuredContent.findings['orphans']).toBeDefined()
+    expect(result.structuredContent.findings['deadends']).toBeDefined()
+    expect(result.structuredContent.findings['unresolved_links']).toBeUndefined()
+    expect(result.structuredContent.findings['tag_dupes']).toBeUndefined()
   })
 
   it('detects orphans (notes with zero backlinks)', async () => {
@@ -70,16 +68,15 @@ describe('registerAuditTool', () => {
     ports.metadataCache.seedBacklinks('linked.md', ['someone.md'])
 
     const result = (await getHandler(server, 'audit.report')({ checks: ['orphans'] })) as {
-      content: [{ text: string }]
-    }
-    const parsed = JSON.parse(result.content[0].text) as {
-      findings: { orphans?: string[] }
-      counts: Record<string, number>
+      structuredContent: {
+        findings: { orphans?: string[] }
+        counts: Record<string, number>
+      }
     }
 
-    expect(parsed.findings.orphans).toContain('orphan.md')
-    expect(parsed.findings.orphans).not.toContain('linked.md')
-    expect(parsed.counts['orphans']).toBe(1)
+    expect(result.structuredContent.findings.orphans).toContain('orphan.md')
+    expect(result.structuredContent.findings.orphans).not.toContain('linked.md')
+    expect(result.structuredContent.counts['orphans']).toBe(1)
   })
 
   it('detects unresolved wikilinks', async () => {
@@ -95,16 +92,18 @@ describe('registerAuditTool', () => {
     // No linkpathDest seeded for 'Ghost' → null → unresolved
 
     const result = (await getHandler(server, 'audit.report')({ checks: ['unresolved_links'] })) as {
-      content: [{ text: string }]
-    }
-    const parsed = JSON.parse(result.content[0].text) as {
-      findings: { unresolved_links?: Array<{ source: string; target: string }> }
-      counts: Record<string, number>
+      structuredContent: {
+        findings: { unresolved_links?: Array<{ source: string; target: string }> }
+        counts: Record<string, number>
+      }
     }
 
-    expect(parsed.findings.unresolved_links).toHaveLength(1)
-    expect(parsed.findings.unresolved_links![0]).toEqual({ source: 'src.md', target: 'Ghost' })
-    expect(parsed.counts['unresolved_links']).toBe(1)
+    expect(result.structuredContent.findings.unresolved_links).toHaveLength(1)
+    expect(result.structuredContent.findings.unresolved_links![0]).toEqual({
+      source: 'src.md',
+      target: 'Ghost',
+    })
+    expect(result.structuredContent.counts['unresolved_links']).toBe(1)
   })
 
   it('returns error for unsafe folder path', async () => {
@@ -125,14 +124,35 @@ describe('registerAuditTool', () => {
     ports.vault.seedFile('root.md', '# Root')
 
     const result = (await getHandler(server, 'audit.report')({ folder: 'sub' })) as {
-      content: [{ text: string }]
-    }
-    const parsed = JSON.parse(result.content[0].text) as {
-      totalFiles: number
-      folder: string
+      structuredContent: {
+        totalFiles: number
+        folder: string
+      }
     }
 
-    expect(parsed.folder).toBe('sub')
-    expect(parsed.totalFiles).toBe(1)
+    expect(result.structuredContent.folder).toBe('sub')
+    expect(result.structuredContent.totalFiles).toBe(1)
+  })
+
+  it('returns structuredContent matching outputSchema (MCP SDK ≥1.10 regression)', async () => {
+    const { server, ports } = setup()
+    ports.vault.seedFile('a.md', '# A')
+
+    const result = (await getHandler(server, 'audit.report')({})) as {
+      structuredContent: {
+        totalFiles: number
+        checksRun: string[]
+        findings: Record<string, unknown>
+        counts: Record<string, number>
+      }
+      content: [{ text: string }]
+    }
+
+    expect(result).toHaveProperty('structuredContent')
+    expect(typeof result.structuredContent.totalFiles).toBe('number')
+    expect(Array.isArray(result.structuredContent.checksRun)).toBe(true)
+    // text content must also be present for backwards-compatible clients
+    const parsed = JSON.parse(result.content[0].text) as { totalFiles: number }
+    expect(parsed.totalFiles).toBe(result.structuredContent.totalFiles)
   })
 })

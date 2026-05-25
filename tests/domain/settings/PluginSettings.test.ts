@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_SETTINGS,
-  type PluginSettings,
   type ToolMode,
+  DEFAULT_AUTO_REGISTER,
 } from '@/domain/settings/PluginSettings'
-import { DEFAULT_AUTO_REGISTER } from '@/domain/settings/PluginSettings'
 
 describe('PluginSettings defaults', () => {
   it('default port is 7842', () => {
@@ -27,8 +26,16 @@ describe('PluginSettings defaults', () => {
     expect(DEFAULT_SETTINGS.askTimeoutMs).toBe(30_000)
   })
 
-  it('pathDenyList is empty by default', () => {
-    expect(DEFAULT_SETTINGS.pathDenyList).toEqual<PluginSettings['pathDenyList']>([])
+  it('pathDenyList default-denies .specorator/** (tamper-protect audit log)', () => {
+    expect(DEFAULT_SETTINGS.pathDenyList).toContain('.specorator/**')
+  })
+
+  it('pathDenyList default-denies .claude/hooks/** (supply-chain protection)', () => {
+    expect(DEFAULT_SETTINGS.pathDenyList).toContain('.claude/hooks/**')
+  })
+
+  it('pathDenyList default-denies .claude/hooks/hooks.json (defensive explicit)', () => {
+    expect(DEFAULT_SETTINGS.pathDenyList).toContain('.claude/hooks/hooks.json')
   })
 
   it('autoRegister.claudeCli defaults to true', () => {
@@ -53,6 +60,10 @@ describe('PluginSettings defaults', () => {
 
   it('developerMode defaults to false', () => {
     expect(DEFAULT_SETTINGS.developerMode).toBe(false)
+  })
+
+  it('autoStart defaults to false', () => {
+    expect(DEFAULT_SETTINGS.autoStart).toBe(false)
   })
 
   it('cli.eval defaults to deny in DEFAULT_TOOL_MODES', () => {

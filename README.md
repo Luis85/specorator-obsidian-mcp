@@ -6,8 +6,6 @@ Specorator Obsidian MCP lets AI tools — Claude, Cursor, Claude Desktop — rea
 
 **Active development.** Current tool count: 49 (was 21 at 0.1.0 launch). See [CHANGELOG](./CHANGELOG.md) for detail.
 
-<!-- TODO: add settings tab screenshot, modal screenshot -->
-
 ## Install
 
 ### Via BRAT (recommended now)
@@ -33,11 +31,10 @@ Coming soon — pending marketplace review.
 
 ## Quick start
 
-1. Enable the plugin in **Settings → Community plugins**.
-2. Open the command palette and run **Start MCP server**.
-3. The status bar shows `MCP: 127.0.0.1:7842` — the server is running.
-4. The plugin auto-registers the URL with Claude CLI by default (`~/.claude.json`). Verify with `claude mcp list`.
-5. Open Claude Code and ask it to list your vault files.
+1. Open the command palette and run **Start MCP server**.
+2. The status bar shows `MCP: 127.0.0.1:7842` — the server is running.
+3. The plugin auto-registers the URL with Claude CLI by default (`~/.claude.json`). Verify with `claude mcp list`.
+4. Open Claude Code and ask it to list your vault files.
 
 ## How it works
 
@@ -103,6 +100,7 @@ Toggle each client in **Settings → Auto-register MCP URL with clients**. Chang
 | `cliRunAllowedPrefixes`      | command-id prefix list (one per line)    | `[]`                                 |
 | `obsidianBinPath`            | string (path)                            | `''` (auto-detect)                   |
 | `developerMode`              | boolean                                  | `false`                              |
+| `autoStart`                  | boolean                                  | `false`                              |
 
 ## Tool groups
 

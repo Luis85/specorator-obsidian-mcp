@@ -118,6 +118,12 @@ export function registerMetadataTools(
         field: z.string().min(1).describe('Frontmatter key name'),
         value: z.unknown().describe('Any JSON-serializable value; null deletes the field'),
       },
+      outputSchema: {
+        path: z.string(),
+        field: z.string(),
+        previousValue: z.unknown().optional(),
+        newValue: z.unknown().optional(),
+      },
     },
     async ({ path, field, value }) => {
       const norm = normalizeVaultPath(path)

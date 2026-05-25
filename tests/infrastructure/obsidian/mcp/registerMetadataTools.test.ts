@@ -292,8 +292,15 @@ describe('registerMetadataTools', () => {
         path: 'note.md',
         field: 'status',
         value: 'active',
-      })) as { structuredContent?: Record<string, unknown>; content: [{ text: string }] }
+      })) as { structuredContent: Record<string, unknown>; content: [{ text: string }] }
 
+      // structuredContent must be present (outputSchema declared)
+      expect(result).toHaveProperty('structuredContent')
+      expect(result.structuredContent['field']).toBe('status')
+      expect(result.structuredContent['previousValue']).toBeUndefined()
+      expect(result.structuredContent['newValue']).toBe('active')
+
+      // text fallback consistency
       const parsed = JSON.parse(result.content[0].text) as {
         path: string
         field: string

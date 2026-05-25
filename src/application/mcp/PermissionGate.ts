@@ -1,6 +1,8 @@
 import type { PluginSettings, ToolMode } from '@/domain/settings/PluginSettings'
 import type { ConfirmModalPort } from '@/domain/ports'
 import { matchGlob } from '@/domain/shared/matchGlob'
+import type { ToolCallAuditEntry } from '@/application/catalog/auditlog'
+import { redactParams } from '@/application/catalog/auditlog'
 
 export interface GateDecision {
   decision: 'allow' | 'deny'
@@ -11,15 +13,49 @@ interface SettingsSource {
   getSettings(): PluginSettings
 }
 
+export interface GateAuditor {
+  record(entry: ToolCallAuditEntry): void | Promise<void>
+}
+
 export class PermissionGate {
   private readonly sessionAllowed = new Set<string>()
+
+  /**
+   * WS-Z2 Fix 3: invalidate the session-allow cache when a new catalog asset is
+   * installed.  Clearing a specific tool (or all when undefined) forces the gate
+   * to re-prompt on the next call, preventing a newly installed asset from silently
+   * inheriting a session grant made for a prior asset.
+   */
+  invalidateSessionAllow(toolName?: string): void {
+    if (toolName === undefined) {
+      this.sessionAllowed.clear()
+    } else {
+      this.sessionAllowed.delete(toolName)
+    }
+  }
 
   constructor(
     private readonly settings: SettingsSource,
     private readonly modal: ConfirmModalPort,
+    private readonly auditor?: GateAuditor,
   ) {}
 
   async resolve(toolName: string, params: Record<string, unknown>): Promise<GateDecision> {
+    const decision = await this.resolveInner(toolName, params)
+    void this.auditor?.record({
+      kind: 'tool-call',
+      tool: toolName,
+      decision: decision.decision,
+      reason: decision.reason,
+      params: redactParams(params),
+    })
+    return decision
+  }
+
+  private async resolveInner(
+    toolName: string,
+    params: Record<string, unknown>,
+  ): Promise<GateDecision> {
     const s = this.settings.getSettings()
 
     // 1. Path deny-list takes precedence

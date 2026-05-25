@@ -37,7 +37,10 @@ export class ConsentModal extends Modal {
         text: '⚠ Content scan flagged this asset — review carefully.',
         cls: 'mod-warning',
       })
-    contentEl.createEl('pre', { text: this.summary.body })
+    contentEl.createEl('p', { text: 'Asset content (preview):' })
+    const pre = contentEl.createEl('pre', { text: this.summary.body })
+    pre.style.maxHeight = '240px'
+    pre.style.overflowY = 'auto'
     const btn = contentEl.createEl('button', { text: 'Confirm install' })
     btn.addEventListener('click', () => {
       this.onConfirm()

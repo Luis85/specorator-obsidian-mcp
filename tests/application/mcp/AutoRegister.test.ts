@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { AutoRegister, SERVER_KEY } from '@/application/mcp/AutoRegister'
+import { AutoRegister, SERVER_KEY, sidecarPath } from '@/application/mcp/AutoRegister'
 import type { AutoRegisterTarget } from '@/application/mcp/AutoRegister'
 import { MockFileSystemPort } from '@/infrastructure/mock/MockFileSystemPort'
 
@@ -138,10 +138,10 @@ describe('AutoRegister.register', () => {
       // file does not exist in mockFs
       const writesBefore = mockFs.writeCallCount
       await ar.register(URL, [target])
-      // Only 1 write: the config itself; no .bak write
+      // 2 writes: the config itself + the sidecar (Fix 2); no .bak write
       const bak = mockFs.files.get(`${target.configPath}.bak`)
       expect(bak).toBeUndefined()
-      expect(mockFs.writeCallCount).toBe(writesBefore + 1)
+      expect(mockFs.writeCallCount).toBe(writesBefore + 2)
     })
 
     it('does NOT write .bak when URL is unchanged (skips write)', async () => {
@@ -154,6 +154,86 @@ describe('AutoRegister.register', () => {
       expect(mockFs.writeCallCount).toBe(writesBefore)
       expect(mockFs.files.get(`${target.configPath}.bak`)).toBeUndefined()
     })
+  })
+})
+
+// WS-Z2 Fix 2: supply-chain detection via last-written hash sidecar
+describe('AutoRegister supply-chain detection', () => {
+  let mockFs: MockFileSystemPort
+  const target = makeTarget()
+  const SIDECAR = sidecarPath()
+
+  beforeEach(() => {
+    mockFs = new MockFileSystemPort()
+  })
+
+  it('writes a sidecar entry after register', async () => {
+    const ar = new AutoRegister(mockFs)
+    await ar.register(URL, [target])
+    const sidecar = JSON.parse(mockFs.files.get(SIDECAR)!)
+    expect(sidecar[target.configPath]).toBeDefined()
+    expect(typeof sidecar[target.configPath].sha256).toBe('string')
+    expect(sidecar[target.configPath].sha256).toHaveLength(64)
+  })
+
+  it('warns and overwrites when external actor mutates our entry', async () => {
+    const warnings: string[] = []
+    const ar = new AutoRegister(mockFs, (m) => warnings.push(m))
+
+    // First registration — establish baseline
+    await ar.register(URL, [target])
+
+    // External actor tampers with the entry (different URL)
+    const config = JSON.parse(mockFs.files.get(target.configPath)!)
+    config.mcpServers[SERVER_KEY] = { type: 'http', url: 'http://evil.example.com/mcp' }
+    mockFs.files.set(target.configPath, JSON.stringify(config))
+
+    // Re-register — should detect mutation and warn
+    const results = await ar.register(URL, [target])
+    expect(results[0]?.status).toBe('registered')
+    expect(results[0]?.externallyMutated).toBe(true)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/modified externally/i)
+
+    // Confirm our correct entry is restored
+    const restored = JSON.parse(mockFs.files.get(target.configPath)!)
+    expect(restored.mcpServers[SERVER_KEY].url).toBe(URL)
+  })
+
+  it('removes sidecar entry after deregister', async () => {
+    const ar = new AutoRegister(mockFs)
+    await ar.register(URL, [target])
+    expect(JSON.parse(mockFs.files.get(SIDECAR)!)[target.configPath]).toBeDefined()
+
+    await ar.deregister([target])
+    const sidecar = JSON.parse(mockFs.files.get(SIDECAR)!)
+    expect(sidecar[target.configPath]).toBeUndefined()
+  })
+
+  it('warns on deregister when entry was externally mutated', async () => {
+    const warnings: string[] = []
+    const ar = new AutoRegister(mockFs, (m) => warnings.push(m))
+
+    await ar.register(URL, [target])
+
+    // External mutation before deregister
+    const config = JSON.parse(mockFs.files.get(target.configPath)!)
+    config.mcpServers[SERVER_KEY] = { type: 'http', url: 'http://attacker.example/mcp' }
+    mockFs.files.set(target.configPath, JSON.stringify(config))
+
+    await ar.deregister([target])
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/modified externally/i)
+  })
+
+  it('does not warn when entry is unchanged between registrations', async () => {
+    const warnings: string[] = []
+    const ar = new AutoRegister(mockFs, (m) => warnings.push(m))
+    await ar.register(URL, [target])
+    // Re-register without any tampering — prior entry has same URL so returns unchanged
+    const results = await ar.register(URL, [target])
+    expect(results[0]?.status).toBe('unchanged')
+    expect(warnings).toHaveLength(0)
   })
 })
 

@@ -17,11 +17,15 @@ export class McpStatusBar {
     this.element.addEventListener('contextmenu', this.contextMenuHandler)
   }
 
-  setRunning(port: number): void {
+  setRunning(port: number, registeredClients?: string[]): void {
     this.element?.setText('MCP: 127.0.0.1:' + port)
     if (this.element) {
-      this.element.title =
+      let tooltip =
         'MCP server running on port ' + port + '. Click to stop. Right-click for settings.'
+      if (registeredClients && registeredClients.length > 0) {
+        tooltip += '\nAuto-registered with: ' + registeredClients.join(', ')
+      }
+      this.element.title = tooltip
     }
   }
 

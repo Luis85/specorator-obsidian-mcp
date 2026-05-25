@@ -5,7 +5,16 @@ type: skill
 version: 0.1.0
 bundle: Vault Audit
 requires:
-  [audit_report, links_unresolved, vault_walk, links_backlinks, links_outgoing, metadata_tags]
+  [
+    audit_report,
+    links_unresolved,
+    vault_walk,
+    vault_list,
+    vault_write,
+    links_backlinks,
+    links_outgoing,
+    metadata_tags,
+  ]
 dependsOn: []
 ---
 
@@ -24,3 +33,19 @@ Produce a vault health report using the Specorator MCP tools.
 > **Working-directory assumption (Decision 6):** this skill only resolves vault
 > paths correctly when the agent runs with the **vault as its project/working
 > root**. If invoked from another cwd, the MCP tools operate on the wrong tree.
+
+## Performance on large vaults
+
+`audit.report` batches file reads in groups of 50 and yields to the Obsidian
+event loop between batches, so the UI remains responsive throughout.
+
+On **very large vaults (>5 000 notes)**, the tool caps the scan at `maxFiles`
+(default 5 000) and returns `truncated: true` in the result to signal that only
+a portion of the vault was checked. To audit the full vault, either:
+
+- Pass a higher `maxFiles` value (e.g. `maxFiles: 20000`), accepting a longer
+  run time; or
+- Scope the audit to a folder (`folder: "projects/"`); or
+- Run a single check type instead of all six:
+  `checks: ["orphans"]` — typically the fastest check since it reads only the
+  metadata cache and does not open any files.

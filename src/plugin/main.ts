@@ -33,11 +33,14 @@ import { McpStatusBar } from './McpStatusBar'
 import { CombinedSettingsTab } from './CombinedSettingsTab'
 import { obsidianFs } from '../infrastructure/obsidian/catalog/catalogFs'
 import { loadBundledCatalog } from '../application/catalog/source'
+import { appendAudit } from '../application/catalog/auditlog'
+import type { ToolCallAuditEntry } from '../application/catalog/auditlog'
 import bundledIndex from '../../catalog/index.json'
 
 export default class SpecoratorMcpPlugin extends Plugin {
   settings!: PluginSettings
   private mcp?: ObsidianMcpServerAdapter
+  private bridge?: ObsidianBridge
   private statusBar!: McpStatusBar
   /**
    * Permission gate constructed when the MCP server starts. Undefined when the server is stopped.
@@ -107,10 +110,30 @@ export default class SpecoratorMcpPlugin extends Plugin {
         }
       },
     )
+
+    // Auto-start: if the user has opted in, start the MCP server in the
+    // background immediately after plugin load. `void` is intentional —
+    // onload must not block waiting for the server to bind. Failures surface
+    // as a Notice so the user is not left wondering why the server is down.
+    if (this.settings.autoStart) {
+      void this.startServer().catch((err: unknown) => {
+        new Notice(
+          `MCP server auto-start failed: ${err instanceof Error ? err.message : String(err)}`,
+          10000,
+        )
+      })
+    }
   }
 
   async onunload(): Promise<void> {
     this.statusBar?.destroy()
+    // Best-effort deregister: remove the auto-registered entries from ~/.claude.json etc.
+    // before the server stops. Obsidian does not await onunload, so this is fire-and-forget;
+    // if it does not finish, the stale entry is harmlessly overwritten on the next start.
+    const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
+    if (enabledTargets.length > 0 && this.autoRegister) {
+      void this.autoRegister.deregister(enabledTargets)
+    }
     this.mcp?.drainSync()
     void this.mcp?.stop() // fire-and-forget — Obsidian does not await onunload
   }
@@ -161,9 +184,15 @@ export default class SpecoratorMcpPlugin extends Plugin {
   private async startServer(): Promise<void> {
     if (this.mcp) return
     const modal = new ObsidianConfirmModalAdapter(this.app)
-    const bridge = new ObsidianBridge(this.app, this)
+    this.bridge = new ObsidianBridge(this.app, this)
+    const bridge = this.bridge
+    // Auditor: appends a JSONL entry to .specorator/audit-log.jsonl for every tool call.
+    const fs = obsidianFs(this.app)
+    const auditor = {
+      record: (entry: ToolCallAuditEntry): Promise<void> => appendAudit(fs, entry),
+    }
     // gate is assigned BEFORE setToolRegistrar — the `this.gate!` assertion below is safe.
-    this.gate = new PermissionGate({ getSettings: () => this.settings }, modal)
+    this.gate = new PermissionGate({ getSettings: () => this.settings }, modal, auditor)
     this.mcp = new ObsidianMcpServerAdapter({ getSettings: () => this.settings }, bridge)
     this.mcp.setToolRegistrar((server) => {
       registerVaultTools(server, { vault: bridge, gate: this.gate! })
@@ -195,22 +224,23 @@ export default class SpecoratorMcpPlugin extends Plugin {
     })
     await this.mcp.start()
     const port = this.mcp.boundPort ?? this.settings.port
-    this.statusBar.setRunning(port)
 
     const url = `http://127.0.0.1:${port}/mcp`
     const enabledTargets = wellKnownTargets().filter((t) => this.settings.autoRegister[t.id])
+    let registeredClients: string[] = []
     if (enabledTargets.length > 0 && this.autoRegister) {
       const results = await this.autoRegister.register(url, enabledTargets)
-      const registered = results.filter((r) => r.status === 'registered').map((r) => r.target.name)
-      if (registered.length > 0) {
-        new Notice(`MCP server registered with: ${registered.join(', ')}`)
+      registeredClients = results.filter((r) => r.status === 'registered').map((r) => r.target.name)
+      if (registeredClients.length > 0) {
+        new Notice(`MCP server registered with: ${registeredClients.join(', ')}`)
       }
       const failed = results.filter((r) => r.status === 'failed')
       for (const f of failed) {
-        console.warn(`[specorator-mcp] Auto-register ${f.target.name} failed: ${f.reason}`)
+        this.bridge?.warn(`Auto-register ${f.target.name} failed: ${f.reason}`)
         new Notice(`MCP auto-register failed for ${f.target.name}: ${f.reason}`, 10000)
       }
     }
+    this.statusBar.setRunning(port, registeredClients)
   }
 
   private async stopServer(): Promise<void> {
@@ -226,7 +256,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
         }
         const deregFailed = results.filter((r) => r.status === 'failed')
         for (const f of deregFailed) {
-          console.warn(`[specorator-mcp] Auto-deregister ${f.target.name} failed: ${f.reason}`)
+          this.bridge?.warn(`Auto-deregister ${f.target.name} failed: ${f.reason}`)
           new Notice(`MCP deregister failed for ${f.target.name}: ${f.reason}`, 10000)
         }
       }
@@ -234,6 +264,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
     await this.mcp?.stop()
     this.mcp = undefined
     this.gate = undefined
+    this.bridge = undefined
     this.statusBar.setStopped()
   }
 }

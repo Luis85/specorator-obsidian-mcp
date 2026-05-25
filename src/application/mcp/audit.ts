@@ -7,6 +7,7 @@
  */
 import type { MetadataCachePort } from '@/domain/ports/MetadataCachePort'
 import type { VaultPort } from '@/domain/ports/VaultPort'
+import { pool, yieldEveryN } from '@/application/mcp/batching'
 
 function joinPath(parent: string, child: string): string {
   const p = parent.replace(/\/+$/, '')
@@ -18,11 +19,13 @@ async function collectAllFiles(vault: VaultPort, folder: string): Promise<string
     vault.listFiles(folder),
     vault.listFolders(folder),
   ])
-  const nested = await Promise.all(
-    subfolders.map((sub) => collectAllFiles(vault, joinPath(folder, sub))),
-  )
+  // Cap concurrency at 8 to prevent unbounded recursive fan-out on large vaults.
+  const nested = await pool(subfolders, 8, (sub) => collectAllFiles(vault, joinPath(folder, sub)))
   return [...files, ...nested.flat()]
 }
+
+/** Default upper bound on files scanned in a single audit.report call. */
+export const DEFAULT_MAX_FILES = 5000
 
 export type AuditCheck =
   | 'orphans'
@@ -71,6 +74,8 @@ export interface AuditResult {
   checksRun: string[]
   findings: AuditFindings
   counts: Record<string, number>
+  /** True when the vault exceeded maxFiles and results are partial. */
+  truncated?: boolean
 }
 
 const EMPTY_BODY_THRESHOLD = 50 // chars; below this = "empty" note
@@ -80,12 +85,21 @@ export async function auditVault(
   folder: string,
   checks: readonly AuditCheck[],
   sizeThresholdBytes: number,
+  maxFiles: number = DEFAULT_MAX_FILES,
 ): Promise<AuditResult> {
   const { vault, metadata } = deps
 
   const allFiles = await collectAllFiles(vault, folder)
   // Only audit markdown files
-  const mdFiles = allFiles.filter((f) => f.endsWith('.md'))
+  let mdFiles = allFiles.filter((f) => f.endsWith('.md'))
+
+  // Soft budget: if the vault is very large, cap the scan and report truncation.
+  // Better to return partial results quickly than to freeze the UI indefinitely.
+  let truncated = false
+  if (mdFiles.length > maxFiles) {
+    mdFiles = mdFiles.slice(0, maxFiles)
+    truncated = true
+  }
 
   const findings: AuditFindings = {}
   const counts: Record<string, number> = {}
@@ -93,91 +107,96 @@ export async function auditVault(
   for (const check of checks) {
     switch (check) {
       case 'orphans': {
+        // Pure metadata-cache reads — yield every 200 items (CPU-bound)
         const orphans: string[] = []
-        for (const path of mdFiles) {
+        await yieldEveryN(mdFiles, 200, (path) => {
           const backlinks = metadata.getBacklinks(path)
           if (backlinks.length === 0) orphans.push(path)
-        }
+        })
         findings.orphans = orphans
         counts['orphans'] = orphans.length
         break
       }
 
       case 'deadends': {
+        // Pure metadata-cache reads — yield every 200 items (CPU-bound)
         const deadends: string[] = []
-        for (const path of mdFiles) {
+        await yieldEveryN(mdFiles, 200, (path) => {
           const resolved = metadata.getResolvedLinks(path)
           if (Object.keys(resolved).length === 0) deadends.push(path)
-        }
+        })
         findings.deadends = deadends
         counts['deadends'] = deadends.length
         break
       }
 
       case 'unresolved_links': {
+        // Pure metadata-cache reads — yield every 200 items (CPU-bound)
         const unresolved: UnresolvedLink[] = []
-        for (const path of mdFiles) {
+        await yieldEveryN(mdFiles, 200, (path) => {
           const snap = metadata.getFileMetadata(path)
-          if (!snap) continue
+          if (!snap) return
           for (const link of snap.links) {
             const dest = metadata.getFirstLinkpathDest(link, path)
             if (dest === null) {
               unresolved.push({ source: path, target: link })
             }
           }
-        }
+        })
         findings.unresolved_links = unresolved
         counts['unresolved_links'] = unresolved.length
         break
       }
 
       case 'empty_notes': {
+        // I/O: vault.readFile per file — yield every 50 items
         const empty: string[] = []
-        for (const path of mdFiles) {
+        await yieldEveryN(mdFiles, 50, async (path) => {
           let content: string
           try {
             content = await vault.readFile(path)
           } catch {
-            continue
+            return
           }
           // Strip frontmatter block
           const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
           if (body.length < EMPTY_BODY_THRESHOLD) empty.push(path)
-        }
+        })
         findings.empty_notes = empty
         counts['empty_notes'] = empty.length
         break
       }
 
       case 'large_files': {
+        // I/O: vault.readFile per file — yield every 50 items
         const large: LargeFile[] = []
-        for (const path of mdFiles) {
+        await yieldEveryN(mdFiles, 50, async (path) => {
           let content: string
           try {
             content = await vault.readFile(path)
           } catch {
-            continue
+            return
           }
           const bytes = new TextEncoder().encode(content).length
           if (bytes > sizeThresholdBytes) large.push({ path, bytes })
-        }
+        })
         findings.large_files = large
         counts['large_files'] = large.length
         break
       }
 
       case 'tag_dupes': {
-        // Build a map: lowercase → Set of all exact variants seen
+        // Pure metadata-cache reads — yield every 200 items (CPU-bound)
         const tagVariants = new Map<string, Set<string>>()
-        for (const path of mdFiles) {
+        await yieldEveryN(mdFiles, 200, (path) => {
           const snap = metadata.getFileMetadata(path)
-          if (!snap) continue
+          if (!snap) return
           for (const tag of snap.tags) {
             const lower = tag.toLowerCase()
             if (!tagVariants.has(lower)) tagVariants.set(lower, new Set())
             tagVariants.get(lower)!.add(tag)
           }
-        }
+        })
         const dupes: TagDupe[] = []
         for (const [lower, variants] of tagVariants) {
           if (variants.size > 1) {
@@ -198,5 +217,6 @@ export async function auditVault(
     checksRun: [...checks],
     findings,
     counts,
+    ...(truncated ? { truncated: true } : {}),
   }
 }

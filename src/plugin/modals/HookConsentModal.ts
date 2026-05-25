@@ -23,11 +23,11 @@ export async function detectSyncedVault(fs: FileSystem): Promise<string | null> 
 
 export async function buildHookSummary(fs: FileSystem, frag: HookFragment): Promise<HookSummary> {
   const sync = await detectSyncedVault(fs)
-  const cmd = frag.entry.command
   return {
     event: frag.event,
-    command: typeof cmd === 'string' ? cmd : '',
-    warning: 'This command runs automatically on the event above with your full permissions.',
+    command: JSON.stringify(frag.entry, null, 2),
+    warning:
+      'ALL keys of this JSON object will be merged into your hooks.json and may run automatically every Claude session.',
     syncWarning:
       sync !== null
         ? `This vault appears to be under ${sync}. Enabling a hook writes an auto-running ` +
@@ -50,14 +50,28 @@ export class HookConsentModal extends Modal {
   async onOpen(): Promise<void> {
     const s = await buildHookSummary(this.fs, this.frag)
     const { contentEl } = this
-    contentEl.createEl('h3', { text: 'Enable hook?' })
+    contentEl.createEl('h3', {
+      text: 'This entire JSON object will be merged into your hooks.json and may run automatically every Claude session.',
+    })
     contentEl.createEl('p', { text: `Event: ${s.event}` })
-    contentEl.createEl('pre', { text: s.command })
+    const pre = contentEl.createEl('pre', { text: s.command })
+    pre.style.maxHeight = '280px'
+    pre.style.overflowY = 'auto'
     contentEl.createEl('p', { text: s.warning, cls: 'mod-warning' })
     if (s.syncWarning !== undefined) {
       contentEl.createEl('p', { text: s.syncWarning, cls: 'mod-warning' })
     }
-    contentEl.createEl('button', { text: 'Enable hook' }).addEventListener('click', () => {
+    const btnRow = contentEl.createEl('div')
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;'
+
+    const cancelBtn = btnRow.createEl('button', { text: 'Cancel' })
+    cancelBtn.classList.add('mod-cta')
+    cancelBtn.addEventListener('click', () => {
+      this.close()
+    })
+
+    const enableBtn = btnRow.createEl('button', { text: 'Enable hook' })
+    enableBtn.addEventListener('click', () => {
       this.onConfirm()
       this.close()
     })

@@ -36,6 +36,12 @@ export function memFs(seed: Record<string, string> = {}): MemFs {
       store.set(p, c)
       for (const d of ancestors(p)) dirSet.add(d)
     },
+    // WS-Z2 Fix 5: in-memory append — concatenate to existing content (or create).
+    async append(p, c) {
+      const prev = store.get(p) ?? ''
+      store.set(p, prev + c)
+      for (const d of ancestors(p)) dirSet.add(d)
+    },
     async exists(p) {
       return store.has(p) || dirSet.has(p)
     },

@@ -55,11 +55,15 @@ describe('registerCanvasTools', () => {
     }
     ports.bridge.seedCanvas('board.canvas', data)
     const result = (await getHandler(server, 'canvas.read')({ path: 'board.canvas' })) as {
+      structuredContent: { canvas: typeof data }
       content: [{ text: string }]
     }
+    expect(result).toHaveProperty('structuredContent')
+    expect(result.structuredContent.canvas.nodes).toHaveLength(1)
+    expect(result.structuredContent.canvas.edges).toHaveLength(0)
+    // text fallback must also be present
     const parsed = JSON.parse(result.content[0].text) as { canvas: typeof data }
     expect(parsed.canvas.nodes).toHaveLength(1)
-    expect(parsed.canvas.edges).toHaveLength(0)
   })
 
   it('canvas.write mutates canvas directly (no proposal queue)', async () => {
@@ -199,6 +203,23 @@ describe('registerCanvasTools', () => {
   })
 
   describe('canvas.list', () => {
+    it('returns structuredContent matching outputSchema (MCP SDK ≥1.10 regression)', async () => {
+      const { server, ports } = setup()
+      await ports.vault.writeFile('a.canvas', '{}')
+      await ports.vault.writeFile('b.canvas', '{}')
+      const result = (await getHandler(server, 'canvas.list')({})) as {
+        content: [{ text: string }]
+        structuredContent: { canvases: string[] }
+      }
+      expect(result).toHaveProperty('structuredContent')
+      expect(Array.isArray(result.structuredContent.canvases)).toBe(true)
+      expect(result.structuredContent.canvases).toContain('a.canvas')
+      expect(result.structuredContent.canvases).toContain('b.canvas')
+      // text content must also be present for backwards-compatible clients
+      const parsed = JSON.parse(result.content[0].text) as { canvases: string[] }
+      expect(parsed.canvases).toEqual(result.structuredContent.canvases)
+    })
+
     it('returns all .canvas files in the vault when no folder given', async () => {
       const { server, ports } = setup()
       await ports.vault.writeFile('boards/work.canvas', '{}')

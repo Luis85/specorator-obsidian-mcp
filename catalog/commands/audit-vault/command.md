@@ -4,8 +4,7 @@ description: Slash command that runs a full vault health audit and writes a repo
 type: command
 version: 0.1.0
 bundle: Vault Audit
-requires:
-  [vault_read, vault_list, links_unresolved, graph_orphans, attachments_orphans, audit_report]
+requires: [links_unresolved, graph_orphans, attachments_orphans, audit_report, vault_write]
 dependsOn: []
 ---
 
