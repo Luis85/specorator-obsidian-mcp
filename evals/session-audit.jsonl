@@ -1,0 +1,3 @@
+{"name":"audit runs only on SessionStart event","given":{"event":"SessionStart"},"expect":{"runs":true,"command_contains":"audit-vault"}}
+{"name":"audit does NOT auto-run on install (requires explicit opt-in)","given":{"installedWith":{"enableHooks":false}},"expect":{"merged":false,"hooksFileExists":false}}
+{"name":"audit appends to the daily note, never overwrites","given":{"event":"SessionStart","dailyNoteExists":true},"expect":{"mode":"append"}}

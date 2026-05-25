@@ -1,0 +1,3 @@
+{"id": "fix-broken-links", "prompt": "fix all the broken links in my vault", "expectTrigger": "fixing-links", "expect": ["calls mcp__specorator-obsidian-mcp__links_unresolved", "dry-run preview before writing"]}
+{"id": "repair-unresolved", "prompt": "there are a bunch of unresolved references in my notes, can you repair them?", "expectTrigger": "fixing-links", "expect": ["calls mcp__specorator-obsidian-mcp__links_unresolved", "asks for confirmation"]}
+{"id": "clean-dead-links", "prompt": "clean up dead links and references that go nowhere", "expectTrigger": "fixing-links", "expect": ["calls mcp__specorator-obsidian-mcp__links_unresolved", "re-checks after writing"]}

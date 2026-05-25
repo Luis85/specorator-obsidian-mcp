@@ -1,0 +1,3 @@
+{"id": "audit-cmd-explicit", "prompt": "/audit-vault", "expectTrigger": "audit-vault", "expect": ["calls mcp__specorator-obsidian-mcp__graph_orphans", "writes a report note"]}
+{"id": "audit-cmd-run", "prompt": "run /audit-vault and write the report to Reports/", "expectTrigger": "audit-vault", "expect": ["reads .specorator/catalog-config.md", "calls mcp__specorator-obsidian-mcp__links_unresolved"]}
+{"id": "audit-cmd-health", "prompt": "/audit-vault — generate a full vault health report", "expectTrigger": "audit-vault", "expect": ["calls mcp__specorator-obsidian-mcp__attachments_orphans", "writes vault-audit-{date}.md"]}

@@ -29,8 +29,11 @@ import {
   registerRemediationTools,
 } from '@/infrastructure/obsidian/mcp'
 import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
-import { SpecoratorMcpSettingsTab } from './settings'
 import { McpStatusBar } from './McpStatusBar'
+import { CombinedSettingsTab } from './CombinedSettingsTab'
+import { obsidianFs } from '../infrastructure/obsidian/catalog/catalogFs'
+import { loadBundledCatalog } from '../application/catalog/source'
+import bundledIndex from '../../catalog/index.json'
 
 export default class SpecoratorMcpPlugin extends Plugin {
   settings!: PluginSettings
@@ -63,7 +66,9 @@ export default class SpecoratorMcpPlugin extends Plugin {
     this.autoRegister = new AutoRegister(new NodeFileSystemAdapter())
     this.cli = new NodeObsidianCliAdapter({ getSettings: () => this.settings })
 
-    this.addSettingTab(new SpecoratorMcpSettingsTab(this.app, this))
+    // Single combined tab: MCP server config + Workflow Catalog (fixes double settings entry).
+    const catalogIndex = loadBundledCatalog(JSON.stringify(bundledIndex))
+    this.addSettingTab(new CombinedSettingsTab(this.app, this, obsidianFs(this.app), catalogIndex))
 
     this.addCommand({
       id: 'start-mcp-server',

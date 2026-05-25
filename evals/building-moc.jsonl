@@ -1,0 +1,3 @@
+{"id": "moc-skill-organize", "prompt": "can you organize my link-sparse vault into a map of content?", "expectTrigger": "building-moc", "mustNotTrigger": ["moc-builder"], "expect": ["calls mcp__specorator-obsidian-mcp__metadata_tags"]}
+{"id": "moc-skill-toc", "prompt": "build me a table of contents for the research notes", "expectTrigger": "building-moc", "mustNotTrigger": ["moc-builder"], "expect": ["calls mcp__specorator-obsidian-mcp__links_bfs"]}
+{"id": "moc-skill-index", "prompt": "I need an index note grouping notes by topic cluster", "expectTrigger": "building-moc", "mustNotTrigger": ["moc-builder"], "expect": ["writes [[wikilinks]]"]}
