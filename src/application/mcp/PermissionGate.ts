@@ -27,7 +27,7 @@ export class PermissionGate {
       return { decision: 'deny', reason: `pathDenyList matched glob "${pathHit}"` }
     }
 
-    // 2. cli.execute prefix allowlist — sits between deny-list and toolModes lookup
+    // 2a. cli.execute prefix allowlist — sits between deny-list and toolModes lookup
     if (
       toolName === 'cli.execute' &&
       typeof params['commandId'] === 'string' &&
@@ -36,6 +36,18 @@ export class PermissionGate {
       const commandId = params['commandId']
       if (s.cliExecuteAllowedPrefixes.some((p) => commandId.startsWith(p))) {
         return { decision: 'allow', reason: 'cli.execute prefix-allowed' }
+      }
+    }
+
+    // 2b. cli.run prefix allowlist — separate list; different risk surface (external binary)
+    if (
+      toolName === 'cli.run' &&
+      typeof params['command'] === 'string' &&
+      s.cliRunAllowedPrefixes.length > 0
+    ) {
+      const command = params['command']
+      if (s.cliRunAllowedPrefixes.some((p) => command.startsWith(p))) {
+        return { decision: 'allow', reason: 'cli.run prefix-allowed' }
       }
     }
 
@@ -103,6 +115,7 @@ export function summarise(toolName: string, params: Record<string, unknown>): st
   const from = typeof params.from === 'string' ? params.from : undefined
   const to = typeof params.to === 'string' ? params.to : undefined
   const commandId = typeof params.commandId === 'string' ? params.commandId : undefined
+  const command = typeof params.command === 'string' ? params.command : undefined
   const contentSize = typeof params.contentSize === 'number' ? params.contentSize : undefined
 
   switch (toolName) {
@@ -120,6 +133,8 @@ export function summarise(toolName: string, params: Record<string, unknown>): st
       return `Update canvas "${path ?? ''}"`
     case 'cli.execute':
       return `Run Obsidian command "${commandId ?? ''}"`
+    case 'cli.run':
+      return `Run Obsidian CLI command "${command ?? ''}"`
     default:
       return path ? `${toolName} ${path}` : toolName
   }

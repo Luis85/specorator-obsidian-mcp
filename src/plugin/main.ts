@@ -20,6 +20,7 @@ import {
   registerObsidianCliReadTools,
   registerObsidianCliTools,
   registerCliScreenshotTools,
+  registerCliRunTool,
 } from '@/infrastructure/obsidian/mcp'
 import { NodeObsidianCliAdapter } from '@/infrastructure/node/NodeObsidianCliAdapter'
 import { SpecoratorMcpSettingsTab } from './settings'
@@ -146,6 +147,7 @@ export default class SpecoratorMcpPlugin extends Plugin {
         gate: this.gate!,
       })
       registerCliScreenshotTools(server, { cli: this.cli!, gate: this.gate! })
+      registerCliRunTool(server, { cli: this.cli!, gate: this.gate! })
     })
     await this.mcp.start()
     const port = this.mcp.boundPort ?? this.settings.port

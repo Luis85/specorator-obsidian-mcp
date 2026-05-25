@@ -188,4 +188,42 @@ describe('PermissionGate.resolve', () => {
       expect(d.decision).toBe('allow')
     })
   })
+
+  describe('cli.run prefix allowlist', () => {
+    it('cliRunAllowedPrefixes allows a matching command even in deny mode', async () => {
+      const { gate } = makeGate({
+        defaultMode: 'deny',
+        toolModes: { 'cli.run': 'deny' },
+        cliRunAllowedPrefixes: ['version', 'help'],
+      })
+      const d = await gate.resolve('cli.run', { command: 'version' })
+      expect(d.decision).toBe('allow')
+      expect(d.reason).toBe('cli.run prefix-allowed')
+    })
+
+    it('cliRunAllowedPrefixes does NOT allow a non-matching command', async () => {
+      const { gate } = makeGate({
+        defaultMode: 'deny',
+        toolModes: { 'cli.run': 'deny' },
+        cliRunAllowedPrefixes: ['version'],
+      })
+      const d = await gate.resolve('cli.run', { command: 'eval' })
+      expect(d.decision).toBe('deny')
+    })
+
+    it('cliRunAllowedPrefixes is independent from cliExecuteAllowedPrefixes', async () => {
+      // Only cli.run list populated — cli.execute must not be affected
+      const { gate } = makeGate({
+        defaultMode: 'deny',
+        toolModes: { 'cli.run': 'deny', 'cli.execute': 'deny' },
+        cliRunAllowedPrefixes: ['version'],
+        cliExecuteAllowedPrefixes: [],
+      })
+      const runDecision = await gate.resolve('cli.run', { command: 'version' })
+      expect(runDecision.decision).toBe('allow')
+
+      const execDecision = await gate.resolve('cli.execute', { commandId: 'version:x' })
+      expect(execDecision.decision).toBe('deny')
+    })
+  })
 })
