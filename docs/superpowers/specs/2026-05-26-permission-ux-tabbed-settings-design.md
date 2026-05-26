@@ -51,12 +51,12 @@ The exact string `"ask timeout"` is produced by **Layer B**, not the harness. So
 
 Refactor `src/plugin/settings.ts`: split the 450-line `renderMcpServerSettings` into focused free functions, each rendering into a passed `containerEl`:
 
-| Function | Tab | Contents |
-|----------|-----|----------|
-| `renderServerTab` | Server | status banner, port, auto-start, log level, CLI bin path, auto-register clients |
-| `renderPermissionsTab` | Permissions | default mode, ask-timeout (clarified copy), preset buttons incl. new **Trusted writes**, tier legend, per-tool mode dropdowns grouped by namespace, **Generate Claude Code allowlist** button |
-| (existing) `renderCatalogSettings` | Catalog | workflow installer (unchanged) |
-| `renderAdvancedTab` | Advanced | path deny-list, `cli.execute` prefixes, `cli.run` prefixes, developer mode |
+| Function                           | Tab         | Contents                                                                                                                                                                                      |
+| ---------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderServerTab`                  | Server      | status banner, port, auto-start, log level, CLI bin path, auto-register clients                                                                                                               |
+| `renderPermissionsTab`             | Permissions | default mode, ask-timeout (clarified copy), preset buttons incl. new **Trusted writes**, tier legend, per-tool mode dropdowns grouped by namespace, **Generate Claude Code allowlist** button |
+| (existing) `renderCatalogSettings` | Catalog     | workflow installer (unchanged)                                                                                                                                                                |
+| `renderAdvancedTab`                | Advanced    | path deny-list, `cli.execute` prefixes, `cli.run` prefixes, developer mode                                                                                                                    |
 
 The existing helpers `renderStatusBanner` and `renderPresetButtons` are reused/moved. The status banner's "Jump to Workflow catalog" anchor (which used `scrollIntoView`) is replaced by a handler that sets `activeTab = 'catalog'` and re-renders, since the catalog now lives on its own tab.
 
@@ -71,13 +71,14 @@ In `src/application/settings/presets.ts`:
   `vault.write`, `vault.createFolder`, `frontmatter.set`, `note.patch`, `tags.rename`, `canvas.write`, `bases.create`, `cli.daily_note`, `cli.open_file`, `cli.template_insert`.
 
   Note: internal dotted ids. `vault.createFolder` is included as a safe write even though the proposal's Tier-2 list omitted it (it is non-destructive and frequently needed before a write).
+
 - `applyPreset(current, 'trusted-writes')`: start from `{ ...DEFAULT_TOOL_MODES }`, then set every tool in `SAFE_WRITE_TOOLS` to `allow`. Everything else keeps its default — so destructive ops stay `ask` (`vault.delete`, `vault.move`, `cli.reload`, `cli.screenshot`, `cli.workspace_load`, `audit.export`) and dangerous ops stay `deny` (`cli.eval`, `cli.execute`, `cli.run`). Pure function, no mutation (matches existing presets).
 
 UI in `renderPermissionsTab`:
 
 - Fourth preset button **"Trusted writes"** with tooltip: "Allow reads and safe writes; still prompt for delete/move and block shell-level tools." Placed between "Safe defaults" and "All allow (advanced)".
 - **Tier legend**: a small static legend mapping each tier to its tools (Read / Safe write / Destructive / Blocked), so users understand what each preset and dropdown means. Tier membership derives from `SAFE_WRITE_TOOLS` + a `DESTRUCTIVE_TOOLS` list + the `deny`-by-default set, so legend and preset never drift.
-- Ask-timeout setting `setDesc` updated to: "The **in-vault** confirmation modal auto-denies after this many seconds with no response. This is separate from the Claude Code approval prompt — see *Generate Claude Code allowlist* below."
+- Ask-timeout setting `setDesc` updated to: "The **in-vault** confirmation modal auto-denies after this many seconds with no response. This is separate from the Claude Code approval prompt — see _Generate Claude Code allowlist_ below."
 
 ### Part C — Harness allowlist generator (Issue 1, Layer A)
 

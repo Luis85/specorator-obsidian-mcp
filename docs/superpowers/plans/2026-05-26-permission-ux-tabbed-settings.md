@@ -11,6 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-05-26-permission-ux-tabbed-settings-design.md`
 
 **Conventions (verified):**
+
 - Run a single test file: `npx vitest run tests/<path>.test.ts`
 - Run whole suite: `npm test`
 - Typecheck: `npm run typecheck` · Lint: `npm run lint` · Format check: `npm run format:check`
@@ -25,20 +26,20 @@
 
 ## File Structure
 
-| File | Responsibility | Task |
-|------|----------------|------|
-| `src/application/mcp/tomlBlock.ts` (create) | Pure text splice of one TOML table block; preserves rest of file | 1 |
-| `tests/application/mcp/tomlBlock.test.ts` (create) | Unit tests for splice/remove/read | 1 |
-| `src/application/mcp/AutoRegister.ts` (modify) | Add `format` discriminant + TOML register/deregister path; add `codex` target | 2 |
-| `tests/application/mcp/AutoRegister.codex.test.ts` (create) | Unit tests for the Codex TOML path | 2 |
-| `src/domain/settings/PluginSettings.ts` (modify) | Add `codex` to `AutoRegisterSettings` + `DEFAULT_AUTO_REGISTER` | 3 |
-| `src/application/settings/presets.ts` (modify) | `SAFE_WRITE_TOOLS`, `DESTRUCTIVE_TOOLS`, `trusted-writes` preset | 4 |
-| `tests/application/settings/presets.test.ts` (modify) | Tests for `trusted-writes` | 4 |
-| `src/application/settings/claudeAllowlist.ts` (create) | Pure: tool-id mapping + `.claude/settings.json` allowlist merge | 5 |
-| `tests/application/settings/claudeAllowlist.test.ts` (create) | Unit tests for mapping + merge | 5 |
-| `src/plugin/modals/ClaudeAllowlistConsentModal.ts` (create) | Consent modal before writing `.claude/settings.json` | 6 |
-| `src/plugin/settings.ts` (modify) | Split into `renderServerTab` / `renderPermissionsTab` / `renderAdvancedTab`; retire `SpecoratorMcpSettingsTab`; add trusted-writes button, tier legend, ask-timeout copy, allowlist button | 7 |
-| `src/plugin/CombinedSettingsTab.ts` (modify) | Tab-bar host with `activeTab` state | 7 |
+| File                                                          | Responsibility                                                                                                                                                                             | Task |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| `src/application/mcp/tomlBlock.ts` (create)                   | Pure text splice of one TOML table block; preserves rest of file                                                                                                                           | 1    |
+| `tests/application/mcp/tomlBlock.test.ts` (create)            | Unit tests for splice/remove/read                                                                                                                                                          | 1    |
+| `src/application/mcp/AutoRegister.ts` (modify)                | Add `format` discriminant + TOML register/deregister path; add `codex` target                                                                                                              | 2    |
+| `tests/application/mcp/AutoRegister.codex.test.ts` (create)   | Unit tests for the Codex TOML path                                                                                                                                                         | 2    |
+| `src/domain/settings/PluginSettings.ts` (modify)              | Add `codex` to `AutoRegisterSettings` + `DEFAULT_AUTO_REGISTER`                                                                                                                            | 3    |
+| `src/application/settings/presets.ts` (modify)                | `SAFE_WRITE_TOOLS`, `DESTRUCTIVE_TOOLS`, `trusted-writes` preset                                                                                                                           | 4    |
+| `tests/application/settings/presets.test.ts` (modify)         | Tests for `trusted-writes`                                                                                                                                                                 | 4    |
+| `src/application/settings/claudeAllowlist.ts` (create)        | Pure: tool-id mapping + `.claude/settings.json` allowlist merge                                                                                                                            | 5    |
+| `tests/application/settings/claudeAllowlist.test.ts` (create) | Unit tests for mapping + merge                                                                                                                                                             | 5    |
+| `src/plugin/modals/ClaudeAllowlistConsentModal.ts` (create)   | Consent modal before writing `.claude/settings.json`                                                                                                                                       | 6    |
+| `src/plugin/settings.ts` (modify)                             | Split into `renderServerTab` / `renderPermissionsTab` / `renderAdvancedTab`; retire `SpecoratorMcpSettingsTab`; add trusted-writes button, tier legend, ask-timeout copy, allowlist button | 7    |
+| `src/plugin/CombinedSettingsTab.ts` (modify)                  | Tab-bar host with `activeTab` state                                                                                                                                                        | 7    |
 
 **Task order rationale:** Tasks 1–5 are pure logic with full TDD. Task 6 is a small UI component. Task 7 is the integrating UI refactor that places every new control in its tab — done last so each new control lands in its final home (no double-handling).
 
@@ -47,6 +48,7 @@
 ## Task 1: TOML block splice module
 
 **Files:**
+
 - Create: `src/application/mcp/tomlBlock.ts`
 - Test: `tests/application/mcp/tomlBlock.test.ts`
 
@@ -254,6 +256,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 2: AutoRegister TOML path + Codex target
 
 **Files:**
+
 - Modify: `src/application/mcp/AutoRegister.ts`
 - Test: `tests/application/mcp/AutoRegister.codex.test.ts` (create)
 
@@ -294,7 +297,10 @@ describe('AutoRegister codex (toml) register', () => {
   })
 
   it('preserves unrelated tables and comments', async () => {
-    fs.files.set(t.configPath, `# codex config\nmodel = "o3"\n\n[mcp_servers.other]\nurl = "http://other/mcp"\n`)
+    fs.files.set(
+      t.configPath,
+      `# codex config\nmodel = "o3"\n\n[mcp_servers.other]\nurl = "http://other/mcp"\n`,
+    )
     await ar.register(URL, [t])
     const written = fs.files.get(t.configPath)!
     expect(written).toContain('# codex config')
@@ -336,7 +342,10 @@ describe('AutoRegister codex (toml) deregister', () => {
   })
 
   it('removes only our block, keeping other tables', async () => {
-    fs.files.set(t.configPath, `[${HEADER}]\nurl = "${URL}"\n\n[mcp_servers.other]\nurl = "http://other/mcp"\n`)
+    fs.files.set(
+      t.configPath,
+      `[${HEADER}]\nurl = "${URL}"\n\n[mcp_servers.other]\nurl = "http://other/mcp"\n`,
+    )
     const results = await ar.deregister([t])
     expect(results[0]?.status).toBe('deregistered')
     const written = fs.files.get(t.configPath)!
@@ -442,10 +451,10 @@ In `AutoRegister.register`, wrap the existing per-target body with a format bran
 Do the same in `deregister` — at the top of the `try`:
 
 ```typescript
-        if ((t.format ?? 'json') === 'toml') {
-          out.push(await this.deregisterToml(t))
-          continue
-        }
+if ((t.format ?? 'json') === 'toml') {
+  out.push(await this.deregisterToml(t))
+  continue
+}
 ```
 
 Then add two private methods to the class (place them after `deregister`):
@@ -526,6 +535,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 3: Codex setting key + default
 
 **Files:**
+
 - Modify: `src/domain/settings/PluginSettings.ts:6-10` (`AutoRegisterSettings`), `:121-125` (`DEFAULT_AUTO_REGISTER`)
 
 - [ ] **Step 1: Add the `codex` field to the type**
@@ -575,6 +585,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 4: Trusted-writes preset
 
 **Files:**
+
 - Modify: `src/application/settings/presets.ts`
 - Test: `tests/application/settings/presets.test.ts`
 
@@ -726,6 +737,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 5: Claude Code allowlist merge module
 
 **Files:**
+
 - Create: `src/application/settings/claudeAllowlist.ts`
 - Test: `tests/application/settings/claudeAllowlist.test.ts`
 
@@ -913,6 +925,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 6: Claude allowlist consent modal
 
 **Files:**
+
 - Create: `src/plugin/modals/ClaudeAllowlistConsentModal.ts`
 
 (UI component — `src/plugin/**` is coverage-excluded; verified by typecheck/build, not unit tests. Mirrors the existing `HookConsentModal` pattern.)
@@ -998,10 +1011,11 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 7: Tabbed settings refactor + wire new controls
 
 **Files:**
+
 - Modify: `src/plugin/settings.ts`
 - Modify: `src/plugin/CombinedSettingsTab.ts`
 
-(UI refactor — coverage-excluded. Verified by typecheck/build/lint + manual smoke. No placeholders: full code for new/changed pieces below; existing blocks are *moved verbatim* per the mapping.)
+(UI refactor — coverage-excluded. Verified by typecheck/build/lint + manual smoke. No placeholders: full code for new/changed pieces below; existing blocks are _moved verbatim_ per the mapping.)
 
 - [ ] **Step 1: Split `renderMcpServerSettings` into three tab renderers**
 
@@ -1051,14 +1065,14 @@ In the moved ask-timeout `Setting`, replace `.setDesc(...)`:
 In `renderPresetButtons` (settings.ts), add a fourth button between "Safe defaults" and "All allow (advanced)":
 
 ```typescript
-  const trustedBtn = row.createEl('button', { text: 'Trusted writes' })
-  trustedBtn.title =
-    'Allow reads and safe writes; still prompt for delete/move/reload and keep shell tools denied'
-  trustedBtn.onclick = async () => {
-    plugin.settings = applyPreset(plugin.settings, 'trusted-writes')
-    await plugin.saveSettings()
-    onRefresh()
-  }
+const trustedBtn = row.createEl('button', { text: 'Trusted writes' })
+trustedBtn.title =
+  'Allow reads and safe writes; still prompt for delete/move/reload and keep shell tools denied'
+trustedBtn.onclick = async () => {
+  plugin.settings = applyPreset(plugin.settings, 'trusted-writes')
+  await plugin.saveSettings()
+  onRefresh()
+}
 ```
 
 (`applyPreset` is already imported at the top of settings.ts.)
@@ -1092,44 +1106,48 @@ function renderTierLegend(containerEl: HTMLElement): void {
 At the end of `renderPermissionsTab`, add (uses the `fs: FileSystem` parameter):
 
 ```typescript
-import { ALLOWLISTED_TOOLS, toHarnessToolId, mergeAllowlist } from '@/application/settings/claudeAllowlist'
+import {
+  ALLOWLISTED_TOOLS,
+  toHarnessToolId,
+  mergeAllowlist,
+} from '@/application/settings/claudeAllowlist'
 import { ClaudeAllowlistConsentModal } from './modals/ClaudeAllowlistConsentModal'
 
-  // inside renderPermissionsTab, after the tool-mode loop:
-  containerEl.createEl('h3', { text: 'Claude Code allowlist' })
-  containerEl.createEl('p', {
-    cls: 'setting-item-description',
-    text: 'Add read + safe-write tools to this vault’s .claude/settings.json so Claude Code stops prompting for them. Destructive tools are left out.',
-  })
-  new Setting(containerEl)
-    .setName('Generate Claude Code allowlist')
-    .setDesc('Writes/merges into .claude/settings.json (existing entries preserved).')
-    .addButton((b) =>
-      b.setButtonText('Generate…').onClick(() => {
-        const targetPath = '.claude/settings.json'
-        const toolIds = ALLOWLISTED_TOOLS.map(toHarnessToolId)
-        new ClaudeAllowlistConsentModal(fs, plugin.app, targetPath, toolIds, () => {
-          void (async () => {
-            try {
-              const existing = await fs.read(targetPath)
-              const { json, added } = mergeAllowlist(existing, toolIds)
-              await fs.mkdirp('.claude')
-              await fs.write(targetPath, JSON.stringify(json, null, 2) + '\n')
-              new Notice(
-                added.length > 0
-                  ? `Added ${added.length} tool(s) to Claude Code allowlist.`
-                  : 'Claude Code allowlist already up to date.',
-              )
-            } catch (err) {
-              new Notice(
-                `Could not update .claude/settings.json: ${err instanceof Error ? err.message : String(err)}`,
-                10000,
-              )
-            }
-          })()
-        }).open()
-      }),
-    )
+// inside renderPermissionsTab, after the tool-mode loop:
+containerEl.createEl('h3', { text: 'Claude Code allowlist' })
+containerEl.createEl('p', {
+  cls: 'setting-item-description',
+  text: 'Add read + safe-write tools to this vault’s .claude/settings.json so Claude Code stops prompting for them. Destructive tools are left out.',
+})
+new Setting(containerEl)
+  .setName('Generate Claude Code allowlist')
+  .setDesc('Writes/merges into .claude/settings.json (existing entries preserved).')
+  .addButton((b) =>
+    b.setButtonText('Generate…').onClick(() => {
+      const targetPath = '.claude/settings.json'
+      const toolIds = ALLOWLISTED_TOOLS.map(toHarnessToolId)
+      new ClaudeAllowlistConsentModal(fs, plugin.app, targetPath, toolIds, () => {
+        void (async () => {
+          try {
+            const existing = await fs.read(targetPath)
+            const { json, added } = mergeAllowlist(existing, toolIds)
+            await fs.mkdirp('.claude')
+            await fs.write(targetPath, JSON.stringify(json, null, 2) + '\n')
+            new Notice(
+              added.length > 0
+                ? `Added ${added.length} tool(s) to Claude Code allowlist.`
+                : 'Claude Code allowlist already up to date.',
+            )
+          } catch (err) {
+            new Notice(
+              `Could not update .claude/settings.json: ${err instanceof Error ? err.message : String(err)}`,
+              10000,
+            )
+          }
+        })()
+      }).open()
+    }),
+  )
 ```
 
 Note: `fs: FileSystem` is `@/domain/catalog/types` (`read`/`write`/`exists`/`mkdirp`). `mkdirp` treats its argument as a **directory** path and creates each missing segment (verified in `catalogFs.ts`), so pass `'.claude'` (the parent dir) — NOT the file path — before writing `.claude/settings.json`.
@@ -1177,7 +1195,8 @@ export class CombinedSettingsTab extends PluginSettingTab {
 
     // ── Tab bar ──────────────────────────────────────────────────────────────
     const bar = containerEl.createEl('div', { cls: 'specorator-settings-tabs' })
-    bar.style.cssText = 'display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--background-modifier-border);'
+    bar.style.cssText =
+      'display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--background-modifier-border);'
     for (const tab of TABS) {
       const btn = bar.createEl('button', { text: tab.label })
       btn.style.cssText =
@@ -1233,6 +1252,7 @@ Expected: all PASS. `npm run build` runs `build:catalog` + `tsc --noEmit` + esbu
 - [ ] **Step 8: Manual smoke test (record result)**
 
 In Obsidian (test vault) with the rebuilt plugin:
+
 1. Open Settings → Specorator → confirm four tabs (Server / Permissions / Catalog / Advanced) and that clicking switches content.
 2. Permissions tab → click **Trusted writes** → reopen → confirm `vault.write` dropdown shows `allow`, `vault.delete` shows `ask`.
 3. Permissions tab → **Generate Claude Code allowlist** → confirm consent modal lists tools → confirm → check `.claude/settings.json` in the vault has `permissions.allow` with `mcp__specorator-obsidian-mcp__vault_read` etc.
@@ -1268,6 +1288,7 @@ Expected: lint + format:check + test + build + validate:manifest + audit all PAS
 ## Self-Review (completed during planning)
 
 **Spec coverage:**
+
 - Part A (tabs) → Task 7 ✓
 - Part B (trusted-writes preset + tier legend + ask-timeout copy) → Tasks 4, 7 ✓
 - Part C (allowlist generator: pure merge + consent modal + button; drop manifest `permissions.suggested`) → Tasks 5, 6, 7 ✓ (manifest field intentionally omitted, per spec)
