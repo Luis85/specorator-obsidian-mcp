@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyPreset } from '@/application/settings/presets'
+import { applyPreset, SAFE_WRITE_TOOLS, DESTRUCTIVE_TOOLS } from '@/application/settings/presets'
 import { DEFAULT_SETTINGS, DEFAULT_TOOL_MODES } from '@/domain/settings/PluginSettings'
 
 const base = { ...DEFAULT_SETTINGS }
@@ -52,5 +52,41 @@ describe('applyPreset', () => {
   it('covers all keys in DEFAULT_TOOL_MODES for safe-defaults', () => {
     const result = applyPreset(base, 'safe-defaults')
     expect(Object.keys(result.toolModes).sort()).toEqual(Object.keys(DEFAULT_TOOL_MODES).sort())
+  })
+})
+
+describe('applyPreset trusted-writes', () => {
+  it('sets every safe-write tool to "allow"', () => {
+    const result = applyPreset(base, 'trusted-writes')
+    for (const tool of SAFE_WRITE_TOOLS) {
+      expect(result.toolModes[tool]).toBe('allow')
+    }
+  })
+
+  it('keeps destructive tools at "ask"', () => {
+    const result = applyPreset(base, 'trusted-writes')
+    for (const tool of DESTRUCTIVE_TOOLS) {
+      expect(result.toolModes[tool]).toBe('ask')
+    }
+  })
+
+  it('keeps shell-level tools at "deny"', () => {
+    const result = applyPreset(base, 'trusted-writes')
+    expect(result.toolModes['cli.eval']).toBe('deny')
+    expect(result.toolModes['cli.execute']).toBe('deny')
+    expect(result.toolModes['cli.run']).toBe('deny')
+  })
+
+  it('leaves read tools at "allow" (unchanged from defaults)', () => {
+    const result = applyPreset(base, 'trusted-writes')
+    expect(result.toolModes['vault.read']).toBe('allow')
+    expect(result.toolModes['metadata.tags']).toBe('allow')
+  })
+
+  it('does not mutate the input', () => {
+    const original = { ...base, toolModes: { ...base.toolModes } }
+    const before = JSON.stringify(original.toolModes)
+    applyPreset(original, 'trusted-writes')
+    expect(JSON.stringify(original.toolModes)).toBe(before)
   })
 })
