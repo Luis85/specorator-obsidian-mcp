@@ -33,9 +33,25 @@ describe('upsertTomlBlock', () => {
     expect(out).toContain('x = 1')
   })
 
-  it('handles a hyphenated bare-key header', () => {
-    const out = upsertTomlBlock('', HEADER, [`url = "${URL}"`])
-    expect(out.startsWith(`[${HEADER}]`)).toBe(true)
+  it('is idempotent when called twice with the same body', () => {
+    const once = upsertTomlBlock('', HEADER, [`url = "${URL}"`])
+    expect(upsertTomlBlock(once, HEADER, [`url = "${URL}"`])).toBe(once)
+  })
+
+  it('preserves the blank line before the next table when replacing', () => {
+    const existing = `[${HEADER}]\nurl = "http://old/mcp"\n\n[other]\nx = 1\n`
+    const out = upsertTomlBlock(existing, HEADER, [`url = "${URL}"`])
+    expect(out).toBe(`[${HEADER}]\nurl = "${URL}"\n\n[other]\nx = 1\n`)
+  })
+
+  it('replaces a block in a CRLF file, preserving CRLF endings', () => {
+    const crlf = `# cfg\r\nmodel = "o3"\r\n\r\n[${HEADER}]\r\nurl = "http://old/mcp"\r\n`
+    const out = upsertTomlBlock(crlf, HEADER, [`url = "${URL}"`])
+    expect(out).not.toContain('http://old/mcp')
+    expect(out).toContain(`url = "${URL}"`)
+    expect((out.match(/\[mcp_servers/g) ?? []).length).toBe(1)
+    expect(out.includes('\r\n')).toBe(true)
+    expect(/[^\r]\n/.test(out)).toBe(false) // no bare-LF mixed in
   })
 })
 
@@ -47,6 +63,14 @@ describe('readTomlBlockUrl', () => {
 
   it('returns null when our block is absent', () => {
     expect(readTomlBlockUrl(`[other]\nurl = "x"\n`, HEADER)).toBeNull()
+  })
+
+  it('reads a url with a trailing inline comment', () => {
+    expect(readTomlBlockUrl(`[${HEADER}]\nurl = "${URL}" # primary\n`, HEADER)).toBe(URL)
+  })
+
+  it('returns null when the block has no url key', () => {
+    expect(readTomlBlockUrl(`[${HEADER}]\ncommand = "npx"\n`, HEADER)).toBeNull()
   })
 })
 
