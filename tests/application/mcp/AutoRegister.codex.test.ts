@@ -108,3 +108,65 @@ describe('wellKnownTargets', () => {
     expect(claude.format ?? 'json').toBe('json')
   })
 })
+
+describe('AutoRegister codex (toml) supply-chain detection', () => {
+  const t: AutoRegisterTarget = {
+    id: 'codex',
+    name: 'Codex CLI',
+    configPath: '/fake/.codex/config.toml',
+    format: 'toml',
+  }
+
+  function captureLogger(warnings: string[]) {
+    return {
+      debug: () => {},
+      info: () => {},
+      warn: (m: string) => warnings.push(m),
+      error: () => {},
+    }
+  }
+
+  it('warns and overwrites when our block is externally mutated (re-register)', async () => {
+    const fs = new MockFileSystemPort()
+    const warnings: string[] = []
+    const ar = new AutoRegister(fs, captureLogger(warnings))
+    await ar.register(URL, [t]) // baseline + sidecar hash
+    fs.files.set(t.configPath, `[${HEADER}]\nurl = "http://evil/mcp"\n`) // external tamper
+    const results = await ar.register(URL, [t])
+    expect(results[0]?.status).toBe('registered')
+    expect(results[0]?.externallyMutated).toBe(true)
+    expect(warnings.some((w) => /modified externally/i.test(w))).toBe(true)
+    expect(readTomlBlockUrl(fs.files.get(t.configPath)!, HEADER)).toBe(URL) // restored
+  })
+
+  it('warns on deregister when our block was externally mutated', async () => {
+    const fs = new MockFileSystemPort()
+    const warnings: string[] = []
+    const ar = new AutoRegister(fs, captureLogger(warnings))
+    await ar.register(URL, [t])
+    fs.files.set(t.configPath, `[${HEADER}]\nurl = "http://evil/mcp"\n`)
+    await ar.deregister([t])
+    expect(warnings.some((w) => /modified externally/i.test(w))).toBe(true)
+  })
+
+  it('does NOT warn on deregister when the block has no url key (Fix 1)', async () => {
+    const fs = new MockFileSystemPort()
+    const warnings: string[] = []
+    const ar = new AutoRegister(fs, captureLogger(warnings))
+    await ar.register(URL, [t]) // establishes sidecar
+    fs.files.set(t.configPath, `[${HEADER}]\ncommand = "npx"\n`) // block present, no url=
+    const results = await ar.deregister([t])
+    expect(results[0]?.status).toBe('deregistered')
+    expect(warnings).toHaveLength(0)
+  })
+
+  it('removes the sidecar entry after deregister', async () => {
+    const fs = new MockFileSystemPort()
+    const ar = new AutoRegister(fs)
+    const { sidecarPath } = await import('@/application/mcp/AutoRegister')
+    await ar.register(URL, [t])
+    expect(JSON.parse(fs.files.get(sidecarPath())!)[t.configPath]).toBeDefined()
+    await ar.deregister([t])
+    expect(JSON.parse(fs.files.get(sidecarPath())!)[t.configPath]).toBeUndefined()
+  })
+})

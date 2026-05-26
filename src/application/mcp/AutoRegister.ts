@@ -323,7 +323,9 @@ export class AutoRegister {
       return { target: t, status: 'unchanged' }
     }
     const priorUrl = readTomlBlockUrl(existing, header)
-    await detectExternalMutation(this.fs, t.configPath, { url: priorUrl }, this.logger)
+    if (priorUrl !== null) {
+      await detectExternalMutation(this.fs, t.configPath, { url: priorUrl }, this.logger)
+    }
     await this.fs.writeText(`${t.configPath}.bak`, existing)
     await this.fs.writeText(t.configPath, removeTomlBlock(existing, header))
     await removeSidecarEntry(this.fs, t.configPath)
