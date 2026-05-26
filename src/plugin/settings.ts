@@ -7,7 +7,7 @@ import {
   type ToolMode,
   type LogLevel,
 } from '@/domain/settings/PluginSettings'
-import { applyPreset, SAFE_WRITE_TOOLS, DESTRUCTIVE_TOOLS } from '@/application/settings/presets'
+import { applyPreset, SAFE_WRITE_TOOLS } from '@/application/settings/presets'
 import type { FileSystem } from '@/domain/catalog/types'
 import {
   ALLOWLISTED_TOOLS,
@@ -147,11 +147,17 @@ function renderPresetButtons(
 function renderTierLegend(containerEl: HTMLElement): void {
   const legend = containerEl.createEl('div', { cls: 'setting-item-description' })
   legend.style.cssText = 'margin:4px 0 12px;line-height:1.6;'
+  const stillPrompts = Object.entries(DEFAULT_TOOL_MODES)
+    .filter(([tool, mode]) => mode === 'ask' && !SAFE_WRITE_TOOLS.includes(tool))
+    .map(([tool]) => tool)
+  const blocked = Object.entries(DEFAULT_TOOL_MODES)
+    .filter(([, mode]) => mode === 'deny')
+    .map(([tool]) => tool)
   const rows: [string, string][] = [
     ['Read', 'Allowed by default — no prompt.'],
-    ['Safe write', `Allowed by "Trusted writes": ${SAFE_WRITE_TOOLS.join(', ')}.`],
-    ['Destructive', `Always prompts under "Trusted writes": ${DESTRUCTIVE_TOOLS.join(', ')}.`],
-    ['Blocked', 'Denied by default: cli.eval, cli.execute, cli.run.'],
+    ['Safe write (Trusted writes allows)', `${[...SAFE_WRITE_TOOLS].join(', ')}.`],
+    ['Still prompts under Trusted writes', `${stillPrompts.join(', ')}.`],
+    ['Blocked (denied by default)', `${blocked.join(', ')}.`],
   ]
   for (const [tier, desc] of rows) {
     const line = legend.createEl('div')

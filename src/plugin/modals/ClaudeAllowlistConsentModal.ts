@@ -27,7 +27,12 @@ export class ClaudeAllowlistConsentModal extends Modal {
     pre.style.maxHeight = '240px'
     pre.style.overflowY = 'auto'
 
-    const sync = await detectSyncedVault(this.fs)
+    let sync: string | null
+    try {
+      sync = await detectSyncedVault(this.fs)
+    } catch {
+      sync = null
+    }
     if (sync !== null) {
       contentEl.createEl('p', {
         text: `This vault appears to be under ${sync}. Writing .claude/settings.json will propagate to every machine/collaborator that syncs this vault.`,

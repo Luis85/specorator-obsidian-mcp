@@ -56,6 +56,15 @@ export class CombinedSettingsTab extends PluginSettingTab {
     switch (this.activeTab) {
       case 'server':
         renderServerTab(this.mcpPlugin, content, () => this.display())
+        if (this.mcpPlugin.isMcpRunning()) {
+          const link = content.createEl('a', { text: 'Go to Workflow catalog →' })
+          link.style.cssText = 'display:block;margin:8px 0 0;font-size:0.9em;cursor:pointer;'
+          link.addEventListener('click', (e) => {
+            e.preventDefault()
+            this.activeTab = 'catalog'
+            this.display()
+          })
+        }
         break
       case 'permissions':
         renderPermissionsTab(this.mcpPlugin, content, () => this.display(), this.fs)
