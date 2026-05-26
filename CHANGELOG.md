@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-26
+
+### Added
+
+- **Codex CLI auto-register** — opt-in toggle writes the MCP server URL into `~/.codex/config.toml` (`$CODEX_HOME`-aware) as `[mcp_servers.specorator-obsidian-mcp]`, using a format-preserving TOML splice that preserves existing comments and tables. Joins the existing Claude CLI / Claude Desktop / Cursor auto-register clients.
+- **Trusted-writes permission preset** — a middle tier between "Safe defaults" and "All allow": allows reads + safe writes, still prompts for delete/move/reload, and keeps shell-level tools (`cli.eval`/`cli.execute`/`cli.run`) denied. A tier legend in settings explains what each tier covers.
+- **Generate Claude Code allowlist** — settings button that merges read + safe-write tools into the vault's `.claude/settings.json` `permissions.allow` (consent-gated), so Claude Code stops prompting for them. Existing entries are preserved.
+- **Tabbed settings** — the settings panel is reorganized into Server / Permissions / Catalog / Advanced tabs.
+
+### Changed
+
+- Ask-timeout setting copy now clarifies it controls the in-vault confirmation modal, which is separate from the Claude Code approval prompt.
+
 ## [0.2.3] — 2026-05-26
 
 ### Added
@@ -166,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Status bar item shows running port.
 - Auto-register MCP server URL with Claude CLI (default), Claude Desktop, Cursor on server start; deregister on stop. Opt-in toggles per client in settings.
 
-[Unreleased]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.3...HEAD
+[Unreleased]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.3...0.3.0
 [0.2.3]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.2...0.2.3
 [0.2.2]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/Luis85/specorator-obsidian-mcp/compare/0.2.0...0.2.1
