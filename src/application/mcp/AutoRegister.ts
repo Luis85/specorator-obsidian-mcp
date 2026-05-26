@@ -1,11 +1,14 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { FileSystemPort, LoggerPort } from '@/domain/ports'
+import { upsertTomlBlock, removeTomlBlock, readTomlBlockUrl, hasTomlBlock } from './tomlBlock'
 
 export interface AutoRegisterTarget {
-  id: 'claudeCli' | 'cursor' | 'claudeDesktop'
+  id: 'claudeCli' | 'cursor' | 'claudeDesktop' | 'codex'
   name: string
   configPath: string
+  /** Config file format. Defaults to 'json' (the historical behavior). */
+  format?: 'json' | 'toml'
 }
 
 export const SERVER_KEY = 'specorator-obsidian-mcp'
@@ -25,10 +28,32 @@ export function wellKnownTargets(): AutoRegisterTarget[] {
       : platform === 'win32'
         ? join(process.env['APPDATA'] ?? home, 'Claude', 'claude_desktop_config.json')
         : join(home, '.config', 'Claude', 'claude_desktop_config.json')
+  const codexHome = process.env['CODEX_HOME'] ?? join(home, '.codex')
   return [
-    { id: 'claudeCli', name: 'Claude CLI', configPath: join(home, '.claude.json') },
-    { id: 'cursor', name: 'Cursor', configPath: join(home, '.cursor', 'mcp.json') },
-    { id: 'claudeDesktop', name: 'Claude Desktop', configPath: desktopPath },
+    {
+      id: 'claudeCli',
+      name: 'Claude CLI',
+      configPath: join(home, '.claude.json'),
+      format: 'json' as const,
+    },
+    {
+      id: 'cursor',
+      name: 'Cursor',
+      configPath: join(home, '.cursor', 'mcp.json'),
+      format: 'json' as const,
+    },
+    {
+      id: 'claudeDesktop',
+      name: 'Claude Desktop',
+      configPath: desktopPath,
+      format: 'json' as const,
+    },
+    {
+      id: 'codex',
+      name: 'Codex CLI',
+      configPath: join(codexHome, 'config.toml'),
+      format: 'toml' as const,
+    },
   ]
 }
 
@@ -134,6 +159,10 @@ export class AutoRegister {
     const out: RegisterResult[] = []
     for (const t of targets) {
       try {
+        if ((t.format ?? 'json') === 'toml') {
+          out.push(await this.registerToml(t, url))
+          continue
+        }
         const existing = await this.fs.readText(t.configPath)
         let blob: Record<string, unknown> = {}
         if (existing !== null) {
@@ -207,6 +236,10 @@ export class AutoRegister {
     const out: RegisterResult[] = []
     for (const t of targets) {
       try {
+        if ((t.format ?? 'json') === 'toml') {
+          out.push(await this.deregisterToml(t))
+          continue
+        }
         const existing = await this.fs.readText(t.configPath)
         if (existing === null) {
           out.push({ target: t, status: 'unchanged' })
@@ -247,5 +280,55 @@ export class AutoRegister {
       }
     }
     return out
+  }
+
+  // ── TOML path (Codex) ──────────────────────────────────────────────────────
+  private tomlHeader(): string {
+    return `mcp_servers.${SERVER_KEY}`
+  }
+
+  private async registerToml(t: AutoRegisterTarget, url: string): Promise<RegisterResult> {
+    const header = this.tomlHeader()
+    const existing = await this.fs.readText(t.configPath)
+    const content = existing ?? ''
+    const priorUrl = readTomlBlockUrl(content, header)
+
+    let externallyMutated = false
+    if (priorUrl !== null) {
+      externallyMutated = await detectExternalMutation(
+        this.fs,
+        t.configPath,
+        { url: priorUrl },
+        this.logger,
+      )
+    }
+
+    if (!externallyMutated && priorUrl === url) {
+      return { target: t, status: 'unchanged' }
+    }
+
+    if (existing !== null) {
+      await this.fs.writeText(`${t.configPath}.bak`, existing)
+    }
+    const next = upsertTomlBlock(content, header, [`url = "${url}"`])
+    await this.fs.writeText(t.configPath, next)
+    await recordWrittenHash(this.fs, t.configPath, { url })
+    return { target: t, status: 'registered', externallyMutated }
+  }
+
+  private async deregisterToml(t: AutoRegisterTarget): Promise<RegisterResult> {
+    const header = this.tomlHeader()
+    const existing = await this.fs.readText(t.configPath)
+    if (existing === null || !hasTomlBlock(existing, header)) {
+      return { target: t, status: 'unchanged' }
+    }
+    const priorUrl = readTomlBlockUrl(existing, header)
+    if (priorUrl !== null) {
+      await detectExternalMutation(this.fs, t.configPath, { url: priorUrl }, this.logger)
+    }
+    await this.fs.writeText(`${t.configPath}.bak`, existing)
+    await this.fs.writeText(t.configPath, removeTomlBlock(existing, header))
+    await removeSidecarEntry(this.fs, t.configPath)
+    return { target: t, status: 'deregistered' }
   }
 }

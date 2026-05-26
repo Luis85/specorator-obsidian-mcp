@@ -1,4 +1,4 @@
-import { Notice, App, PluginSettingTab, Setting } from 'obsidian'
+import { Notice, Setting } from 'obsidian'
 import { exec } from 'child_process'
 import type SpecoratorMcpPlugin from './main'
 import {
@@ -7,7 +7,14 @@ import {
   type ToolMode,
   type LogLevel,
 } from '@/domain/settings/PluginSettings'
-import { applyPreset } from '@/application/settings/presets'
+import { applyPreset, SAFE_WRITE_TOOLS } from '@/application/settings/presets'
+import type { FileSystem } from '@/domain/catalog/types'
+import {
+  ALLOWLISTED_TOOLS,
+  toHarnessToolId,
+  mergeAllowlist,
+} from '@/application/settings/claudeAllowlist'
+import { ClaudeAllowlistConsentModal } from './modals/ClaudeAllowlistConsentModal'
 
 const MODES: ToolMode[] = ['allow', 'ask', 'deny']
 const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
@@ -87,16 +94,6 @@ function renderStatusBanner(
     stopBtn.onclick = () => {
       void plugin.stopServerPublic().then(() => onRefresh())
     }
-
-    // Jump-to-catalog anchor: lets users navigate directly to the Workflow
-    // catalog section from the status banner without manual scrolling.
-    const jumpLink = containerEl.createEl('a', { text: 'Jump to Workflow catalog →' })
-    jumpLink.style.cssText = 'display:block;margin:4px 0 12px;font-size:0.9em;cursor:pointer;'
-    jumpLink.addEventListener('click', (e) => {
-      e.preventDefault()
-      const target = containerEl.querySelector<HTMLElement>('[data-section="catalog"]')
-      target?.scrollIntoView({ behavior: 'smooth' })
-    })
   }
 }
 
@@ -124,6 +121,15 @@ function renderPresetButtons(
     onRefresh()
   }
 
+  const trustedBtn = row.createEl('button', { text: 'Trusted writes' })
+  trustedBtn.title =
+    'Allow reads and safe writes; still prompt for delete/move/reload and keep shell tools denied'
+  trustedBtn.onclick = async () => {
+    plugin.settings = applyPreset(plugin.settings, 'trusted-writes')
+    await plugin.saveSettings()
+    onRefresh()
+  }
+
   const allAllowBtn = row.createEl('button', { text: 'All allow (advanced)' })
   allAllowBtn.title = 'Grant full access — only use in isolated / trusted environments'
   allAllowBtn.style.color = 'var(--text-warning, #ff6b6b)'
@@ -138,14 +144,31 @@ function renderPresetButtons(
   }
 }
 
-/**
- * Render all MCP server settings into `containerEl`.
- * Extracted so `CombinedSettingsTab` can embed this section without
- * instantiating a second `PluginSettingTab`.
- *
- * @param onRefresh - callback to re-render the owning tab (pass `() => tab.display()`)
- */
-export function renderMcpServerSettings(
+function renderTierLegend(containerEl: HTMLElement): void {
+  const legend = containerEl.createEl('div', { cls: 'setting-item-description' })
+  legend.style.cssText = 'margin:4px 0 12px;line-height:1.6;'
+  const stillPrompts = Object.entries(DEFAULT_TOOL_MODES)
+    .filter(([tool, mode]) => mode === 'ask' && !SAFE_WRITE_TOOLS.includes(tool))
+    .map(([tool]) => tool)
+  const blocked = Object.entries(DEFAULT_TOOL_MODES)
+    .filter(([, mode]) => mode === 'deny')
+    .map(([tool]) => tool)
+  const rows: [string, string][] = [
+    ['Read', 'Allowed by default — no prompt.'],
+    ['Safe write (Trusted writes allows)', `${[...SAFE_WRITE_TOOLS].join(', ')}.`],
+    ['Still prompts under Trusted writes', `${stillPrompts.join(', ')}.`],
+    ['Blocked (denied by default)', `${blocked.join(', ')}.`],
+  ]
+  for (const [tier, desc] of rows) {
+    const line = legend.createEl('div')
+    line.createEl('strong', { text: `${tier}: ` })
+    line.appendText(desc)
+  }
+}
+
+// ── Exported tab renderers ─────────────────────────────────────────────────────
+
+export function renderServerTab(
   plugin: SpecoratorMcpPlugin,
   containerEl: HTMLElement,
   onRefresh: () => void,
@@ -173,39 +196,6 @@ export function renderMcpServerSettings(
         }
         portErrorEl.style.display = 'none'
         plugin.settings.port = n
-        await plugin.saveSettings()
-      }),
-    )
-
-  new Setting(containerEl)
-    .setName('Default mode')
-    .setDesc('Applied to any tool without an explicit override.')
-    .addDropdown((d) => {
-      for (const m of MODES) d.addOption(m, m)
-      d.setValue(plugin.settings.defaultMode).onChange(async (v) => {
-        plugin.settings.defaultMode = v as ToolMode
-        await plugin.saveSettings()
-      })
-    })
-
-  const timeoutErrorEl = containerEl.createEl('div', {
-    cls: 'setting-item-description mod-warning',
-    text: '',
-  })
-  timeoutErrorEl.style.display = 'none'
-  new Setting(containerEl)
-    .setName('Ask timeout (seconds)')
-    .setDesc('Modal auto-denies after this many seconds with no response.')
-    .addText((t) =>
-      t.setValue(String(Math.round(plugin.settings.askTimeoutMs / 1000))).onChange(async (v) => {
-        const seconds = Number(v)
-        if (!Number.isInteger(seconds) || seconds < 1) {
-          timeoutErrorEl.setText(`Invalid timeout "${v}" — must be a whole number ≥ 1.`)
-          timeoutErrorEl.style.display = 'block'
-          return
-        }
-        timeoutErrorEl.style.display = 'none'
-        plugin.settings.askTimeoutMs = Math.round(seconds * 1000)
         await plugin.saveSettings()
       }),
     )
@@ -269,29 +259,6 @@ export function renderMcpServerSettings(
         })
     })
 
-  // ── Path deny-list ────────────────────────────────────────────────────────
-  containerEl.createEl('h2', { text: 'Path deny-list' })
-  const denyDesc = containerEl.createEl('p', {
-    text: 'Glob patterns (micromatch syntax — see ',
-  })
-  denyDesc.createEl('a', {
-    text: 'path-deny-list glossary',
-    href: 'docs/glossary/path-deny-list.md',
-  })
-  denyDesc.appendText(
-    '). Tool calls whose "path" param matches any pattern are denied regardless of mode. Use `.` to match the vault root itself; use `**` to match recursively.',
-  )
-
-  new Setting(containerEl).setName('Patterns (one per line)').addTextArea((t) =>
-    t.setValue(plugin.settings.pathDenyList.join('\n')).onChange(async (v) => {
-      plugin.settings.pathDenyList = v
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-      await plugin.saveSettings()
-    }),
-  )
-
   // ── Auto-register ─────────────────────────────────────────────────────────
   containerEl.createEl('h2', { text: 'Auto-register MCP URL with clients' })
   containerEl.createEl('p', {
@@ -314,6 +281,11 @@ export function renderMcpServerSettings(
       label: 'Claude Desktop',
       desc: 'claude_desktop_config.json — opt in if you use Claude Desktop.',
     },
+    {
+      id: 'codex',
+      label: 'Codex CLI',
+      desc: '~/.codex/config.toml — opt in if you use Codex CLI.',
+    },
   ]
 
   for (const client of autoRegisterClients) {
@@ -327,6 +299,150 @@ export function renderMcpServerSettings(
         }),
       )
   }
+}
+
+export function renderPermissionsTab(
+  plugin: SpecoratorMcpPlugin,
+  containerEl: HTMLElement,
+  onRefresh: () => void,
+  fs: FileSystem,
+): void {
+  new Setting(containerEl)
+    .setName('Default mode')
+    .setDesc('Applied to any tool without an explicit override.')
+    .addDropdown((d) => {
+      for (const m of MODES) d.addOption(m, m)
+      d.setValue(plugin.settings.defaultMode).onChange(async (v) => {
+        plugin.settings.defaultMode = v as ToolMode
+        await plugin.saveSettings()
+      })
+    })
+
+  const timeoutErrorEl = containerEl.createEl('div', {
+    cls: 'setting-item-description mod-warning',
+    text: '',
+  })
+  timeoutErrorEl.style.display = 'none'
+  new Setting(containerEl)
+    .setName('Ask timeout (seconds)')
+    .setDesc(
+      'The in-vault confirmation modal auto-denies after this many seconds with no response. ' +
+        'This is separate from the Claude Code approval prompt — see "Generate Claude Code allowlist" below.',
+    )
+    .addText((t) =>
+      t.setValue(String(Math.round(plugin.settings.askTimeoutMs / 1000))).onChange(async (v) => {
+        const seconds = Number(v)
+        if (!Number.isInteger(seconds) || seconds < 1) {
+          timeoutErrorEl.setText(`Invalid timeout "${v}" — must be a whole number ≥ 1.`)
+          timeoutErrorEl.style.display = 'block'
+          return
+        }
+        timeoutErrorEl.style.display = 'none'
+        plugin.settings.askTimeoutMs = Math.round(seconds * 1000)
+        await plugin.saveSettings()
+      }),
+    )
+
+  // ── Tool modes ────────────────────────────────────────────────────────────
+  containerEl.createEl('h2', { text: 'Tool modes' })
+  containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
+
+  // Quick preset buttons
+  renderPresetButtons(plugin, containerEl, onRefresh)
+
+  // Tier legend
+  renderTierLegend(containerEl)
+
+  // Group tools by namespace
+  const groups = new Map<string, string[]>()
+  for (const tool of Object.keys(DEFAULT_TOOL_MODES).sort()) {
+    const ns = tool.split('.')[0]!
+    if (!groups.has(ns)) groups.set(ns, [])
+    groups.get(ns)!.push(tool)
+  }
+
+  for (const [ns, tools] of groups) {
+    containerEl.createEl('h3', { text: `${capitalise(ns)} tools` })
+    const nsDesc = NS_DESCRIPTIONS[ns]
+    if (nsDesc) {
+      containerEl.createEl('p', { text: nsDesc, cls: 'setting-item-description' })
+    }
+    for (const tool of tools) {
+      new Setting(containerEl)
+        .setName(tool)
+        .setDesc(`Default: ${DEFAULT_TOOL_MODES[tool]}`)
+        .addDropdown((d) => {
+          for (const m of MODES) d.addOption(m, m)
+          d.setValue(plugin.settings.toolModes[tool] ?? DEFAULT_TOOL_MODES[tool]!).onChange(
+            async (v) => {
+              plugin.settings.toolModes[tool] = v as ToolMode
+              await plugin.saveSettings()
+            },
+          )
+        })
+    }
+  }
+
+  // ── Claude Code allowlist generator ───────────────────────────────────────
+  containerEl.createEl('h3', { text: 'Claude Code allowlist' })
+  containerEl.createEl('p', {
+    cls: 'setting-item-description',
+    text: 'Add read + safe-write tools to this vault\'s .claude/settings.json so Claude Code stops prompting for them. Destructive tools are left out. Note: this only affects the Claude Code prompt — write tools still hit the in-vault confirmation unless you also apply the "Trusted writes" preset above.',
+  })
+  new Setting(containerEl)
+    .setName('Generate Claude Code allowlist')
+    .setDesc('Writes/merges into .claude/settings.json (existing entries preserved).')
+    .addButton((b) =>
+      b.setButtonText('Generate…').onClick(() => {
+        const targetPath = '.claude/settings.json'
+        const toolIds = ALLOWLISTED_TOOLS.map(toHarnessToolId)
+        new ClaudeAllowlistConsentModal(fs, plugin.app, targetPath, toolIds, () => {
+          void (async () => {
+            try {
+              const existing = await fs.read(targetPath)
+              const { json, added } = mergeAllowlist(existing, toolIds)
+              await fs.mkdirp('.claude')
+              await fs.write(targetPath, JSON.stringify(json, null, 2) + '\n')
+              new Notice(
+                added.length > 0
+                  ? `Added ${added.length} tool(s) to Claude Code allowlist.`
+                  : 'Claude Code allowlist already up to date.',
+              )
+            } catch (err) {
+              new Notice(
+                `Could not update .claude/settings.json: ${err instanceof Error ? err.message : String(err)}`,
+                10000,
+              )
+            }
+          })()
+        }).open()
+      }),
+    )
+}
+
+export function renderAdvancedTab(plugin: SpecoratorMcpPlugin, containerEl: HTMLElement): void {
+  // ── Path deny-list ────────────────────────────────────────────────────────
+  containerEl.createEl('h2', { text: 'Path deny-list' })
+  const denyDesc = containerEl.createEl('p', {
+    text: 'Glob patterns (micromatch syntax — see ',
+  })
+  denyDesc.createEl('a', {
+    text: 'path-deny-list glossary',
+    href: 'docs/glossary/path-deny-list.md',
+  })
+  denyDesc.appendText(
+    '). Tool calls whose "path" param matches any pattern are denied regardless of mode. Use `.` to match the vault root itself; use `**` to match recursively.',
+  )
+
+  new Setting(containerEl).setName('Patterns (one per line)').addTextArea((t) =>
+    t.setValue(plugin.settings.pathDenyList.join('\n')).onChange(async (v) => {
+      plugin.settings.pathDenyList = v
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+      await plugin.saveSettings()
+    }),
+  )
 
   // ── cli.execute allowed prefixes ──────────────────────────────────────────
   containerEl.createEl('h2', { text: 'cli.execute allowed prefixes' })
@@ -393,58 +509,4 @@ export function renderMcpServerSettings(
         await plugin.saveSettings()
       }),
     )
-
-  // ── Tool modes ────────────────────────────────────────────────────────────
-  containerEl.createEl('h2', { text: 'Tool modes' })
-  containerEl.createEl('p', { text: 'Override per-tool. Defaults shown.' })
-
-  // Quick preset buttons
-  renderPresetButtons(plugin, containerEl, onRefresh)
-
-  // Group tools by namespace
-  const groups = new Map<string, string[]>()
-  for (const tool of Object.keys(DEFAULT_TOOL_MODES).sort()) {
-    const ns = tool.split('.')[0]!
-    if (!groups.has(ns)) groups.set(ns, [])
-    groups.get(ns)!.push(tool)
-  }
-
-  for (const [ns, tools] of groups) {
-    containerEl.createEl('h3', { text: `${capitalise(ns)} tools` })
-    const nsDesc = NS_DESCRIPTIONS[ns]
-    if (nsDesc) {
-      containerEl.createEl('p', { text: nsDesc, cls: 'setting-item-description' })
-    }
-    for (const tool of tools) {
-      new Setting(containerEl)
-        .setName(tool)
-        .setDesc(`Default: ${DEFAULT_TOOL_MODES[tool]}`)
-        .addDropdown((d) => {
-          for (const m of MODES) d.addOption(m, m)
-          d.setValue(plugin.settings.toolModes[tool] ?? DEFAULT_TOOL_MODES[tool]!).onChange(
-            async (v) => {
-              plugin.settings.toolModes[tool] = v as ToolMode
-              await plugin.saveSettings()
-            },
-          )
-        })
-    }
-  }
-}
-
-// ── PluginSettingTab subclass (kept for backward compatibility) ─────────────────
-
-export class SpecoratorMcpSettingsTab extends PluginSettingTab {
-  constructor(
-    app: App,
-    private readonly plugin: SpecoratorMcpPlugin,
-  ) {
-    super(app, plugin)
-  }
-
-  display(): void {
-    const { containerEl } = this
-    containerEl.empty()
-    renderMcpServerSettings(this.plugin, containerEl, () => this.display())
-  }
 }

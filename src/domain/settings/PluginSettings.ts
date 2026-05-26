@@ -7,6 +7,7 @@ export interface AutoRegisterSettings {
   claudeCli: boolean
   cursor: boolean
   claudeDesktop: boolean
+  codex: boolean
 }
 
 export interface PluginSettings {
@@ -122,6 +123,7 @@ export const DEFAULT_AUTO_REGISTER: AutoRegisterSettings = Object.freeze({
   claudeCli: true,
   cursor: false,
   claudeDesktop: false,
+  codex: false,
 })
 
 export const DEFAULT_SETTINGS: PluginSettings = {
