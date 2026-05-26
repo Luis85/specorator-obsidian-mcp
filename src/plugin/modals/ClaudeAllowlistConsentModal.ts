@@ -21,7 +21,7 @@ export class ClaudeAllowlistConsentModal extends Modal {
     const { contentEl } = this
     contentEl.createEl('h3', { text: 'Generate Claude Code allowlist' })
     contentEl.createEl('p', {
-      text: `This merges ${this.toolIds.length} read + safe-write tools into ${this.targetPath} so Claude Code stops prompting for them. Existing entries are preserved.`,
+      text: `This merges ${this.toolIds.length} read + safe-write tools into ${this.targetPath} so Claude Code stops prompting for them. Write tools also need the "Trusted writes" preset (or a per-tool "allow") to skip the in-vault confirmation. Existing entries are preserved.`,
     })
     const pre = contentEl.createEl('pre', { text: this.toolIds.join('\n') })
     pre.style.maxHeight = '240px'

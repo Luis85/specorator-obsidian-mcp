@@ -387,7 +387,7 @@ export function renderPermissionsTab(
   containerEl.createEl('h3', { text: 'Claude Code allowlist' })
   containerEl.createEl('p', {
     cls: 'setting-item-description',
-    text: "Add read + safe-write tools to this vault's .claude/settings.json so Claude Code stops prompting for them. Destructive tools are left out.",
+    text: 'Add read + safe-write tools to this vault\'s .claude/settings.json so Claude Code stops prompting for them. Destructive tools are left out. Note: this only affects the Claude Code prompt — write tools still hit the in-vault confirmation unless you also apply the "Trusted writes" preset above.',
   })
   new Setting(containerEl)
     .setName('Generate Claude Code allowlist')
